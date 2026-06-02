@@ -42,7 +42,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         backgroundColor: bg, 
                         textColor: tc, 
                         borderColor: br,
-                        order: ord
+                        order: ord,
+                        classNames: t.includes('구원기념일') ? ['salvation-event'] : []
                     };
                 }));
             } catch (e) { failureCallback(e); }
