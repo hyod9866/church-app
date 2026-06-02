@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>설교 현황 - 부곡교구</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .sermon-card {
+            transition: all 0.2s ease;
+        }
+        .sermon-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-3 md:p-4 shadow-md flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+        <h1 class="text-lg md:text-xl font-bold truncate mr-2">부곡교구 통합 관리</h1>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+            <!-- 홈 -->
+            <a href="/" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                홈
+            </a>
+            <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                교회/교구/구역 현황
+            </a>
+            <!-- 성도 현황 -->
+            <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                성도 현황
+            </a>
+            <!-- 출석 현황 -->
+            <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                출석 현황
+            </a>
+            <!-- 심방 현황 -->
+            <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                심방 현황
+            </a>
+            <!-- 설교 현황 (Active) -->
+            <a href="/sermon_history.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                설교 현황
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-6">
+        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1 mr-4">
+                <h2 class="text-xl font-bold flex items-center min-w-max mr-4">설교 현황 기록</h2>
+                <div class="relative w-full md:w-64">
+                    <input type="text" id="sermonSearch" placeholder="제목/날짜 검색..." 
+                           class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <select id="typeFilter" class="w-full md:w-48 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-gray-700">
+                    <option value="전체">모든 모임</option>
+                    <option value="구역모임">구역모임</option>
+                    <option value="조모임">조모임</option>
+                    <option value="형제모임">형제모임</option>
+                    <option value="임원모임">임원모임</option>
+                    <option value="청년모임">청년모임</option>
+                    <option value="설교">외부/개인 설교</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+            <div id="sermonCount" class="text-gray-500 font-medium shrink-0">
+                총 0개의 설교 기록
+            </div>
+        </div>
+
+        <!-- Vertical Sermon List -->
+        <div id="sermonList" class="space-y-6">
+            <div class="flex justify-center py-20">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Action Button for Home -->
+    <a href="/" class="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition lg:hidden">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+    </a>
+
+    <script src="/js/sermon_history.js?v=20260531-4"></script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성도 관리 - 부곡교구</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for XLSX export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- SortableJS for custom sorting -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        .sort-icon { display: inline-block; width: 14px; text-align: center; }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background-color: #f3f4f6;
+            z-index: 10;
+        }
+        .table-container {
+            max-height: calc(100vh - 140px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-3 md:p-4 shadow-md flex justify-between items-center flex-shrink-0">
+        <h1 class="text-lg md:text-xl font-bold truncate mr-2">부곡교구 통합 관리</h1>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+            <!-- 홈 -->
+            <a href="/" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                홈
+            </a>
+            <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                교회/교구/구역 현황
+            </a>
+            <!-- 성도 현황 (Active) -->
+            <a href="/member_management.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                성도 현황
+            </a>
+            <!-- 출석 현황 -->
+            <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                출석 현황
+            </a>
+            <!-- 심방 현황 -->
+            <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                심방 현황
+            </a>
+            <!-- 설교 현황 -->
+            <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                설교 현황
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 flex flex-col overflow-hidden">
+        <div class="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full border border-gray-200">
+            <!-- Toolbar -->
+            <div class="flex flex-col gap-3 mb-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        성도 종합 데이터 관리
+                    </h2>
+                    <div class="flex gap-2 items-center">
+                        <span id="totalCount" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">0명 조회됨</span>
+                        <button id="btnCustomSort" class="bg-gray-800 text-white px-4 py-2 rounded font-bold hover:bg-black transition flex items-center gap-2 shadow-sm text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+                            커스텀 순서
+                        </button>
+                        <button id="btnEditSortMode" class="bg-gray-800 text-white px-4 py-2 rounded font-bold hover:bg-black transition flex items-center gap-2 shadow-sm text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            커스텀 정렬 수정
+                        </button>
+                        <button id="btnSaveSort" class="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm text-sm hidden">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            순서 저장
+                        </button>
+                        <button id="exportExcelBtn" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition flex items-center gap-2 shadow-sm text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            엑셀(XLSX) 저장
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex flex-col gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Name Search -->
+                        <div class="relative flex-1 min-w-[200px] max-w-md">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </span>
+                            <input type="text" id="searchName" placeholder="성도 성명으로 검색..." class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition font-bold">
+                        </div>
+
+                        <div class="border-l border-gray-300 mx-1 h-6 hidden md:block"></div>
+
+                        <select id="filterParish" class="border rounded px-2 py-1.5 text-sm font-bold text-blue-800 bg-blue-50 focus:ring-2 focus:ring-blue-500 outline-none border-blue-200">
+                        <option value="전체">모든 교구</option>
+                        <option value="부곡교구" selected>부곡교구</option>
+                        <option value="타 교구">타 교구</option>
+                    </select>
+                    
+                    <div class="border-l border-gray-300 mx-1 h-6 hidden md:block"></div>
+
+                    <select id="filterDistrict" class="border rounded px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="전체">모든 구역</option>
+                        <option value="581구역">581구역</option>
+                        <option value="582구역">582구역</option>
+                        <option value="583구역">583구역</option>
+                    </select>
+                    <select id="filterGender" class="border rounded px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="전체">성별 (전체)</option>
+                        <option value="B">형제</option>
+                        <option value="S">자매</option>
+                    </select>
+                    <select id="filterCategory" class="border rounded px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="전체">모든 회별</option>
+                        <option value="은장회">은장회</option>
+                        <option value="봉사회">봉사회</option>
+                        <option value="어머니회">어머니회</option>
+                        <option value="청년회">청년회</option>
+                    </select>
+                    
+                    <div class="border-l border-gray-300 mx-1 h-6 hidden md:block"></div>
+                    
+                    <div class="flex flex-wrap items-center gap-3 text-sm font-bold text-gray-700">
+                        <label class="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600" value="all" checked> 전체</label>
+                        <label class="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600" value="officer"> 교구 임원</label>
+                        <label class="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600" value="deacon"> 집사</label>
+                        <label class="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600" value="none"> 미봉사자</label>
+                    </div>
+
+                    <div class="flex gap-1 ml-auto">
+                        <button id="btnCheckAll" class="px-2 py-1 text-xs bg-white border border-gray-300 rounded font-bold hover:bg-gray-100 transition shadow-sm">전체 선택</button>
+                        <button id="btnUncheckAll" class="px-2 py-1 text-xs bg-white border border-gray-300 rounded font-bold hover:bg-gray-100 transition shadow-sm">전체 해제</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="flex-1 overflow-auto table-container border rounded-lg">
+                <table class="w-full text-sm text-left border-collapse whitespace-nowrap min-w-max">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 uppercase font-black text-[12px] tracking-wider">
+                            <th class="p-3 border-b border-r sticky-header w-12 text-center">No</th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-16" data-sort="district">구역 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-12" data-sort="category">소속 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-24" data-sort="name">성명 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-16" data-sort="birth_year">생년 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-12" data-sort="age">나이 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-24" data-sort="salvation_date">구원일 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-32" data-sort="position">직분 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition text-center w-32" data-sort="church_service">교회봉사 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition w-32" data-sort="family_relation">가족 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition w-32 text-center" data-sort="phone">연락처 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b border-r sticky-header cursor-pointer hover:bg-gray-200 transition min-w-[200px]" data-sort="address">주소 <span class="sort-icon text-blue-500"></span></th>
+                            <th class="p-3 border-b sticky-header cursor-pointer hover:bg-gray-200 transition min-w-[250px]" data-sort="testimony">메모 <span class="sort-icon text-blue-500"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white">
+                        <tr><td colspan="10" class="text-center p-8 text-gray-500 font-bold">데이터를 불러오는 중입니다...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Member History Modal (Copied from index.html) -->
+    <div id="memberHistoryModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-[100] p-2 md:p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="bg-green-700 text-white p-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold">성도 상세 정보</h3>
+                <button id="closeHistoryModal" class="p-1">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 md:p-6 overflow-y-auto flex-1 bg-gray-50">
+                <!-- Member Basic Info -->
+                <div id="memberBasicInfo" class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <!-- Dynamic Content -->
+                </div>
+
+                <!-- Visitation History Section -->
+                <div id="visitationHistorySection" class="mb-6 hidden">
+                    <h4 class="font-bold mb-3 text-teal-700 border-l-4 border-teal-500 pl-2">심방 메모 기록</h4>
+                    <div id="visitationMemoList" class="space-y-3">
+                        <!-- Dynamic Content -->
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="mb-4">
+                    <h4 class="font-bold mb-3 text-gray-800 border-l-4 border-green-600 pl-2 flex justify-between items-center">
+                        <span>출석 히스토리</span>
+                        <span id="memberAttendanceStats" class="text-sm font-bold text-blue-600"></span>
+                    </h4>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full text-sm text-left border-collapse bg-white">
+                            <thead class="bg-gray-100 text-gray-700 text-[11px] uppercase tracking-wider font-black">
+                                <tr>
+                                    <th class="p-2 border-b w-[100px] cursor-pointer hover:bg-gray-200 transition sort-header" data-sort="date">날짜 <span class="sort-icon"></span></th>
+                                    <th class="p-2 border-b min-w-[140px] cursor-pointer hover:bg-gray-200 transition sort-header" data-sort="title">모임정보 <span class="sort-icon"></span></th>
+                                    <th class="p-2 border-b text-center w-[40px] cursor-pointer hover:bg-gray-200 transition sort-header" data-sort="isPresent">출석 <span class="sort-icon"></span></th>
+                                    <th class="p-2 border-b cursor-pointer hover:bg-gray-200 transition sort-header" data-sort="memo">간증 <span class="sort-icon"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- Dynamic Content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Personal Records Section -->
+                <div class="mb-4 pt-4 border-t border-gray-100">
+                    <h4 class="font-bold mb-3 text-gray-800 border-l-4 border-blue-600 pl-2 flex justify-between items-center">
+                        <span>인적사항 히스토리</span>
+                    </h4>
+                    
+                    <div class="max-h-[300px] overflow-y-auto rounded-xl shadow-sm border border-gray-100 bg-white">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-100 text-gray-700 text-[11px] uppercase tracking-wider font-black sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b w-[100px]">날짜</th>
+                                    <th class="p-2 border-b w-[150px]">상황</th>
+                                    <th class="p-2 border-b">비고</th>
+                                    <th class="p-2 border-b w-[40px]"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordTableBody">
+                                <!-- Dynamic Content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 border-t flex gap-3">
+                <button id="deleteMemberBtn" class="px-4 py-3 text-red-600 bg-red-50 rounded font-bold mr-auto">교제안나옴</button>
+                <button id="editMemberBtn" class="px-6 py-3 text-white bg-blue-600 rounded font-bold shadow-md">수정</button>
+                <button id="closeHistoryModalBtn" class="px-6 py-3 text-white bg-green-700 rounded font-bold shadow-md">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    

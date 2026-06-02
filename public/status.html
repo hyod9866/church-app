@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교회/교구/구역 현황 - Pastoral Ministry Program</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .tree-node-active {
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+            color: #1e3a8a;
+        }
+        .timeline-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 15px;
+            width: 2px;
+            background-color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-3 md:p-4 shadow-md flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+        <div class="flex items-center gap-2 md:gap-3 mr-2 min-w-0">
+            <a href="/" class="hover:opacity-80 transition-opacity duration-150">
+                <h1 class="text-base md:text-xl font-black truncate">Pastoral Ministry Program</h1>
+            </a>
+            <div class="flex gap-1.5 items-center">
+                <!-- Share localStorage org states -->
+                <select id="headerChurchSelect" class="bg-blue-700/80 text-[10px] md:text-xs font-bold rounded-lg border border-blue-500/30 px-1.5 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-white/20 text-white max-w-[100px] md:max-w-none"></select>
+                <select id="headerParishSelect" class="bg-blue-700/80 text-[10px] md:text-xs font-bold rounded-lg border border-blue-500/30 px-1.5 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-white/20 text-white max-w-[100px] md:max-w-none"></select>
+            </div>
+        </div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+            <a href="/status.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                교회/교구/구역 현황
+            </a>
+            <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                성도 현황
+            </a>
+            <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                출석 현황
+            </a>
+            <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                심방 현황
+            </a>
+            <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                설교 현황
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content Work Space -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left: Interactive Tree Navigator -->
+        <aside class="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 shadow-lg">
+            <!-- Search & Actions -->
+            <div class="p-4 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-black text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap text-blue-600"></i> 조직 구조도
+                    </h2>
+                    <button id="addChurchBtn" class="text-xs bg-blue-600 text-white px-2.5 py-1.5 rounded-lg font-bold shadow hover:bg-blue-700 transition flex items-center gap-1">
+                        <i class="fa-solid fa-plus text-[10px]"></i> 교회 등록
+                    </button>
+                </div>
+                <!-- Search Box -->
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="treeSearchInput" placeholder="교회/교구/구역 검색..." class="w-full pl-9 pr-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold border-gray-200">
+                </div>
+                <!-- Toggle Filter -->
+                <div class="flex items-center justify-between text-xs text-gray-500 font-bold px-1">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="onlySermonChecked" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        🎤 설교 다녀온 교회만 보기
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Dynamic Tree Scroll Container -->
+            <div id="treeContainer" class="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar bg-white">
+                <!-- Injected dynamically by status.js -->
+                <div class="flex justify-center items-center py-20 text-gray-400 text-sm font-bold">
+                    <i class="fa-solid fa-circle-notch animate-spin mr-2"></i> 구조를 불러오는 중...
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right: Detail & Integration Control Panel -->
+        <section id="detailSection" class="flex-1 bg-slate-50 overflow-y-auto p-4 md:p-6 flex flex-col relative">
+            <!-- Alert Banner when no selection -->
+            <div id="noSelectionAlert" class="flex-1 flex flex-col justify-center items-center text-center text-gray-400 py-20 bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm">
+                <i class="fa-solid fa-folder-open text-5xl mb-4 text-gray-300"></i>
+                <h3 class="text-lg font-bold text-gray-700">선택된 조직 없음</h3>
+                <p class="text-xs text-gray-400 max-w-xs mt-1">왼쪽 구조도에서 교회, 교구 혹은 구역을 선택하시면 상세 정보 조회 및 조직 관리를 진행하실 수 있습니다.</p>
+            </div>
+
+            <!-- Dashboard Content (hidden by default) -->
+            <div id="detailDashboard" class="space-y-6 hidden">
+                <!-- Info Header card -->
+                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                    <div class="z-10">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span id="nodeTypeBadge" class="bg-white/20 text-white text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">교회</span>
+                            <span id="nodeParentHierarchy" class="text-blue-100 text-xs font-medium"></span>
+                        </div>
+                        <h2 id="nodeTitle" class="text-2xl md:text-3xl font-black">서울중앙교회</h2>
+                    </div>
+                    <div class="flex gap-2 z-10 flex-shrink-0">
+                        <button id="editNodeBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square"></i> 명칭 변경
+                        </button>
+                        <button id="deleteNodeBtn" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-trash-can"></i> 삭제
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs Menu -->
+                <div class="border-b border-gray-200">
+                    <div class="flex gap-6 -mb-px">
+                        <button id="tabOrgBtn" class="border-b-2 border-blue-600 text-blue-600 pb-3 px-1 text-sm font-black flex items-center gap-2">
+                            <i class="fa-solid fa-users"></i> 조직 관리
+                        </button>
+                        <button id="tabSermonBtn" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 pb-3 px-1 text-sm font-bold flex items-center gap-2 transition">
+                            <i class="fa-solid fa-microphone"></i> 외부설교 기록 <span id="sermonBadgeCount" class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Panel 1: Org Management -->
+                <div id="tabOrgPanel" class="space-y-6">
+                    <!-- Metrics Cards row -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div class="p-3 bg-blue-50 text-blue-600 rounded-xl text-xl"><i class="fa-solid fa-user-group"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-gray-400 block uppercase">소속 성도 수</span>
+                                <span id="metricMemberCount" class="text-xl font-extrabold text-gray-800">0명</span>
+                            </div>
+                        </div>
+                        <div id="metricSubOrgCard" class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl text-xl"><i class="fa-solid fa-network-wired"></i></div>
+                            <div>
+                                <span id="metricSubOrgTitle" class="text-[10px] font-black text-gray-400 block uppercase">하위 교구</span>
+                                <span id="metricSubOrgCount" class="text-xl font-extrabold text-gray-800">0개</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xl"><i class="fa-solid fa-shield-halved"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-gray-400 block uppercase">직분자 비율</span>
+                                <span id="metricOfficerRatio" class="text-xl font-extrabold text-gray-800">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inner actions and tables -->
+                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 id="tableSectionTitle" class="font-extrabold text-gray-800 text-sm">하위 조직 리스트</h3>
+                            <button id="addSubOrgBtn" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm hover:bg-blue-700 transition flex items-center gap-1">
+                                <i class="fa-solid fa-plus text-[9px]"></i> 하위 조직 추가
+                            </button>
+                        </div>
+                        <div id="tableListContainer" class="p-2 overflow-x-auto">
+                            <!-- Injected table / list by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Panel 2: External Sermon Timeline (🎤) -->
+                <div id="tabSermonPanel" class="space-y-6 hidden">
+                    <!-- Stats row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div class="p-3 bg-purple-50 text-purple-600 rounded-xl text-xl"><i class="fa-solid fa-microphone-lines"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-gray-400 block uppercase">총 외부설교 횟수</span>
+                                <span id="sermonStatTotal" class="text-xl font-extrabold text-gray-800">0회</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div class="p-3 bg-amber-50 text-amber-600 rounded-xl text-xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-gray-400 block uppercase">마지막 설교</span>
+                                <span id="sermonStatLast" class="text-xl font-extrabold text-gray-800">기록 없음</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Card -->
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <h3 class="font-extrabold text-gray-800 mb-6 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-timeline text-purple-600"></i> 외부설교 히스토리 타임라인
+                        </h3>
+                        <div class="relative timeline-line pl-8 space-y-6" id="sermonTimelineContainer">
+                            <!-- Populated dynamically -->
+                            <p class="text-gray-400 text-xs italic text-center py-4">기록된 외부설교가 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: General Node Dialog (Add/Edit) -->
+    <div id="nodeModal" class="fixed inset-0 bg-black/60 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
+            <div class="p-4 bg-gray-900 text-white flex justify-between items-center">
+                <h3 id="modalTitle" class="font-black text-base">새 교회 등록</h3>
+                <button type="button" class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="nodeForm" class="p-6 space-y-4">
+                <input type="hidden" id="nodeFormAction" value="create">
+                <input type="hidden" id="nodeFormType" value="church">
+                <input type="hidden" id="nodeFormParentId" value="">
+                <input type="hidden" id="nodeFormTargetId" value="">
+                
+                <div>
+                    <label id="inputLabel" class="block text-xs font-black text-gray-400 uppercase mb-1">교회명</label>
+                    <input type="text" id="nodeFormName" required class="w-full border-2 rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200" placeholder="교회 이름 입력...">
+                </div>
+                
+                <div id="parishLeaderSection" class="hidden">
+                    <label class="block text-xs font-black text-gray-400 uppercase mb-1">교구 부서 고유번호</label>
+                    <input type="number" id="nodeFormParishNo" class="w-full border-2 rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200" placeholder="교구 번호 입력 (예: 1, 2)...">
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" class="close-modal px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200 transition shadow-sm border border-gray-200">취소</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-black hover:bg-blue-700 transition shadow-md">확인</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/status.js"></script>
+</body>
+</html>

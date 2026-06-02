@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>심방 현황 관리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-3 md:p-4 shadow-md flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+        <a href="/" class="hover:opacity-80 transition-opacity duration-150">
+            <h1 class="text-base md:text-xl font-black truncate mr-2">Pastoral Ministry Program</h1>
+        </a>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+            <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                교회/교구/구역 현황
+            </a>
+            <!-- 성도 현황 -->
+            <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                성도 현황
+            </a>
+            <!-- 출석 현황 -->
+            <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                출석 현황
+            </a>
+            <!-- 심방 현황 (Active) -->
+            <a href="/visitation_history.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                심방 현황
+            </a>
+            <!-- 설교 현황 -->
+            <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                설교 현황
+            </a>
+        </div>
+    </header>
+
+    <!-- Nav (Legacy title kept for visual but simplified) -->
+    <nav class="bg-white border-b shadow-sm sticky top-[60px] z-40">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <h2 class="text-xl font-black text-gray-800">심방 현황 관리</h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="visitationCount" class="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1 rounded-full">로딩 중...</span>
+            </div>
+        </div>
+    </nav>
+    <main class="max-w-5xl mx-auto px-4 py-6">
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">구역 선택</label>
+                <select id="districtFilter" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="전체">전체 구역</option>
+                    <option value="581">581구역</option>
+                    <option value="582">582구역</option>
+                    <option value="583">583구역</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">정렬</label>
+                <select id="sortOption" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="oldest" selected>오래된 심방순 (관리 필요 우선)</option>
+                    <option value="name">이름순 (가나다)</option>
+                    <option value="last_visitation">최근 심방순 (가장 최근부터)</option>
+                    <option value="visited_first">기록 있는 분 먼저</option>
+                    <option value="not_visited_first">기록 없는 분 먼저</option>
+                    <option value="count">심방 횟수순</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- List Container -->
+        <div id="visitationList" class="space-y-4">
+            <!-- Content will be injected by JS -->
+            <div class="flex justify-center py-20">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/visitation_history.js"></script>
+</body>
+</html>

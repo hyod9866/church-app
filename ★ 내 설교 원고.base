@@ -1,0 +1,54 @@
+properties:
+  file.name:
+    displayName: 제목
+  note.날짜:
+    displayName: 최초설교
+views:
+  - type: table
+    name: 표
+    filters:
+      or:
+        - file.name.contains("mcs")
+        - file.name.contains("mss")
+    order:
+      - 날짜
+      - file.name
+      - 본문
+      - tags
+      - 성격
+      - 시간
+      - 조,구역
+      - 비고
+    sort:
+      - property: 날짜
+        direction: ASC
+      - property: file.name
+        direction: ASC
+      - property: 성격
+        direction: DESC
+      - property: 시간
+        direction: DESC
+      - property: 본문
+        direction: ASC
+    columnSize:
+      note.날짜: 140
+      file.name: 473
+      note.본문: 104
+      note.성격: 189
+      note.시간: 76
+      note.조,구역: 136
+  - type: table
+    name: View
+    order:
+      - file.name
+      - 시간
+      - 주제
+      - 조,구역
+      - 제목
+      - 비고
+      - 설명
+      - 성격
+      - 본문
+      - 강의제목
+      - 강의명
+      - 강사

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연간 출석 대시보드 - 부곡교구</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            background-color: white;
+            z-index: 10;
+        }
+        /* Row 1 (Date) */
+        .sticky-header-1 {
+            position: sticky;
+            top: 0;
+            background-color: #f3f4f6;
+            z-index: 21;
+        }
+        /* Row 2 (Meeting Label) */
+        .sticky-header-2 {
+            position: sticky;
+            top: 36px; /* Row 1 height approx */
+            background-color: #f8fafc;
+            z-index: 20;
+        }
+        /* Checkbox Chip Styling */
+        .meeting-type-checkbox:checked + .meeting-type-chip {
+            background-color: #ffffff;
+            color: #1e40af; /* bg-blue-800 or similar */
+            border-color: #93c5fd;
+            font-weight: 800;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .meeting-type-checkbox:not(:checked) + .meeting-type-chip {
+            background-color: rgba(30, 58, 138, 0.35); /* bg-blue-900/35 */
+            color: #bfdbfe; /* text-blue-200 */
+            border-color: rgba(147, 197, 253, 0.15);
+            font-weight: 500;
+        }
+        .sticky-both {
+            position: sticky;
+            top: 0;
+            left: 0;
+            background-color: #e5e7eb;
+            z-index: 30;
+        }
+        .attendance-cell {
+            min-width: 45px;
+            text-align: center;
+        }
+        .vertical-text-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        .dist-num {
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 2px;
+            font-size: 13px;
+        }
+        .meeting-label {
+            text-align: center;
+            word-break: keep-all;
+        }
+        .member-info {
+            width: 280px;
+            min-width: 280px;
+            max-width: 280px;
+            font-size: 14px;
+        }
+        .attendance-rate-badge {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .rate-high { background-color: #dcfce7; color: #166534; }
+        .rate-mid { background-color: #fef9c3; color: #854d0e; }
+        .rate-low { background-color: #fee2e2; color: #991b1b; }
+        
+        /* Prevent table from stretching too much when few columns */
+        #attendanceTable {
+            table-layout: fixed;
+            width: auto;
+            min-width: 100%;
+        }
+
+        /* iPad/Touch Optimization from index.html */
+        @media (max-width: 1024px) {
+            .sidebar-expanded { width: 100% !important; }
+            .main-content { padding: 8px !important; }
+            input, select, button { min-height: 44px; }
+        }
+        /* Smooth scrolling for iPad */
+        .overflow-y-auto {
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white flex flex-col flex-shrink-0">
+        <!-- Main Header Row -->
+        <div class="p-3 md:p-4 shadow-md flex justify-between items-center z-10 relative">
+            <div>
+                <a href="/" class="hover:opacity-80 transition-opacity duration-150">
+                    <h1 class="text-base md:text-xl font-black truncate mr-2">Pastoral Ministry Program</h1>
+                </a>
+            </div>
+            <div class="flex gap-2 overflow-x-auto no-scrollbar">
+                <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                    교회/교구/구역 현황
+                </a>
+                <!-- 성도 현황 -->
+                <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    성도 현황
+                </a>
+                <!-- 출석 현황 (Active) -->
+                <a href="/dashboard.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    출석 현황
+                </a>
+                <!-- 심방 현황 -->
+                <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    심방 현황
+                </a>
+                <!-- 설교 현황 -->
+                <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    설교 현황
+                </a>
+            </div>
+        </div>
+        
+        <!-- Filter Bar -->
+        <div class="bg-blue-700 px-3 py-2 md:px-4 flex flex-wrap gap-3 items-center text-sm border-t border-blue-600 shadow-sm z-0 relative">
+            <select id="yearSelect" class="bg-blue-800 text-white border border-blue-500 rounded-lg px-2 py-1.5 font-bold focus:outline-none">
+                <!-- Years will be populated dynamically -->
+            </select>
+            <p id="dashboardRange" class="text-xs text-blue-200 hidden md:block mr-2">작년 12월 ~ 올해 11월 기준</p>
+            <input type="text" id="memberSearch" placeholder="이름 검색..." class="text-gray-900 border-none rounded-lg px-3 py-1.5 w-32 md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            
+            <div class="flex items-center gap-2">
+                <select id="sidebarDistrictFilter" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="전체">모든 구역</option>
+                    <option value="581구역">581구역</option>
+                    <option value="582구역">582구역</option>
+                    <option value="583구역">583구역</option>
+                </select>
+                <select id="sidebarCategoryFilter" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="전체">모든 회별</option>
+                    <option value="봉사회">봉사회</option>
+                    <option value="어머니회">어머니회</option>
+                    <option value="청년회">청년회</option>
+                    <option value="은장회">은장회</option>
+                </select>
+                <select id="sidebarGenderFilter" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="전체">성별(전체)</option>
+                    <option value="B">형제(B)</option>
+                    <option value="S">자매(S)</option>
+                </select>
+                <select id="sortOrder" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-yellow-50 font-bold">
+                    <option value="name">이름순 ↑</option>
+                    <option value="rate">출석률순 ↓</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-1.5 border-l border-blue-600 pl-3">
+                <button id="selectAllMeetingTypes" class="text-[10px] text-blue-100 hover:text-white transition px-2 py-1.5 rounded bg-blue-800 font-bold border border-blue-500 whitespace-nowrap">전체선택</button>
+                <button id="deselectAllMeetingTypes" class="text-[10px] text-blue-200 hover:text-white transition px-2 py-1.5 rounded bg-blue-800 font-bold border border-blue-500 whitespace-nowrap">전체해제</button>
+            </div>
+            
+            <div class="flex-1 min-w-[200px] flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide py-1 border-l border-blue-600 pl-3">
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="구역모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">구역모임</span>
+                </label>
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="조모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">조모임</span>
+                </label>
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="교구전체모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">교구전체</span>
+                </label>
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="교구형제모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">형제모임</span>
+                </label>
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="교구청년모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">청년모임</span>
+                </label>
+                <label class="cursor-pointer select-none">
+                    <input type="checkbox" value="교구임원모임" class="meeting-type-checkbox sr-only" checked>
+                    <span class="meeting-type-chip px-3 py-1.5 rounded-full text-xs border border-transparent transition-all duration-150 inline-block">임원모임</span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Sidebar (Now for Chart) -->
+        <aside id="sidebar" class="w-80 md:w-96 bg-white border-r flex flex-col flex-shrink-0 z-40 transition-transform duration-300 transform md:translate-x-0 -translate-x-full absolute md:relative h-full shadow-lg">
+            <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    출석 인원 추이
+                </h2>
+                <button id="closeSidebar" class="md:hidden text-gray-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-8 scrollbar-hide">
+                <!-- District Chart -->
+                <div class="chart-section">
+                    <h3 class="text-xs font-black text-gray-700 mb-2 flex items-center">
+                        <span class="w-1 h-3 bg-blue-600 mr-2 rounded-full"></span>
+                        구역모임 (581~583)
+                    </h3>
+                    <div class="relative h-[160px] w-full">
+                        <canvas id="districtChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Group Chart -->
+                <div class="chart-section">
+                    <h3 class="text-xs font-black text-gray-700 mb-2 flex items-center">
+                        <span class="w-1 h-3 bg-red-600 mr-2 rounded-full"></span>
+                        조모임 (581~583)
+                    </h3>
+                    <div class="relative h-[160px] w-full">
+                        <canvas id="groupChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Brother Chart -->
+                <div class="chart-section">
+                    <h3 class="text-xs font-black text-gray-700 mb-2 flex items-center">
+                        <span class="w-1 h-3 bg-indigo-600 mr-2 rounded-full"></span>
+                        교구형제모임
+                    </h3>
+                    <div class="relative h-[160px] w-full">
+                        <canvas id="brotherChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Youth Chart -->
+                <div class="chart-section">
+                    <h3 class="text-xs font-black text-gray-700 mb-2 flex items-center">
+                        <span class="w-1 h-3 bg-purple-600 mr-2 rounded-full"></span>
+                        교구청년모임
+                    </h3>
+                    <div class="relative h-[160px] w-full">
+                        <canvas id="youthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-auto border-t p-4 space-y-2 bg-gray-50">
+                <div class="flex flex-wrap gap-2 text-[10px] text-gray-500 p-3 bg-white rounded-xl border shadow-sm">
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-blue-500 rounded-full mr-1.5"></span> 출석(V)</div>
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-gray-200 rounded-full mr-1.5"></span> 미출석(X)</div>
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-yellow-400 rounded-full mr-1.5"></span> 간증있음</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-2 md:p-4 overflow-hidden flex flex-col gap-4">
+            <!-- Main Table Container -->
+            <div class="flex-1 overflow-auto bg-white rounded-xl shadow-xl border border-gray-200">
+                <table id="attendanceTable" class="min-w-full border-collapse">
+                    <thead id="tableHead">
+                        <!-- Headers will be populated dynamically -->
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-200">
+                        <!-- Rows will be populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Testimony Detail View -->
+    <div id="testimonyModal" class="fixed inset-0 bg-black/60 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
+            <div class="p-4.5 bg-gradient-to-r from-amber-500 to-yellow-600 text-white flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⭐</span>
+                    <h3 class="font-black text-base md:text-lg">성도 간증 상세 내용</h3>
+                </div>
+                <button type="button" id="closeTestimonyModal" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-3">
+                    <span id="testimonyMemberName" class="text-base font-black text-slate-800"></span>
+                    <span id="testimonyMemberInfo" class="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md"></span>
+                    <span id="testimonyMeetingTitle" class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ml-auto"></span>
+                </div>
+                <div class="bg-amber-50/30 border border-amber-100/50 p-4.5 rounded-xl min-h-[120px] max-h-[300px] overflow-y-auto">
+                    <p id="testimonyContentText" class="text-sm text-slate-700 font-medium whitespace-pre-wrap leading-relaxed"></p>
+                </div>
+                <div class="pt-2 flex justify-end">
+                    <button type="button" id="confirmTestimonyModal" class="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-black hover:bg-slate-900 transition shadow-md active:scale-95">확인 (ESC)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
