@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dayMaxEvents: true,
         eventOrder: 'order',
         dayCellContent: (info) => ({ html: `<span>${info.date.getDate()}</span>` }),
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
         events: async (fetchInfo, successCallback, failureCallback) => {
             const addOneDay = (dateStr) => {
                 const d = new Date(dateStr);
