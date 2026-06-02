@@ -177,6 +177,36 @@
             background-color: #ede9fe !important;
             color: #4338ca !important;
         }
+
+        /* 모바일 최적화 미디어 쿼리 (화면 가로 768px 미만) */
+        @media (max-width: 768px) {
+            .fc-event {
+                padding: 1px 2px !important;
+                margin-top: 1px !important;
+                margin-bottom: 1px !important;
+            }
+            .fc-event .font-bold {
+                font-size: 9px !important; 
+                white-space: normal !important; 
+                word-break: break-all !important; 
+                line-height: 1.15 !important;
+            }
+            .fc-event .truncate {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            .fc-event .text-gray-700 {
+                font-size: 9px !important;
+                white-space: normal !important;
+                word-break: break-all !important;
+                line-height: 1.15 !important;
+            }
+            .fc-daygrid-day-number {
+                font-size: 0.75rem !important;
+                padding: 3px 5px !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
