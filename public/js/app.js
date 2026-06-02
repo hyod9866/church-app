@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const loadChurchesAndInit = async () => {
             try {
-                const res = await fetch('/api/churches');
+                const res = await fetch('/api/churches/all');
                 const churches = await res.json();
                 churchSelect.innerHTML = '<option value="">교회 선택</option>' + churches.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
                 

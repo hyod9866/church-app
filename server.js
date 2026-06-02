@@ -629,7 +629,37 @@ app.post('/api/members/sort-order', async (req, res) => {
 });
 
 // --- Organizational API ---
+// 성도들이 등록되어 있는 활성 교회 목록만 반환 (사이드바 및 메인 조회용)
 app.get('/api/churches', async (req, res) => {
+  try {
+      const { data: memberChurches, error: memErr } = await supabase
+          .from('members')
+          .select('church')
+          .not('church', 'is', null)
+          .not('church', 'eq', '');
+      
+      if (memErr) throw memErr;
+      
+      const activeNames = Array.from(new Set(memberChurches.map(m => m.church).filter(Boolean)));
+      if (activeNames.length === 0) {
+          activeNames.push('서울중앙교회');
+      }
+      
+      const { data, error } = await supabase
+          .from('churches')
+          .select('*')
+          .in('name', activeNames)
+          .order('name', { ascending: true });
+          
+      if (error) throw error;
+      res.json(data || []);
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// 전체 교회 목록 반환 (신규 성도 추가/수정 모달용)
+app.get('/api/churches/all', async (req, res) => {
   try {
       const { data, error } = await supabase
           .from('churches')
