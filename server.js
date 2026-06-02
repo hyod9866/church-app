@@ -272,7 +272,9 @@ function syncAllMembersProfile(callback) {
 
 app.get('/api/members/search', async (req, res) => {
   try {
-    await syncAllMembersProfilePromise();
+    // [성능 개선 및 Cloudflare 522 타임아웃 방지] 
+    // 성도 등록/수정/삭제 시 개별 프로필 동기화가 이미 수행되므로, 검색 API를 호출할 때마다 전체 성도를 동기화하는 무거운 로직은 제외합니다.
+    // await syncAllMembersProfilePromise();
     
     const { q, gender, category, district, status: st, parish } = req.query;
     let query = supabase.from('members').select('*');
