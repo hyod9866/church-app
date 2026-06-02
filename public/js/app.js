@@ -75,6 +75,34 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     calendar.render();
 
+    // --- Touch Swipe Navigation for Mobile/iPad ---
+    let touchstartX = 0;
+    let touchstartY = 0;
+    let touchendX = 0;
+    let touchendY = 0;
+
+    calendarEl.addEventListener('touchstart', function(e) {
+        touchstartX = e.changedTouches[0].screenX;
+        touchstartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    calendarEl.addEventListener('touchend', function(e) {
+        touchendX = e.changedTouches[0].screenX;
+        touchendY = e.changedTouches[0].screenY;
+        
+        const diffX = touchendX - touchstartX;
+        const diffY = touchendY - touchstartY;
+        
+        // Horizontal swipe is larger than vertical swipe, and exceeds minimum swipe threshold (50px)
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            if (diffX > 0) {
+                calendar.prev(); // Swipe Right -> Go to Previous Month
+            } else {
+                calendar.next(); // Swipe Left -> Go to Next Month
+            }
+        }
+    }, { passive: true });
+
     const sidebar = document.getElementById('sidebar'), memberList = document.getElementById('memberList'), searchInput = document.getElementById('memberSearch');
     const sidebarDistrictFilter = document.getElementById('sidebarDistrictFilter'), sidebarCategoryFilter = document.getElementById('sidebarCategoryFilter'), sidebarStatusFilter = document.getElementById('sidebarStatusFilter');
     const memberHistoryModal = document.getElementById('memberHistoryModal'), memberAddModal = document.getElementById('memberAddModal'), memberAddForm = document.getElementById('memberAddForm');
