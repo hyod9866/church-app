@@ -312,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
             metricSubOrgCard.classList.remove('hidden');
             metricSubOrgTitle.textContent = '하위 교구 수';
             tableSectionTitle.textContent = '하위 교구 리스트';
+            editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 교회명 변경';
             // 서울중앙교회일 때만 하위교구 추가 허용
             if (name.includes('서울중앙교회')) {
                 addSubOrgBtn.classList.remove('hidden');
@@ -331,6 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
             metricSubOrgCard.classList.remove('hidden');
             metricSubOrgTitle.textContent = '하위 구역 수';
             tableSectionTitle.textContent = '하위 구역 리스트';
+            editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 교구 정보 수정';
             addSubOrgBtn.classList.remove('hidden');
             
             sermonBadgeCount.classList.add('hidden');
@@ -341,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nodeParentHierarchy.textContent = `서울중앙교회 > ${p ? p.name : ''} >`;
             metricSubOrgCard.classList.add('hidden');
             tableSectionTitle.textContent = '소속 성도 명단';
+            editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 구역명 변경';
             addSubOrgBtn.classList.add('hidden'); // 구역 아래는 하위 조직 없음
             
             sermonBadgeCount.classList.add('hidden');
