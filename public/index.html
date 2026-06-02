@@ -207,6 +207,36 @@
                 padding: 3px 5px !important;
             }
         }
+
+        /* 아이패드 및 태블릿 최적화 미디어 쿼리 (가로 769px ~ 1024px) */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .fc-event {
+                padding: 1.5px 3px !important;
+                margin-top: 1px !important;
+                margin-bottom: 1px !important;
+            }
+            .fc-event .font-bold {
+                font-size: 11px !important; 
+                white-space: normal !important; 
+                word-break: break-all !important; 
+                line-height: 1.2 !important;
+            }
+            .fc-event .truncate {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            .fc-event .text-gray-700 {
+                font-size: 10.5px !important;
+                white-space: normal !important;
+                word-break: break-all !important;
+                line-height: 1.2 !important;
+            }
+            .fc-daygrid-day-number {
+                font-size: 0.8rem !important;
+                padding: 4px 6px !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
