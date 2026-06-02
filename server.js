@@ -30,10 +30,15 @@ app.use((req, res, next) => {
   next();
 });
 
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : 'uploads';
+try {
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+} catch (e) {
+  console.warn('Failed to create uploads directory:', e.message);
+}
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, process.env.VERCEL ? '/tmp/uploads/' : 'uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage: storage });
