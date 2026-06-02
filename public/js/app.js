@@ -9,8 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'ko',
-        height: '100%',
-        aspectRatio: 1.3,
+        height: 'auto',
+        aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
         dayMaxEvents: true,
         eventOrder: 'order',
         dayCellContent: (info) => ({ html: `<span>${info.date.getDate()}</span>` }),
