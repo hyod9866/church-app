@@ -237,6 +237,32 @@
                 padding: 4px 6px !important;
             }
         }
+
+        /* --- 접기/펼치기 성도목록 애니메이션 CSS --- */
+        #sidebar {
+            transition: all 0.3s ease-in-out !important;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+        }
+        #sidebar:not(.closed) {
+            transform: translateX(0);
+        }
+
+        @media (min-width: 768px) {
+            #sidebar {
+                position: relative !important;
+                transform: none !important;
+                margin-left: 0;
+                box-shadow: none !important;
+            }
+            #sidebar.closed {
+                margin-left: -20rem !important; /* w-80 = 20rem = 320px */
+                transform: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
@@ -275,7 +301,7 @@
     <!-- Main Content Area -->
     <main class="flex-1 flex overflow-hidden relative">
         <!-- Sidebar -->
-        <aside id="sidebar" class="absolute inset-y-0 left-0 w-80 bg-white shadow-2xl z-30 transform -translate-x-full transition-transform duration-300 md:relative md:translate-x-0 flex flex-col border-r border-slate-200/60">
+        <aside id="sidebar" class="w-80 bg-white shadow-2xl z-30 flex flex-col border-r border-slate-200/60 closed">
             <div class="p-4 bg-slate-50 border-b border-slate-100/80 flex flex-col gap-3">
                 <div class="flex justify-between items-center">
                     <h2 class="font-extrabold text-slate-800 flex items-center gap-2">성도 목록</h2>
@@ -306,7 +332,7 @@
 
         <!-- Main Calendar -->
         <section class="flex-1 flex flex-col bg-white overflow-hidden relative">
-            <button id="toggleSidebar" class="md:hidden absolute top-4 left-4 z-20 bg-blue-600 hover:bg-blue-700 active:scale-[0.95] text-white p-2.5 rounded-full shadow-lg transition-all duration-200">
+            <button id="toggleSidebar" class="absolute top-4 left-4 z-20 bg-blue-600 hover:bg-blue-700 active:scale-[0.95] text-white p-2.5 rounded-full shadow-lg transition-all duration-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
             </button>
             <div id="calendar" class="flex-1 p-2 md:p-4"></div>

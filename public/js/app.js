@@ -781,6 +781,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // --- Sidebar Toggle Logic (Mobile & iPad/PC) ---
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    const closeSidebarBtn = document.getElementById('closeSidebar');
+    
+    if (toggleSidebarBtn && sidebar) {
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('closed');
+            // Trigger FullCalendar resize after transition completes (300ms)
+            setTimeout(() => {
+                if (typeof calendar !== 'undefined' && calendar.updateSize) {
+                    calendar.updateSize();
+                }
+            }, 310);
+        });
+    }
+    if (closeSidebarBtn && sidebar) {
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.add('closed');
+            setTimeout(() => {
+                if (typeof calendar !== 'undefined' && calendar.updateSize) {
+                    calendar.updateSize();
+                }
+            }, 310);
+        });
+    }
+
 
 
     async function setupOrgSelectors(container, status) {
