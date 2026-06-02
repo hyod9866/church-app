@@ -924,7 +924,7 @@ app.get('/api/meetings', async (req, res) => {
           years.forEach(year => {
             anniversaries.push({
               id: `salvation-${member.id}-${year}`,
-              title: `🎂 구원생일(${member.name}${suffix})`,
+              title: `🎂 ${member.name}${suffix}`,
               date: `${year}-${month}-${day}`,
               type: '구원기념일',
               sermon_title: '',
