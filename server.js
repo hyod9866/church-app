@@ -416,7 +416,9 @@ app.post('/api/members', async (req, res) => {
       position: b.position,
       church_service: b.church_service,
       status: b.status || 'active',
-      family_id: fid
+      family_id: fid,
+      church: b.church || '서울중앙교회',
+      parish: b.parish || '부곡교구'
     };
 
     const { data, error } = await supabase
@@ -485,7 +487,9 @@ app.put('/api/members/:id', async (req, res) => {
       position: b.position,
       church_service: b.church_service,
       status: b.status || 'active',
-      family_id: fid
+      family_id: fid,
+      church: b.church,
+      parish: b.parish
     };
 
     const { error } = await supabase

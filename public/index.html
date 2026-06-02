@@ -505,10 +505,15 @@
             <form id="memberAddForm" class="p-6 overflow-y-auto flex-1 bg-slate-50/10 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">소속 교회 *</label>
+                        <select name="church" required class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-blue-50/50 text-blue-800 outline-none transition duration-150 cursor-pointer">
+                            <option value="">교회 선택</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">교구 구분</label>
-                        <select name="parish" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-blue-50/50 text-blue-800 outline-none transition duration-150 cursor-pointer">
-                            <option value="타 교구">타 교구</option>
-                            <option value="부곡교구">부곡교구</option>
+                        <select name="parish" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white text-slate-700 outline-none transition duration-150 cursor-pointer">
+                            <option value="">교구 선택</option>
                         </select>
                     </div>
                     <input type="hidden" name="status">
