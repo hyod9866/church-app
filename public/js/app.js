@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const res = await fetch(`/api/parishes?church_id=${churchId}`);
                 const parishes = await res.json();
-                parishSelect.innerHTML = parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+                parishSelect.innerHTML = '<option value="">교구 선택</option>' + parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
                 if (selectVal) {
                     parishSelect.value = selectVal;
                 }
