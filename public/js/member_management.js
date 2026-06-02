@@ -49,7 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!headerChurch || headerChurch.selectedIndex === -1 || !headerChurch.options[headerChurch.selectedIndex]) {
             return '서울중앙교회';
         }
-        return headerChurch.options[headerChurch.selectedIndex].text;
+        const opt = headerChurch.options[headerChurch.selectedIndex];
+        return opt.getAttribute('data-name') || opt.text;
     }
 
     function getSelectedParishName() {
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 교회 필터
             const mChurch = m.church || '서울중앙교회';
-            if (churchName && mChurch !== churchName) return false;
+            if (churchName && churchName !== '전체' && mChurch !== churchName) return false;
             
             // 교구 필터
             const mParish = m.parish || '부곡교구';
@@ -1095,6 +1096,19 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateHeaderParishOptions(churchId, targetParishId = null) {
         if (!filterParish) return;
         if (!churchId) return;
+        
+        if (churchId === '전체') {
+            const optionsHtml = `<option value="전체">모든 교구</option>`;
+            filterParish.innerHTML = optionsHtml;
+            filterParish.style.display = 'inline-block';
+            if (filterParishSelect) {
+                filterParishSelect.innerHTML = optionsHtml;
+            }
+            filterParish.value = '전체';
+            if (filterParishSelect) filterParishSelect.value = '전체';
+            return;
+        }
+
         const parishes = await fetchParishes(churchId);
         if (parishes.length > 0) {
             const optionsHtml = `<option value="전체">모든 교구</option>` + parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
@@ -1141,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!headerChurch || !filterParish) return;
 
         const churches = await fetchChurches();
-        const churchesHtml = churches.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const churchesHtml = `<option value="전체" data-name="전체">모든 교회</option>` + churches.map(c => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('');
         headerChurch.innerHTML = churchesHtml;
         if (filterChurchSelect) {
             filterChurchSelect.innerHTML = churchesHtml;
