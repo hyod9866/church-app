@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.querySelector('main');
     if (mainContent) {
         mainContent.addEventListener('click', () => {
-            if (window.innerWidth < 768) {
+            if (window.innerWidth < 1024) {
                 closeSidebarIfOpen();
             }
         });
