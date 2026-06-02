@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- API Fetchers ---
-    async function fetchChurches() { const res = await fetch('/api/churches'); return await res.json(); }
+    async function fetchChurches() { const res = await fetch('/api/churches/all'); return await res.json(); }
     async function fetchParishes(churchId) { const res = await fetch(`/api/parishes?church_id=${churchId}`); return await res.json(); }
     async function fetchDistricts(parishId) { const res = await fetch(`/api/districts?parish_id=${parishId}`); return await res.json(); }
     async function fetchMeetings() { const res = await fetch('/api/meetings'); return await res.json(); }
