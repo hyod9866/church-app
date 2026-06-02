@@ -343,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="text-[11px] text-gray-650 font-bold mb-0.5">
                         <span class="${getDistrictColorClass(member.district)} font-black">${member.district || ''}</span> | ${member.category || ''}${hasService ? ` | <span class="text-green-800">${member.church_service}</span>` : ''}
                     </div>
-                    ${member.family_relation ? `<div class="text-[10px] text-gray-500 font-bold italic leading-tight">가족: ${member.family_relation}</div>` : ''}
                     <div class="mt-1">
                         <span class="attendance-rate-badge ${rateClass}">${attendCount}/${totalMandatory} (${ratePercent}%)</span>
                     </div>
