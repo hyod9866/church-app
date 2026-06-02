@@ -1098,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!churchId) return;
         
         if (churchId === '전체') {
-            const optionsHtml = `<option value="전체">모든 교구</option>`;
+            const optionsHtml = `<option value="전체" data-name="전체">모든 교구</option>`;
             filterParish.innerHTML = optionsHtml;
             filterParish.style.display = 'inline-block';
             if (filterParishSelect) {
@@ -1111,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const parishes = await fetchParishes(churchId);
         if (parishes.length > 0) {
-            const optionsHtml = `<option value="전체">모든 교구</option>` + parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+            const optionsHtml = `<option value="전체" data-name="전체">모든 교구</option>` + parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
             filterParish.innerHTML = optionsHtml;
             filterParish.style.display = 'inline-block';
             if (filterParishSelect) {
