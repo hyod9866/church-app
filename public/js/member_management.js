@@ -541,7 +541,43 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
 
             // Attendance History
-            const filteredHistory = history.filter(h => h.type !== '심방' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
+            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
+            
+            function isMandatoryMeeting(member, meeting) {
+                const mType = meeting.type || '';
+                const mDistMatch = mType.match(/\d+/);
+                const mDistNum = mDistMatch ? mDistMatch[0] : null;
+                const memDistNum = (member.district || '').replace(/[^0-9]/g, '');
+
+                // 0. Hard Exclusion: Youth Sisters (category: '청년회', bs: 'S') are excluded from ALL Group meetings (조모임)
+                if (mType.includes('조모임')) {
+                    if (member.category === '청년회' && member.bs === 'S') return false;
+                    if (member.bs === 'B') return false; // Brothers are also excluded from Sisters' Group meetings
+                }
+
+                // 1. District Meetings (구역모임)
+                if (mType.includes('구역모임')) {
+                    if (!mDistNum || mDistNum === memDistNum) return true;
+                }
+
+                // 2. Group Meetings (조모임) - Now only Sisters (S) who are NOT youth reach here
+                if (mType.includes('조모임')) {
+                    if (!mDistNum || mDistNum === memDistNum) return true;
+                }
+
+                // 3. Global/Specific Meetings
+                if (mType.includes('교구전체모임')) return true;
+                if (mType.includes('교구형제모임') && member.bs === 'B') return true;
+                if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
+                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
+
+                return false;
+            }
+
+            // Only keep meetings that are mandatory for this member OR where they actually attended (is_present is true/1)
+            const filteredHistory = rawFilteredHistory.filter(h => {
+                return isMandatoryMeeting(member, h) || h.is_present;
+            });
             
             const getMeetingCategory = (type) => {
                 if (type.includes('구역모임')) return 'district';
@@ -617,10 +653,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <table class="w-full text-sm text-left border-collapse bg-white">
                                 <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
                                     <tr>
-                                        <th class="p-3.5 w-[110px] border-r">날짜</th>
-                                        <th class="p-3.5 min-w-[150px] border-r">모임정보</th>
+                                        <th class="p-3.5 w-[110px] border-r text-center">날짜</th>
+                                        <th class="p-3.5 min-w-[150px] border-r text-center">모임정보</th>
                                         <th class="p-3.5 text-center w-[90px] border-r">출석 여부</th>
-                                        <th class="p-3.5">간증 스냅샷</th>
+                                        <th class="p-3.5 text-center">간증</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>

@@ -286,7 +286,10 @@
             <a href="/" class="hover:opacity-80 transition-opacity duration-150 truncate">
                 <h1 class="text-base md:text-xl font-black truncate">
                     <span class="md:hidden">P.M.P</span>
-                    <span class="hidden md:inline">Pastoral Ministry Program</span>
+                    <span class="hidden md:flex flex-col text-left leading-none">
+                        <span class="text-[10px] text-blue-200/90 font-bold">Pastoral Ministry</span>
+                        <span class="text-sm md:text-base font-black tracking-wider mt-0.5">Program</span>
+                    </span>
                 </h1>
             </a>
         </div>
@@ -352,7 +355,7 @@
 
             <!-- Right Detail Panel -->
             <div id="meetingPanelsContainer" class="absolute inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-slate-200/80 hidden">
-                <div id="meetingDetailPanel" class="flex-1 flex flex-col overflow-hidden hidden">
+                <div id="meetingDetailPanel" class="flex-1 flex flex-col h-full min-h-0 overflow-hidden hidden">
                     <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md">
                         <div class="flex justify-between items-start">
                             <h3 id="detailTitle" class="text-lg md:text-xl font-black tracking-tight">모임 제목</h3>
@@ -361,11 +364,11 @@
                         <p id="detailDate" class="text-blue-200/90 font-bold text-xs mt-1"></p>
                     </div>
                     <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent"></div>
-                    <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-2"><button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button></div>
+                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 border-t border-slate-100 flex gap-2"><button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button></div>
                 </div>
 
                 <!-- Add/Edit Meeting Panel -->
-                <div id="meetingModal" class="flex-1 flex flex-col overflow-hidden hidden">
+                <div id="meetingModal" class="flex-1 flex flex-col h-full min-h-0 overflow-hidden hidden">
                     <div class="p-4 bg-gradient-to-r from-slate-800 to-slate-900 text-white flex justify-between items-center shadow-md">
                         <h3 id="modalTitle" class="font-black text-sm md:text-base">새 모임 만들기</h3>
                         <button id="closeModal" class="text-slate-400 hover:text-white transition-colors duration-150"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -407,7 +410,7 @@
                         <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
                         <div class="mt-60 pt-8 border-t border-slate-200 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">없음</p></div></div>
                     </div>
-                    <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 active:scale-[0.98] text-red-500 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 border border-slate-200 py-3 rounded-xl font-bold text-sm text-slate-700 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
+                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 border-t border-slate-100 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 active:scale-[0.98] text-red-500 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 border border-slate-200 py-3 rounded-xl font-bold text-sm text-slate-700 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
                 </div>
 
         </section>

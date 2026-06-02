@@ -1263,33 +1263,46 @@ app.get('/api/dashboard/attendance', async (req, res) => {
             .eq('status', 'active');
         if (memErr) throw memErr;
 
-        const { data: attendance, error: attErr } = await supabase
-            .from('attendance')
-            .select(`
-                id,
-                meeting_id,
-                member_id,
-                is_present,
-                testimony_snapshot,
-                district_snapshot,
-                category_snapshot,
-                meetings!inner(date)
-            `)
-            .gte('meetings.date', startDate)
-            .lte('meetings.date', endDate);
-            
-        if (attErr) throw attErr;
+        let allAttendance = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data: pageData, error: attErr } = await supabase
+                .from('attendance')
+                .select(`
+                    id,
+                    meeting_id,
+                    member_id,
+                    is_present,
+                    testimony_snapshot,
+                    district_snapshot,
+                    category_snapshot,
+                    meetings!inner(date)
+                `)
+                .gte('meetings.date', startDate)
+                .lte('meetings.date', endDate)
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+                
+            if (attErr) throw attErr;
+
+            allAttendance = allAttendance.concat(pageData || []);
+            if (!pageData || pageData.length < pageSize) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+        }
 
         const membersWithAttendance = members.map(member => {
             const memberAttendance = {};
-            if (attendance) {
-              attendance.filter(a => a.member_id === member.id).forEach(a => {
-                  memberAttendance[a.meeting_id] = {
-                      is_present: a.is_present,
-                      testimony_snapshot: a.testimony_snapshot
-                  };
-              });
-            }
+            allAttendance.filter(a => a.member_id === member.id).forEach(a => {
+                memberAttendance[a.meeting_id] = {
+                    is_present: a.is_present,
+                    testimony_snapshot: a.testimony_snapshot
+                };
+            });
             return { ...member, attendance: memberAttendance };
         });
 
