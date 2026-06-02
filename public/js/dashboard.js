@@ -331,20 +331,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                member.church_service.trim() !== '-';
             
             let row = `<tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-150" id="member-row-${member.id}">
-                <td class="sticky-col p-4 border-r border-b border-slate-200 member-info bg-white align-top shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                <td class="sticky-col p-2.5 md:p-3 border-r border-b border-slate-200 member-info bg-white align-top shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                     <div class="flex justify-between items-start mb-1">
                         <div class="flex flex-wrap items-center gap-1">
-                            <span class="font-bold text-blue-800 text-[15px] cursor-pointer hover:underline" onclick="location.href='/member_management.html?openId=${member.id}'" title="클릭하여 상세 이력 조회 (성도 현황으로 이동)">${member.name}</span>
-                            <span class="text-[11px] text-gray-500 font-bold ml-1">(${age}세)</span>
+                            <span class="font-bold text-blue-800 text-[14px] cursor-pointer hover:underline" onclick="location.href='/member_management.html?openId=${member.id}'" title="클릭하여 상세 이력 조회 (성도 현황으로 이동)">${member.name}</span>
+                            <span class="text-[10px] text-gray-500 font-bold ml-0.5">(${age}세)</span>
                             ${positionBadges}
                         </div>
-                        <div class="text-[11px] font-bold px-1.5 py-0.5 rounded ${member.bs === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}">${member.bs || '-'}</div>
+                        <div class="text-[10px] font-bold px-1 py-0.5 rounded ${member.bs === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}">${member.bs || '-'}</div>
                     </div>
-                    <div class="text-[12px] text-gray-700 font-bold mb-1">
+                    <div class="text-[11px] text-gray-650 font-bold mb-0.5">
                         <span class="${getDistrictColorClass(member.district)} font-black">${member.district || ''}</span> | ${member.category || ''}${hasService ? ` | <span class="text-green-800">${member.church_service}</span>` : ''}
                     </div>
-                    ${member.family_relation ? `<div class="text-[11px] text-gray-600 mt-1 font-bold italic">가족: ${member.family_relation}</div>` : ''}
-                    <div class="mt-2">
+                    ${member.family_relation ? `<div class="text-[10px] text-gray-500 font-bold italic leading-tight">가족: ${member.family_relation}</div>` : ''}
+                    <div class="mt-1">
                         <span class="attendance-rate-badge ${rateClass}">${attendCount}/${totalMandatory} (${ratePercent}%)</span>
                     </div>
                 </td>`;
@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isMandatory = isMandatoryMeeting(member, meeting);
                 const isFuture = meeting.date > today;
                 
-                let cellHTML = `<span class="text-slate-350 font-bold">-</span>`;
+                let cellHTML = `<span class="text-slate-350 font-bold text-xs">-</span>`;
                 let cellBgClass = 'bg-white';
                 
                 // Special Exclusion: Youth members show empty dash for Group meetings
@@ -362,28 +362,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!isYouthGroupExclusion) {
                     if (isFuture) {
-                        cellHTML = `<span class="text-slate-300 font-bold opacity-60">-</span>`;
+                        cellHTML = `<span class="text-slate-300 font-bold opacity-60 text-xs">-</span>`;
                         cellBgClass = 'bg-slate-50/70';
                     } else if (record) {
                         if (record.is_present) {
                             if (record.testimony_snapshot) {
                                 const escapedContent = record.testimony_snapshot.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-                                cellHTML = `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black shadow-sm cursor-pointer hover:bg-amber-100 hover:scale-105 active:scale-95 transition-all duration-150" onclick="showTestimonyPopup('${member.name}', '${member.district || ''} | ${member.category || ''}', '${meeting.title}', \`${escapedContent}\`)" title="간증: ${record.testimony_snapshot}">⭐</span>`;
+                                cellHTML = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black shadow-sm cursor-pointer hover:bg-amber-100 hover:scale-105 active:scale-95 transition-all duration-150" onclick="showTestimonyPopup('${member.name}', '${member.district || ''} | ${member.category || ''}', '${meeting.title}', \`${escapedContent}\`)" title="간증: ${record.testimony_snapshot}">⭐</span>`;
                                 cellBgClass = 'bg-amber-50/20';
                             } else {
-                                cellHTML = `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-150 text-xs font-black">출</span>`;
+                                cellHTML = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-150 text-[11px] font-black">출</span>`;
                             }
                         } else {
-                            cellHTML = `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-rose-50 text-rose-500 border border-rose-100 text-xs font-bold">결</span>`;
+                            cellHTML = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 text-[11px] font-bold">결</span>`;
                         }
                     } else if (isMandatory) {
                         // NO record in DB, but IS mandatory -> show as Absent (X)
-                        cellHTML = `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-rose-50/70 text-rose-400 border border-rose-100/50 text-xs font-bold">결</span>`;
+                        cellHTML = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50/70 text-rose-400 border border-rose-100/50 text-[11px] font-bold">결</span>`;
                     }
                 }
                 
                 const futureTitleAttr = isFuture ? `\n[미실시 예정 모임]` : ``;
-                row += `<td class="p-1.5 border border-slate-100 text-center attendance-cell ${cellBgClass}" title="${meeting.title}${futureTitleAttr}\n${record?.testimony_snapshot || ''}">${cellHTML}</td>`;
+                row += `<td class="p-1 md:p-1.5 border border-slate-100 text-center attendance-cell ${cellBgClass}" title="${meeting.title}${futureTitleAttr}\n${record?.testimony_snapshot || ''}">${cellHTML}</td>`;
             });
             row += `</tr>`;
             tableBody.innerHTML += row;
