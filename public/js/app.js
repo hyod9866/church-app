@@ -121,6 +121,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return 'bg-amber-100 text-amber-800 border-amber-200';
     };
 
+    function getSelectedChurchName() {
+        const select = document.getElementById('headerChurchSelect');
+        if (!select || select.selectedIndex === -1 || !select.options[select.selectedIndex]) {
+            return null;
+        }
+        const opt = select.options[select.selectedIndex];
+        return opt.getAttribute('data-name') || opt.text;
+    }
+
     function getSelectedParishName() {
         const select = document.getElementById('headerParishSelect');
         if (!select || select.selectedIndex === -1 || !select.options[select.selectedIndex]) {
@@ -133,8 +142,12 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadMemberList() {
         const q = searchInput.value.trim(), dist = sidebarDistrictFilter.value, cat = sidebarCategoryFilter.value, st = sidebarStatusFilter.value;
         try {
+            const churchName = getSelectedChurchName();
             const parishName = getSelectedParishName();
             const params = new URLSearchParams({ q, district: dist, category: cat, status: st });
+            if (churchName && churchName !== '교회 없음') {
+                params.append('church', churchName);
+            }
             if (parishName && parishName !== '교구 없음') {
                 params.append('parish', parishName);
             }
@@ -1108,11 +1121,46 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!headerChurch || !headerParish) return;
 
         const churches = await fetchChurches();
-        headerChurch.innerHTML = churches.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        headerChurch.innerHTML = churches.map(c => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('');
 
         let savedChurchId = localStorage.getItem('activeChurchId');
         let savedParishId = localStorage.getItem('activeParishId');
+        let savedDistrict = localStorage.getItem('activeDistrict');
 
+        // 로컬스토리지에 저장된 설정이 없을 경우, 강효근 성도 정보를 디폴트 소속값으로 자동 연동
+        if (!savedChurchId) {
+            try {
+                const defRes = await fetch('/api/users/default-profile');
+                const defProfile = await defRes.json();
+                
+                // 강효근 소속 교회 설정
+                const sc = churches.find(c => c.name === defProfile.church);
+                if (sc) {
+                    savedChurchId = sc.id;
+                    localStorage.setItem('activeChurchId', savedChurchId);
+                }
+                
+                // 강효근 소속 구역 설정
+                if (defProfile.district) {
+                    savedDistrict = defProfile.district;
+                    localStorage.setItem('activeDistrict', savedDistrict);
+                }
+                
+                // 강효근 소속 교구 설정 (savedParishId 구하기)
+                if (savedChurchId && defProfile.parish) {
+                    const parishes = await fetchParishes(savedChurchId);
+                    const sp = parishes.find(p => p.name === defProfile.parish);
+                    if (sp) {
+                        savedParishId = sp.id;
+                        localStorage.setItem('activeParishId', savedParishId);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load default user profile:', e);
+            }
+        }
+
+        // 강효근 데이터가 없거나 로드에 실패한 경우의 안전장치
         if (!savedChurchId) {
             const sc = churches.find(c => c.name.includes('서울중앙교회'));
             if (sc) savedChurchId = sc.id;
@@ -1123,6 +1171,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         await updateHeaderParishOptions(headerChurch.value, savedParishId);
+
+        // 구역 필터 복구
+        if (savedDistrict && sidebarDistrictFilter) {
+            sidebarDistrictFilter.value = savedDistrict;
+        }
 
         headerChurch.addEventListener('change', async () => {
             localStorage.setItem('activeChurchId', headerChurch.value);
@@ -1135,6 +1188,12 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('activeParishId', headerParish.value);
             loadMemberList();
         });
+
+        if (sidebarDistrictFilter) {
+            sidebarDistrictFilter.addEventListener('change', () => {
+                localStorage.setItem('activeDistrict', sidebarDistrictFilter.value);
+            });
+        }
     }
 
     initHeaderSelectors().then(() => {

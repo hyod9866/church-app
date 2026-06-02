@@ -276,7 +276,7 @@ app.get('/api/members/search', async (req, res) => {
     // 성도 등록/수정/삭제 시 개별 프로필 동기화가 이미 수행되므로, 검색 API를 호출할 때마다 전체 성도를 동기화하는 무거운 로직은 제외합니다.
     // await syncAllMembersProfilePromise();
     
-    const { q, gender, category, district, status: st, parish } = req.query;
+    const { q, gender, category, district, status: st, parish, church } = req.query;
     let query = supabase.from('members').select('*');
     
     if (st === 'inactive') {
@@ -300,6 +300,9 @@ app.get('/api/members/search', async (req, res) => {
     if (parish && parish !== '전체') {
       query = query.eq('parish', parish);
     }
+    if (church && church !== '전체') {
+      query = query.eq('church', church);
+    }
     if (q) {
       query = query.ilike('name', `%${q}%`);
     }
@@ -312,6 +315,23 @@ app.get('/api/members/search', async (req, res) => {
   } catch (err) {
     console.error('Search members error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 강효근 성도의 기본 소속 정보 조회 API (디폴트 필터값용)
+app.get('/api/users/default-profile', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .select('church, parish, district')
+      .eq('name', '강효근')
+      .single();
+      
+    if (error) throw error;
+    res.json(data || { church: '서울중앙교회', parish: '부곡교구', district: '581구역' });
+  } catch (err) {
+    console.error('Failed to get default profile:', err);
+    res.json({ church: '서울중앙교회', parish: '부곡교구', district: '581구역' });
   }
 });
 
