@@ -871,12 +871,12 @@ app.get('/api/districts', async (req, res) => {
 
 // Create Church
 app.post('/api/churches', async (req, res) => {
-  const { name } = req.body;
+  const { name, address } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
       const { data, error } = await supabase
           .from('churches')
-          .insert({ name })
+          .insert({ name, address })
           .select('id')
           .single();
       if (error) throw error;
@@ -888,13 +888,13 @@ app.post('/api/churches', async (req, res) => {
 
 // Update Church
 app.put('/api/churches/:id', async (req, res) => {
-  const { name } = req.body;
+  const { name, address } = req.body;
   const { id } = req.params;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
       const { error } = await supabase
           .from('churches')
-          .update({ name })
+          .update({ name, address })
           .eq('id', id);
       if (error) throw error;
       res.json({ status: 'success' });

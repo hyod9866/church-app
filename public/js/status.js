@@ -49,8 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const nodeFormParishNo = document.getElementById('nodeFormParishNo');
     const modalTitle = document.getElementById('modalTitle');
     const inputLabel = document.getElementById('inputLabel');
-    const parishLeaderSection = document.getElementById('parishLeaderSection');
-    
+    const nodeAddressContainer = document.getElementById('nodeAddressContainer');
+    const nodeAddress = document.getElementById('nodeAddress');
+    const churchAddressSection = document.getElementById('churchAddressSection');
+    const nodeFormAddress = document.getElementById('nodeFormAddress');
+
     // Buttons
     const addChurchBtn = document.getElementById('addChurchBtn');
     const editNodeBtn = document.getElementById('editNodeBtn');
@@ -314,9 +317,17 @@ document.addEventListener('DOMContentLoaded', () => {
             metricSubOrgCard.classList.remove('hidden');
             metricSubOrgTitle.textContent = '하위 교구 수';
             tableSectionTitle.textContent = '하위 교구 리스트';
-            editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 교회명 변경';
-            // 모든 교회에서 하위교구 추가 허용
+            editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 교회 정보 수정';
             addSubOrgBtn.classList.remove('hidden');
+            
+            // 주소 정보 렌더링
+            const curChurch = churches.find(c => c.id === id);
+            if (curChurch && curChurch.address) {
+                nodeAddress.textContent = curChurch.address;
+                nodeAddressContainer.classList.remove('hidden');
+            } else {
+                nodeAddressContainer.classList.add('hidden');
+            }
             
             // 외부설교 탭 활성화 & 카운트 노출
             const churchSermons = allSermons.filter(s => s.church && s.church.trim() === name.trim());
@@ -326,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderSermonTimeline(name, churchSermons);
         } else if (type === 'parish') {
+            nodeAddressContainer.classList.add('hidden');
             const ch = churches.find(c => c.id === parentId);
             nodeParentHierarchy.textContent = `${ch ? ch.name : ''} >`;
             metricSubOrgCard.classList.remove('hidden');
@@ -338,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tabSermonBtn.classList.add('hidden'); // 교구 단위 외부설교 불가
             switchTab('org');
         } else {
+            nodeAddressContainer.classList.add('hidden');
             const p = parishes.find(pa => pa.id === parentId);
             const ch = p ? churches.find(c => c.id === p.church_id) : null;
             nodeParentHierarchy.textContent = `${ch ? ch.name : ''} > ${p ? p.name : ''} >`;
@@ -543,12 +556,15 @@ document.addEventListener('DOMContentLoaded', () => {
         nodeFormParishNo.value = parishNo;
         
         parishLeaderSection.classList.add('hidden');
+        churchAddressSection.classList.add('hidden');
+        nodeFormAddress.value = '';
 
         if (action === 'create') {
             if (type === 'church') {
                 modalTitle.textContent = '새 외부 교회 등록';
                 inputLabel.textContent = '교회 명칭';
                 nodeFormName.placeholder = '교회 명칭 입력 (예: 파주교회)';
+                churchAddressSection.classList.remove('hidden');
             } else if (type === 'parish') {
                 modalTitle.textContent = '교구 신설';
                 inputLabel.textContent = '교구 명칭';
@@ -560,9 +576,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 nodeFormName.placeholder = '구역 명칭 입력 (예: 584구역)';
             }
         } else { // Edit
-            modalTitle.textContent = `'${currentName}' 이름 변경`;
+            modalTitle.textContent = `'${currentName}' 정보 수정`;
             inputLabel.textContent = '변경할 명칭';
-            if (type === 'parish') {
+            if (type === 'church') {
+                churchAddressSection.classList.remove('hidden');
+                const cur = churches.find(c => c.id === targetId);
+                nodeFormAddress.value = cur ? (cur.address || '') : '';
+            } else if (type === 'parish') {
                 parishLeaderSection.classList.remove('hidden');
             }
         }
@@ -657,7 +677,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let method = 'POST';
             const bodyData = { name };
             
-            if (type === 'parish') {
+            if (type === 'church') {
+                bodyData.address = nodeFormAddress.value.trim();
+            } else if (type === 'parish') {
                 bodyData.church_id = parentId;
                 if (parishNo) bodyData.parish_no = parseInt(parishNo);
             } else if (type === 'district') {
