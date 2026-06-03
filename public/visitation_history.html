@@ -92,6 +92,90 @@
         </div>
     </main>
 
+    <!-- Member History Modal (Copied from index.html / member_management.html, adjusted for read-only) -->
+    <div id="memberHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-2 md:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh] border border-slate-100">
+            <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-5 flex justify-between items-center shadow-md">
+                <h3 class="text-lg font-black tracking-tight">성도 상세 정보</h3>
+                <button id="closeHistoryModal" class="text-slate-400 hover:text-white transition-colors duration-150">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 md:p-6 overflow-y-auto flex-1 bg-slate-50/50 no-scrollbar">
+                <!-- 프로필 헤로 영역 -->
+                <div id="memberBasicInfo" class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200"></div>
+                
+                <!-- HRM 탭 바 -->
+                <div class="flex border-b border-slate-200 mb-6 gap-2">
+                    <button type="button" class="member-tab-btn active px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 outline-none" data-tab="attendance">출석 히스토리</button>
+                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="visitation">심방 메모</button>
+                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="records">인적사항 기록</button>
+                </div>
+
+                <!-- 탭 콘텐츠 영역 -->
+                <div id="tabContent_attendance" class="member-tab-content">
+                    <div class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-emerald-600 pl-2.5 flex justify-between items-center text-sm">
+                            <span>출석 히스토리</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-500">참석률</span>
+                                <span id="memberAttendanceStats" class="font-black text-blue-655"></span>
+                            </div>
+                        </h4>
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <table class="w-full text-sm text-left border-collapse bg-white">
+                                <thead class="bg-slate-50 text-slate-650 text-[11px] uppercase tracking-wider font-black border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3 w-[100px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="date">날짜 <span class="sort-icon"></span></th>
+                                        <th class="p-3 min-w-[140px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="title">모임정보 <span class="sort-icon"></span></th>
+                                        <th class="p-3 text-center w-[60px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="isPresent">출석 <span class="sort-icon"></span></th>
+                                        <th class="p-3 cursor-pointer hover:bg-slate-100 transition sort-header" data-sort="memo">간증 <span class="sort-icon"></span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabContent_visitation" class="member-tab-content hidden">
+                    <div id="visitationHistorySection" class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-teal-700 border-l-4 border-teal-500 pl-2.5 text-sm">심방 메모 기록</h4>
+                        <div id="visitationMemoList" class="space-y-3">
+                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">기록이 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabContent_records" class="member-tab-content hidden">
+                    <div class="mb-4">
+                        <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-blue-600 pl-2.5 text-sm">인적사항 기록</h4>
+                        <div id="timelineContainer" class="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm hidden mb-4">
+                            <!-- JS dynamic vertical timeline -->
+                        </div>
+                        <div id="tableRecordContainer" class="max-h-[300px] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-sm no-scrollbar">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50 text-slate-655 text-[11px] uppercase tracking-wider font-black sticky top-0 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3 w-[100px]">날짜</th>
+                                        <th class="p-3 w-[150px]">상황</th>
+                                        <th class="p-2 border-b">비고</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recordTableBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 border-t border-slate-100 flex justify-end gap-3">
+                <button id="closeHistoryModalBtn" class="px-8 py-3 text-white bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all rounded-xl font-bold shadow-md text-sm">닫기</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/visitation_history.js"></script>
 </body>
 </html>
