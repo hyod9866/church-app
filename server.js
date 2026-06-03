@@ -8,28 +8,7 @@ import iconv from 'iconv-lite';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import pg from 'pg';
-import dns from 'dns';
 
-// --- DNS Override for Vercel / IPv4 Environments ---
-const originalLookup = dns.lookup;
-dns.lookup = function(hostname, options, callback) {
-  let opts = options;
-  let cb = callback;
-  if (typeof options === 'function') {
-    cb = options;
-    opts = {};
-  }
-  if (hostname === 'db.castdxotoypktiusslpk.supabase.co') {
-    const addr = '15.165.245.138'; // Seoul Region Pooler IPv4
-    const fam = 4;
-    if (opts.all) {
-      return cb(null, [{ address: addr, family: fam }], fam);
-    } else {
-      return cb(null, addr, fam);
-    }
-  }
-  return originalLookup(hostname, opts, cb);
-};
 
 
 // Load environment variables
@@ -297,91 +276,84 @@ function syncAllMembersProfile(callback) {
 app.get('/api/run-migration-temp', async (req, res) => {
   const { Client } = pg;
   
-  // 1. Direct IPv6 address (bypass DNS lookup)
-  const clientDirectIPv6 = new Client({
-    host: '[2406:da12:557:f802:f78e:4591:9fd3:4ad7]',
-    port: 5432,
-    user: 'postgres',
-    password: 'qhrdmaemfrh1!',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
-
-  // 2. Direct Domain IPv6 (original fallback)
-  const clientDirectDomain = new Client({
-    host: 'db.castdxotoypktiusslpk.supabase.co',
-    port: 5432,
-    user: 'postgres',
-    password: 'qhrdmaemfrh1!',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
-
-  // 3. Pooler via DNS Override (Port 6543)
-  const clientPooler = new Client({
-    host: 'db.castdxotoypktiusslpk.supabase.co',
-    port: 6543,
-    user: 'postgres.castdxotoypktiusslpk',
-    password: 'qhrdmaemfrh1!',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
+  const optionsList = [
+    {
+      name: 'Direct IPv6 Raw Literal (user: postgres)',
+      host: '2406:da12:557:f802:f78e:4591:9fd3:4ad7',
+      port: 5432,
+      user: 'postgres',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres'
+    },
+    {
+      name: 'Direct IPv6 Raw Literal (user: postgres.castdxotoypktiusslpk)',
+      host: '2406:da12:557:f802:f78e:4591:9fd3:4ad7',
+      port: 5432,
+      user: 'postgres.castdxotoypktiusslpk',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres'
+    },
+    {
+      name: 'Direct Domain IPv6 (user: postgres.castdxotoypktiusslpk)',
+      host: 'db.castdxotoypktiusslpk.supabase.co',
+      port: 5432,
+      user: 'postgres.castdxotoypktiusslpk',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres'
+    },
+    {
+      name: 'Pooler IPv4 (user: postgres.castdxotoypktiusslpk)',
+      host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+      port: 6543,
+      user: 'postgres.castdxotoypktiusslpk',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres'
+    }
+  ];
 
   let logs = [];
   let success = false;
 
-  // Run a migration helper function
-  const runMigrationQuery = async (client, name) => {
-    logs.push(`Running query via ${name}...`);
-    const checkRes = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='parishes' AND column_name='parish_no'
-    `);
-    
-    if (checkRes.rows.length === 0) {
-      logs.push("parish_no does not exist. Adding column...");
-      await client.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
-      logs.push("Column parish_no added successfully.");
-    } else {
-      logs.push("Column parish_no already exists.");
-    }
+  for (let i = 0; i < optionsList.length; i++) {
+    const opt = optionsList[i];
+    logs.push(`Attempt ${i + 1}: Trying ${opt.name}...`);
+    const client = new Client({
+      host: opt.host,
+      port: opt.port,
+      user: opt.user,
+      password: opt.password,
+      database: opt.database,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000
+    });
 
-    logs.push("Reloading schema cache...");
-    await client.query("NOTIFY pgrst, 'reload schema';");
-    logs.push("Schema cache reloaded successfully!");
-  };
-
-  try {
-    logs.push("Attempt 1: Trying Direct IPv6 literal address...");
-    await clientDirectIPv6.connect();
-    logs.push("Successfully connected via Direct IPv6 literal!");
-    await runMigrationQuery(clientDirectIPv6, 'Direct IPv6 literal');
-    await clientDirectIPv6.end();
-    success = true;
-  } catch (err1) {
-    logs.push(`Attempt 1 failed: ${err1.message}`);
-    
     try {
-      logs.push("Attempt 2: Trying Direct Domain IPv6...");
-      await clientDirectDomain.connect();
-      logs.push("Successfully connected via Direct Domain!");
-      await runMigrationQuery(clientDirectDomain, 'Direct Domain');
-      await clientDirectDomain.end();
-      success = true;
-    } catch (err2) {
-      logs.push(`Attempt 2 failed: ${err2.message}`);
+      await client.connect();
+      logs.push(`Successfully connected via ${opt.name}!`);
       
-      try {
-        logs.push("Attempt 3: Trying Pooler IPv4 via DNS Override...");
-        await clientPooler.connect();
-        logs.push("Successfully connected via Pooler DNS Override!");
-        await runMigrationQuery(clientPooler, 'Pooler DNS Override');
-        await clientPooler.end();
-        success = true;
-      } catch (err3) {
-        logs.push(`Attempt 3 failed: ${err3.message}`);
+      const checkRes = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='parishes' AND column_name='parish_no'
+      `);
+      
+      if (checkRes.rows.length === 0) {
+        logs.push("parish_no does not exist. Adding column...");
+        await client.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
+        logs.push("Column parish_no added successfully.");
+      } else {
+        logs.push("Column parish_no already exists.");
       }
+
+      logs.push("Reloading schema cache...");
+      await client.query("NOTIFY pgrst, 'reload schema';");
+      logs.push("Schema cache reloaded successfully!");
+      
+      await client.end();
+      success = true;
+      break;
+    } catch (err) {
+      logs.push(`Attempt ${i + 1} failed: ${err.message}`);
     }
   }
 
