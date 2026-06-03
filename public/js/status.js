@@ -79,15 +79,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initData() {
         try {
             churches = await fetchChurches();
-            // 서울중앙교회 아이디 가져오기
-            const seoulChurch = churches.find(c => c.name.includes('서울중앙교회'));
-            if (seoulChurch) {
-                parishes = await fetchParishes(seoulChurch.id);
-                // 모든 교구의 구역 정보를 병렬로 가져옴
-                const distPromises = parishes.map(p => fetchDistricts(p.id));
-                const distResults = await Promise.all(distPromises);
-                districts = distResults.flat();
-            }
+            
+            // 모든 교회의 교구 정보를 병렬로 가져옴
+            const parishPromises = churches.map(c => fetchParishes(c.id).catch(() => []));
+            const parishResults = await Promise.all(parishPromises);
+            parishes = parishResults.flat();
+            
+            // 모든 교구의 구역 정보를 병렬로 가져옴
+            const distPromises = parishes.map(p => fetchDistricts(p.id).catch(() => []));
+            const distResults = await Promise.all(distPromises);
+            districts = distResults.flat();
             
             // 외부설교 일정
             const meetings = await fetchMeetings();
@@ -165,14 +166,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const isNodeActive = selectedNode && selectedNode.type === 'church' && selectedNode.id === c.id;
             const hasSermonIcon = cSermonCount > 0 ? `<span class="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1.5"><i class="fa-solid fa-microphone text-[8px] mr-0.5"></i>${cSermonCount}회</span>` : '';
             
+            // 서울중앙교회는 특별 아이콘(fa-hotel), 타교회는 일반교회 아이콘(fa-place-of-worship)
+            const iconClass = isSeoul ? 'fa-hotel text-blue-600' : 'fa-place-of-worship text-gray-400';
+            
             churchEl.innerHTML = `
                 <div class="flex items-center justify-between p-2 rounded-xl cursor-pointer hover:bg-gray-100 transition duration-200 group text-sm font-bold text-gray-700 ${isNodeActive ? 'tree-node-active' : ''}" data-type="church" data-id="${c.id}" data-name="${c.name}">
                     <div class="flex items-center gap-2 min-w-0">
-                        <i class="fa-solid ${isSeoul ? 'fa-hotel text-blue-600' : 'fa-place-of-worship text-gray-400'} flex-shrink-0"></i>
+                        <i class="fa-solid ${iconClass} flex-shrink-0"></i>
                         <span class="truncate">${c.name}</span>
                         ${hasSermonIcon}
                     </div>
-                    ${isSeoul ? `<i class="fa-solid fa-chevron-right text-gray-400 text-[10px] transition-transform duration-200 flex-shrink-0" id="chevron-c-${c.id}"></i>` : ''}
+                    <i class="fa-solid fa-chevron-right text-gray-400 text-[10px] transition-transform duration-200 flex-shrink-0" id="chevron-c-${c.id}"></i>
                 </div>
                 <div id="sub-c-${c.id}" class="pl-4 border-l border-gray-100 ml-3.5 mt-1 space-y-1 hidden"></div>
             `;
@@ -181,19 +185,18 @@ document.addEventListener('DOMContentLoaded', () => {
             churchNode.addEventListener('click', (e) => {
                 e.stopPropagation();
                 selectNode('church', c.id, c.name, null);
-                if (isSeoul) {
-                    const subContainer = churchEl.querySelector(`#sub-c-${c.id}`);
-                    const chevron = churchEl.querySelector(`#chevron-c-${c.id}`);
-                    const isHidden = subContainer.classList.contains('hidden');
-                    
-                    if (isHidden) {
-                        subContainer.classList.remove('hidden');
-                        chevron.classList.add('rotate-90');
-                        renderParishNodes(c.id, subContainer);
-                    } else {
-                        subContainer.classList.add('hidden');
-                        chevron.classList.remove('rotate-90');
-                    }
+                
+                const subContainer = churchEl.querySelector(`#sub-c-${c.id}`);
+                const chevron = churchEl.querySelector(`#chevron-c-${c.id}`);
+                const isHidden = subContainer.classList.contains('hidden');
+                
+                if (isHidden) {
+                    subContainer.classList.remove('hidden');
+                    chevron.classList.add('rotate-90');
+                    renderParishNodes(c.id, subContainer);
+                } else {
+                    subContainer.classList.add('hidden');
+                    chevron.classList.remove('rotate-90');
                 }
             });
 
@@ -207,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchQuery = treeSearchInput.value.trim().toLowerCase();
 
         const filteredParishes = parishes.filter(p => {
+            if (p.church_id !== churchId) return false;
             if (searchQuery) {
                 const matchParish = p.name.toLowerCase().includes(searchQuery);
                 const matchDistrict = districts.some(d => d.parish_id === p.id && d.name.toLowerCase().includes(searchQuery));
@@ -313,12 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
             metricSubOrgTitle.textContent = '하위 교구 수';
             tableSectionTitle.textContent = '하위 교구 리스트';
             editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 교회명 변경';
-            // 서울중앙교회일 때만 하위교구 추가 허용
-            if (name.includes('서울중앙교회')) {
-                addSubOrgBtn.classList.remove('hidden');
-            } else {
-                addSubOrgBtn.classList.add('hidden');
-            }
+            // 모든 교회에서 하위교구 추가 허용
+            addSubOrgBtn.classList.remove('hidden');
             
             // 외부설교 탭 활성화 & 카운트 노출
             const churchSermons = allSermons.filter(s => s.church && s.church.trim() === name.trim());
@@ -328,7 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderSermonTimeline(name, churchSermons);
         } else if (type === 'parish') {
-            nodeParentHierarchy.textContent = '서울중앙교회 >';
+            const ch = churches.find(c => c.id === parentId);
+            nodeParentHierarchy.textContent = `${ch ? ch.name : ''} >`;
             metricSubOrgCard.classList.remove('hidden');
             metricSubOrgTitle.textContent = '하위 구역 수';
             tableSectionTitle.textContent = '하위 구역 리스트';
@@ -340,7 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab('org');
         } else {
             const p = parishes.find(pa => pa.id === parentId);
-            nodeParentHierarchy.textContent = `서울중앙교회 > ${p ? p.name : ''} >`;
+            const ch = p ? churches.find(c => c.id === p.church_id) : null;
+            nodeParentHierarchy.textContent = `${ch ? ch.name : ''} > ${p ? p.name : ''} >`;
             metricSubOrgCard.classList.add('hidden');
             tableSectionTitle.textContent = '소속 성도 명단';
             editNodeBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 구역명 변경';
@@ -377,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (name.includes('서울중앙교회')) {
                     members = members.filter(m => m.parish && m.parish !== '타 교구');
                 } else {
-                    members = members.filter(m => m.parish === '타 교구' && m.church === name);
+                    members = members.filter(m => m.church === name);
                 }
             }
             
@@ -392,42 +394,33 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 하위 노드 수 및 리스트 렌더링
             if (type === 'church') {
-                const isSeoul = name.includes('서울중앙교회');
-                if (isSeoul) {
-                    const subCount = parishes.length;
-                    metricSubOrgCount.textContent = `${subCount}개`;
-                    
-                    tableListContainer.innerHTML = `
-                        <table class="w-full text-xs text-left border-collapse">
-                            <thead>
-                                <tr class="bg-gray-100 font-black text-gray-600">
-                                    <th class="p-2 border-b">교구 명칭</th>
-                                    <th class="p-2 border-b">교구 코드</th>
-                                    <th class="p-2 border-b text-right">구역 수</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${parishes.map(p => {
-                                    const dCount = districts.filter(d => d.parish_id === p.id).length;
-                                    return `
-                                        <tr class="hover:bg-blue-50 border-b cursor-pointer transition" onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
-                                            <td class="p-2 font-bold text-blue-900">${p.name}</td>
-                                            <td class="p-2 font-mono text-gray-500">${p.parish_no || '-'}번</td>
-                                            <td class="p-2 text-right text-gray-700 font-bold">${dCount}개 구역</td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                } else {
-                    metricSubOrgCount.textContent = `0개`;
-                    tableListContainer.innerHTML = `
-                        <div class="text-gray-400 text-xs italic text-center py-6">
-                            이 교회에 속한 성도는 총 ${totalCount}명입니다.<br>외부교회는 별도의 교구/구역 하위 조직을 관리하지 않습니다.
-                        </div>
-                    `;
-                }
+                const churchParishes = parishes.filter(p => p.church_id === id);
+                const subCount = churchParishes.length;
+                metricSubOrgCount.textContent = `${subCount}개`;
+                
+                tableListContainer.innerHTML = `
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 font-black text-gray-600">
+                                <th class="p-2 border-b">교구 명칭</th>
+                                <th class="p-2 border-b">교구 코드</th>
+                                <th class="p-2 border-b text-right">구역 수</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${churchParishes.map(p => {
+                                const dCount = districts.filter(d => d.parish_id === p.id).length;
+                                return `
+                                    <tr class="hover:bg-blue-50 border-b cursor-pointer transition" onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
+                                        <td class="p-2 font-bold text-blue-900">${p.name}</td>
+                                        <td class="p-2 font-mono text-gray-500">${p.parish_no || '-'}번</td>
+                                        <td class="p-2 text-right text-gray-700 font-bold">${dCount}개 구역</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
             } else if (type === 'parish') {
                 const subDists = districts.filter(d => d.parish_id === id);
                 metricSubOrgCount.textContent = `${subDists.length}개`;
