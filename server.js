@@ -764,8 +764,9 @@ app.get('/api/parishes', async (req, res) => {
   const { church_id } = req.query;
   try {
       let query = supabase.from('parishes').select('*');
-      if (church_id && church_id !== 'all') {
-          query = query.eq('church_id', parseInt(church_id));
+      const cid = parseInt(church_id);
+      if (church_id && !isNaN(cid)) {
+          query = query.eq('church_id', cid);
       }
       const { data, error } = await query.order('name', { ascending: true });
       if (error) throw error;
@@ -779,8 +780,9 @@ app.get('/api/districts', async (req, res) => {
   const { parish_id } = req.query;
   try {
       let query = supabase.from('districts').select('*');
-      if (parish_id && parish_id !== 'all') {
-          query = query.eq('parish_id', parseInt(parish_id));
+      const pid = parseInt(parish_id);
+      if (parish_id && !isNaN(pid)) {
+          query = query.eq('parish_id', pid);
       }
       const { data, error } = await query.order('name', { ascending: true });
       if (error) throw error;
