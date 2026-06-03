@@ -8,6 +8,29 @@ import iconv from 'iconv-lite';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import pg from 'pg';
+import dns from 'dns';
+
+// --- DNS Override for Vercel / IPv4 Environments ---
+const originalLookup = dns.lookup;
+dns.lookup = function(hostname, options, callback) {
+  let opts = options;
+  let cb = callback;
+  if (typeof options === 'function') {
+    cb = options;
+    opts = {};
+  }
+  if (hostname === 'db.castdxotoypktiusslpk.supabase.co') {
+    const addr = '15.165.245.138'; // Seoul Region Pooler IPv4
+    const fam = 4;
+    if (opts.all) {
+      return cb(null, [{ address: addr, family: fam }], fam);
+    } else {
+      return cb(null, addr, fam);
+    }
+  }
+  return originalLookup(hostname, opts, cb);
+};
+
 
 // Load environment variables
 dotenv.config();
@@ -274,7 +297,18 @@ function syncAllMembersProfile(callback) {
 app.get('/api/run-migration-temp', async (req, res) => {
   const { Client } = pg;
   
-  const clientDirect = new Client({
+  // 1. Direct IPv6 address (bypass DNS lookup)
+  const clientDirectIPv6 = new Client({
+    host: '[2406:da12:557:f802:f78e:4591:9fd3:4ad7]',
+    port: 5432,
+    user: 'postgres',
+    password: 'qhrdmaemfrh1!',
+    database: 'postgres',
+    ssl: { rejectUnauthorized: false }
+  });
+
+  // 2. Direct Domain IPv6 (original fallback)
+  const clientDirectDomain = new Client({
     host: 'db.castdxotoypktiusslpk.supabase.co',
     port: 5432,
     user: 'postgres',
@@ -283,8 +317,9 @@ app.get('/api/run-migration-temp', async (req, res) => {
     ssl: { rejectUnauthorized: false }
   });
 
+  // 3. Pooler via DNS Override (Port 6543)
   const clientPooler = new Client({
-    host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+    host: 'db.castdxotoypktiusslpk.supabase.co',
     port: 6543,
     user: 'postgres.castdxotoypktiusslpk',
     password: 'qhrdmaemfrh1!',
@@ -295,12 +330,10 @@ app.get('/api/run-migration-temp', async (req, res) => {
   let logs = [];
   let success = false;
 
-  try {
-    logs.push("Trying Direct IPv6 connection to db.castdxotoypktiusslpk.supabase.co:5432...");
-    await clientDirect.connect();
-    logs.push("Successfully connected via Direct IPv6 connection!");
-    
-    const checkRes = await clientDirect.query(`
+  // Run a migration helper function
+  const runMigrationQuery = async (client, name) => {
+    logs.push(`Running query via ${name}...`);
+    const checkRes = await client.query(`
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name='parishes' AND column_name='parish_no'
@@ -308,47 +341,47 @@ app.get('/api/run-migration-temp', async (req, res) => {
     
     if (checkRes.rows.length === 0) {
       logs.push("parish_no does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
+      await client.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
       logs.push("Column parish_no added successfully.");
     } else {
       logs.push("Column parish_no already exists.");
     }
 
     logs.push("Reloading schema cache...");
-    await clientDirect.query("NOTIFY pgrst, 'reload schema';");
+    await client.query("NOTIFY pgrst, 'reload schema';");
     logs.push("Schema cache reloaded successfully!");
-    
-    await clientDirect.end();
+  };
+
+  try {
+    logs.push("Attempt 1: Trying Direct IPv6 literal address...");
+    await clientDirectIPv6.connect();
+    logs.push("Successfully connected via Direct IPv6 literal!");
+    await runMigrationQuery(clientDirectIPv6, 'Direct IPv6 literal');
+    await clientDirectIPv6.end();
     success = true;
-  } catch (directErr) {
-    logs.push(`Direct connection failed: ${directErr.message}`);
-    logs.push("Trying Pooler IPv4 connection to aws-0-ap-northeast-2.pooler.supabase.com:6543...");
+  } catch (err1) {
+    logs.push(`Attempt 1 failed: ${err1.message}`);
+    
     try {
-      await clientPooler.connect();
-      logs.push("Successfully connected via Pooler IPv4 connection!");
-      
-      const checkRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='parishes' AND column_name='parish_no'
-      `);
-      
-      if (checkRes.rows.length === 0) {
-        logs.push("parish_no does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
-        logs.push("Column parish_no added successfully.");
-      } else {
-        logs.push("Column parish_no already exists.");
-      }
-
-      logs.push("Reloading schema cache...");
-      await clientPooler.query("NOTIFY pgrst, 'reload schema';");
-      logs.push("Schema cache reloaded successfully!");
-
-      await clientPooler.end();
+      logs.push("Attempt 2: Trying Direct Domain IPv6...");
+      await clientDirectDomain.connect();
+      logs.push("Successfully connected via Direct Domain!");
+      await runMigrationQuery(clientDirectDomain, 'Direct Domain');
+      await clientDirectDomain.end();
       success = true;
-    } catch (poolerErr) {
-      logs.push(`Pooler connection failed: ${poolerErr.message}`);
+    } catch (err2) {
+      logs.push(`Attempt 2 failed: ${err2.message}`);
+      
+      try {
+        logs.push("Attempt 3: Trying Pooler IPv4 via DNS Override...");
+        await clientPooler.connect();
+        logs.push("Successfully connected via Pooler DNS Override!");
+        await runMigrationQuery(clientPooler, 'Pooler DNS Override');
+        await clientPooler.end();
+        success = true;
+      } catch (err3) {
+        logs.push(`Attempt 3 failed: ${err3.message}`);
+      }
     }
   }
 
