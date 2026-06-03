@@ -308,6 +308,30 @@ app.get('/api/run-migration-temp', async (req, res) => {
       user: 'postgres.castdxotoypktiusslpk',
       password: 'qhrdmaemfrh1!',
       database: 'postgres'
+    },
+    {
+      name: 'Pooler IPv4 with SNI (user: postgres.castdxotoypktiusslpk)',
+      host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+      port: 6543,
+      user: 'postgres.castdxotoypktiusslpk',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres',
+      ssl: {
+        rejectUnauthorized: false,
+        servername: 'db.castdxotoypktiusslpk.supabase.co'
+      }
+    },
+    {
+      name: 'Pooler IPv4 with SNI (user: postgres)',
+      host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+      port: 6543,
+      user: 'postgres',
+      password: 'qhrdmaemfrh1!',
+      database: 'postgres',
+      ssl: {
+        rejectUnauthorized: false,
+        servername: 'db.castdxotoypktiusslpk.supabase.co'
+      }
     }
   ];
 
@@ -323,7 +347,7 @@ app.get('/api/run-migration-temp', async (req, res) => {
       user: opt.user,
       password: opt.password,
       database: opt.database,
-      ssl: { rejectUnauthorized: false },
+      ssl: opt.ssl || { rejectUnauthorized: false },
       connectionTimeoutMillis: 5000
     });
 
