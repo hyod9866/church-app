@@ -697,6 +697,34 @@ app.delete('/api/members/records/:id', async (req, res) => {
   }
 });
 
+app.put('/api/members/records/:id', async (req, res) => {
+  const { id } = req.params;
+  const { date, status, remark } = req.body;
+  try {
+    const { data: row, error: findError } = await supabase
+      .from('member_records')
+      .select('member_id')
+      .eq('id', id)
+      .single();
+      
+    if (findError || !row) return res.status(500).json({ error: 'Record not found' });
+    const memberId = row.member_id;
+    
+    const { error: updateError } = await supabase
+      .from('member_records')
+      .update({ date, status, remark })
+      .eq('id', id);
+      
+    if (updateError) throw updateError;
+    
+    await syncMemberProfileFromRecords(memberId);
+    res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // Batch update sort_order
 app.post('/api/members/sort-order', async (req, res) => {
     const { order } = req.body; // Array of { id, sort_order }

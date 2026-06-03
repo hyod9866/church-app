@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingRecords = [];
     let isEditSortMode = false;
     let sortableInstance = null;
+    let editingRecordId = null;
 
     const tableBody = document.getElementById('tableBody');
     const exportBtn = document.getElementById('exportExcelBtn');
@@ -370,22 +371,126 @@ document.addEventListener('DOMContentLoaded', () => {
         targets.forEach(targetId => {
             const b = document.getElementById(targetId);
             if (!b) return;
-            b.innerHTML = recs.length ? recs.map((r, idx) => `
-                <tr class="text-[12px] border-b border-gray-50 hover:bg-gray-50 transition">
-                    <td class="p-2 text-gray-500">${r.date}</td>
-                    <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-black border">${RECORD_STATUS_MAP[r.status] || r.status}</span></td>
-                    <td class="p-2 text-gray-700 font-bold">${r.remark || ''}</td>
-                    <td class="p-2 text-right">
-                        <button type="button" class="text-red-400 hover:text-red-600 font-bold p-1 transition" onclick="deleteRecordFromModal(${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'})">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </td>
-                </tr>
-            `).join('') : '<tr><td colspan="4" class="p-4 text-center text-gray-400 text-xs italic">없음</td></tr>';
+            b.innerHTML = recs.length ? recs.map((r, idx) => {
+                const isEditing = currentMemberData ? (r.id === editingRecordId) : (idx === editingRecordId);
+                
+                if (isEditing) {
+                    // 수정 모드 렌더링
+                    return `
+                        <tr class="text-[12px] border-b border-gray-50 bg-amber-50/30 transition">
+                            <td class="p-2">
+                                <input type="date" value="${r.date}" id="edit-rec-date-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold">
+                            </td>
+                            <td class="p-2">
+                                <select id="edit-rec-status-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1 py-1 text-[11px] bg-white outline-none font-bold cursor-pointer">
+                                    ${Object.entries(RECORD_STATUS_MAP).map(([k, v]) => `
+                                        <option value="${k}" ${r.status === k ? 'selected' : ''}>${v}</option>
+                                    `).join('')}
+                                </select>
+                            </td>
+                            <td class="p-2">
+                                <input type="text" value="${r.remark || ''}" id="edit-rec-remark-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold" placeholder="비고 입력...">
+                            </td>
+                            <td class="p-2 text-right whitespace-nowrap">
+                                <button type="button" class="text-emerald-600 hover:text-emerald-700 font-bold p-1 mr-1 transition" onclick="saveRecordFromModal(${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'}, ${idx})">
+                                    <i class="fa-solid fa-check text-sm"></i>
+                                </button>
+                                <button type="button" class="text-gray-400 hover:text-gray-600 font-bold p-1 transition" onclick="cancelRecordEdit()">
+                                    <i class="fa-solid fa-xmark text-sm"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    // 일반 조회 모드 렌더링
+                    return `
+                        <tr class="text-[12px] border-b border-gray-50 hover:bg-gray-50 transition">
+                            <td class="p-2 text-gray-500">${r.date}</td>
+                            <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-black border bg-slate-50">${RECORD_STATUS_MAP[r.status] || r.status}</span></td>
+                            <td class="p-2 text-gray-700 font-bold">${r.remark || ''}</td>
+                            <td class="p-2 text-right whitespace-nowrap">
+                                <button type="button" class="text-blue-500 hover:text-blue-700 font-bold p-1 mr-1 transition" onclick="startRecordEdit(${currentMemberData ? r.id : idx})">
+                                    <i class="fa-solid fa-pen text-xs"></i>
+                                </button>
+                                <button type="button" class="text-red-400 hover:text-red-600 font-bold p-1 transition" onclick="deleteRecordFromModal(${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'}, ${idx})">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }).join('') : '<tr><td colspan="4" class="p-4 text-center text-gray-400 text-xs italic">없음</td></tr>';
         });
     }
 
-    window.deleteRecordFromModal = async function(recordId, memberId) {
+    // 수정 취소
+    window.cancelRecordEdit = function() {
+        editingRecordId = null;
+        if (currentMemberData) {
+            fetch(`/api/members/${currentMemberData.id}/records`).then(r => r.json()).then(recs => renderEditModalRecords(recs));
+        } else {
+            renderEditModalRecords(pendingRecords);
+        }
+    };
+
+    // 수정 시작
+    window.startRecordEdit = function(recordId) {
+        editingRecordId = recordId;
+        if (currentMemberData) {
+            fetch(`/api/members/${currentMemberData.id}/records`).then(r => r.json()).then(recs => renderEditModalRecords(recs));
+        } else {
+            renderEditModalRecords(pendingRecords);
+        }
+    };
+
+    // 수정 저장
+    window.saveRecordFromModal = async function(recordId, memberId, idx) {
+        const dateInput = document.getElementById(`edit-rec-date-${recordId}`);
+        const statusInput = document.getElementById(`edit-rec-status-${recordId}`);
+        const remarkInput = document.getElementById(`edit-rec-remark-${recordId}`);
+
+        const date = dateInput ? dateInput.value : '';
+        const status = statusInput ? statusInput.value : '';
+        const remark = remarkInput ? remarkInput.value.trim() : '';
+
+        if (!date) return alert('날짜는 필수 입력 항목입니다.');
+
+        if (memberId && memberId !== 'null') {
+            // 서버에 저장된 기록 수정
+            try {
+                const res = await fetch(`/api/members/records/${recordId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date, status, remark })
+                });
+                
+                if (res.ok) {
+                    editingRecordId = null;
+                    const r = await fetch(`/api/members/${memberId}/records`);
+                    const newRecs = await r.json();
+                    renderEditModalRecords(newRecs);
+                    if (typeof loadData === 'function') loadData(); // 메인 테이블 리로드
+                } else {
+                    const err = await res.json();
+                    alert(`수정 실패: ${err.error || '알 수 없는 오류'}`);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('통신 중 오류가 발생했습니다.');
+            }
+        } else {
+            // 새 성도 등록 시 임시 기록 수정
+            if (pendingRecords[idx]) {
+                pendingRecords[idx].date = date;
+                pendingRecords[idx].status = status;
+                pendingRecords[idx].remark = remark;
+            }
+            editingRecordId = null;
+            renderEditModalRecords(pendingRecords);
+        }
+    };
+
+    window.deleteRecordFromModal = async function(recordId, memberId, idx) {
         if (!confirm('이 기록을 정말 삭제하시겠습니까?')) return;
         
         if (memberId && memberId !== 'null') {
@@ -393,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch(`/api/members/records/${recordId}`, { method: 'DELETE' });
                 if (res.ok) {
+                    editingRecordId = null; // 수정 모드 초기화
                     const r = await fetch(`/api/members/${memberId}/records`);
                     const newRecs = await r.json();
                     renderEditModalRecords(newRecs);
@@ -401,7 +507,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { console.error(e); }
         } else {
             // 새 성도 등록 시 임시 기록 목록에서 삭제
-            pendingRecords = pendingRecords.filter((_, idx) => idx !== parseInt(recordId));
+            editingRecordId = null; // 수정 모드 초기화
+            pendingRecords = pendingRecords.filter((_, i) => i !== idx);
             renderEditModalRecords(pendingRecords);
         }
     };
