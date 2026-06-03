@@ -80,15 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             churches = await fetchChurches();
             
-            // 모든 교회의 교구 정보를 병렬로 가져옴
-            const parishPromises = churches.map(c => fetchParishes(c.id).catch(() => []));
-            const parishResults = await Promise.all(parishPromises);
-            parishes = parishResults.flat();
+            // 모든 교구 정보를 일괄 조회
+            const parishesRes = await fetch('/api/parishes?church_id=all');
+            parishes = await parishesRes.json();
             
-            // 모든 교구의 구역 정보를 병렬로 가져옴
-            const distPromises = parishes.map(p => fetchDistricts(p.id).catch(() => []));
-            const distResults = await Promise.all(distPromises);
-            districts = distResults.flat();
+            // 모든 구역 정보를 일괄 조회
+            const districtsRes = await fetch('/api/districts?parish_id=all');
+            districts = await districtsRes.json();
             
             // 외부설교 일정
             const meetings = await fetchMeetings();

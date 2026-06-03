@@ -762,13 +762,12 @@ app.get('/api/churches/all', async (req, res) => {
 
 app.get('/api/parishes', async (req, res) => {
   const { church_id } = req.query;
-  if (!church_id) return res.status(400).json({ error: 'church_id is required' });
   try {
-      const { data, error } = await supabase
-          .from('parishes')
-          .select('*')
-          .eq('church_id', church_id)
-          .order('name', { ascending: true });
+      let query = supabase.from('parishes').select('*');
+      if (church_id && church_id !== 'all') {
+          query = query.eq('church_id', parseInt(church_id));
+      }
+      const { data, error } = await query.order('name', { ascending: true });
       if (error) throw error;
       res.json(data || []);
   } catch (err) {
@@ -778,13 +777,12 @@ app.get('/api/parishes', async (req, res) => {
 
 app.get('/api/districts', async (req, res) => {
   const { parish_id } = req.query;
-  if (!parish_id) return res.status(400).json({ error: 'parish_id is required' });
   try {
-      const { data, error } = await supabase
-          .from('districts')
-          .select('*')
-          .eq('parish_id', parish_id)
-          .order('name', { ascending: true });
+      let query = supabase.from('districts').select('*');
+      if (parish_id && parish_id !== 'all') {
+          query = query.eq('parish_id', parseInt(parish_id));
+      }
+      const { data, error } = await query.order('name', { ascending: true });
       if (error) throw error;
       res.json(data || []);
   } catch (err) {
