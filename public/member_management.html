@@ -308,10 +308,15 @@
             <form id="memberAddForm" class="p-6 overflow-y-auto flex-1 bg-slate-50/10 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 md:col-span-1">
+                        <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">소속 교회 *</label>
+                        <select name="church" required class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-blue-50/50 text-blue-800 outline-none transition duration-150 cursor-pointer">
+                            <!-- Dynamically loaded via JS -->
+                        </select>
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
                         <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">교구 구분</label>
                         <select name="parish" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-blue-50/50 text-blue-800 outline-none transition duration-150 cursor-pointer">
-                            <option value="타 교구">타 교구</option>
-                            <option value="부곡교구">부곡교구</option>
+                            <option value="">교구 선택 (없음)</option>
                         </select>
                     </div>
                     <input type="hidden" name="status">
@@ -340,8 +345,10 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">구역 (기록으로 변경)</label>
-                        <input type="text" name="district" readonly placeholder="인적사항 기록에서 변경하세요" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold bg-slate-100 text-slate-400 cursor-not-allowed outline-none" title="구역 변경은 하단 인적사항 기록을 이용해 주세요.">
+                        <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">구역</label>
+                        <select name="district" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white outline-none transition duration-150 cursor-pointer">
+                            <option value="미배정">미배정</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">구원일</label>

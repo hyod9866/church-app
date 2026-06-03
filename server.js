@@ -608,6 +608,55 @@ app.put('/api/members/:id', async (req, res) => {
       .eq('id', id);
       
     if (error) throw error;
+
+    // 소속 교회/교구/구역 변경 감지 및 자동 인적기록 생성
+    try {
+      const { data: oldMember, error: getOldErr } = await supabase
+        .from('members')
+        .select('church, parish, district')
+        .eq('id', id)
+        .single();
+
+      if (!getOldErr && oldMember) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const autoRecords = [];
+
+        if (oldMember.church !== b.church) {
+          const remarkVal = b.church && b.church.includes('서울중앙교회') 
+            ? `${b.church} > ${b.parish || ''} > ${b.district || '미배정'}`
+            : b.church;
+          autoRecords.push({
+            member_id: id,
+            date: todayStr,
+            status: 'CHURCH_MOVE',
+            remark: remarkVal || ''
+          });
+        } else {
+          if (oldMember.parish !== b.parish) {
+            autoRecords.push({
+              member_id: id,
+              date: todayStr,
+              status: 'PARISH_MOVE',
+              remark: b.parish || ''
+            });
+          }
+          if (oldMember.district !== b.district) {
+            autoRecords.push({
+              member_id: id,
+              date: todayStr,
+              status: 'DISTRICT',
+              remark: b.district || ''
+            });
+          }
+        }
+
+        if (autoRecords.length > 0) {
+          await supabase.from('member_records').insert(autoRecords);
+        }
+      }
+    } catch (autoErr) {
+      console.error('Auto record sync failed:', autoErr);
+    }
     
     await syncMemberProfileFromRecords(id);
     

@@ -26,6 +26,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSaveSort = document.getElementById('btnSaveSort');
     const btnCustomSort = document.getElementById('btnCustomSort');
 
+    // --- memberAddForm 교회-교구-구역 셀렉트 박스 연동 이벤트 ---
+    const formChurch = document.querySelector('#memberAddForm select[name="church"]');
+    const formParish = document.querySelector('#memberAddForm select[name="parish"]');
+    const formDistrict = document.querySelector('#memberAddForm select[name="district"]');
+
+    if (formChurch && formParish && formDistrict) {
+        formChurch.addEventListener('change', async () => {
+            const opt = formChurch.options[formChurch.selectedIndex];
+            const churchId = opt ? opt.dataset.id : null;
+            await updateFormParishOptions(churchId);
+            await updateFormDistrictOptions(formParish.value);
+        });
+
+        formParish.addEventListener('change', async () => {
+            await updateFormDistrictOptions(formParish.value);
+        });
+    }
+
+    async function updateFormParishOptions(churchId, targetParishName = null) {
+        if (!formParish) return;
+        if (!churchId) {
+            formParish.innerHTML = '<option value="">교구 선택 (없음)</option>';
+            return;
+        }
+        const parishes = await fetchParishes(churchId);
+        if (parishes && parishes.length > 0) {
+            formParish.innerHTML = '<option value="">교구 선택 (없음)</option>' + 
+                parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+            
+            if (targetParishName) {
+                formParish.value = targetParishName;
+            } else {
+                formParish.value = "";
+            }
+        } else {
+            formParish.innerHTML = '<option value="">교구 선택 (없음)</option>';
+        }
+    }
+
+    async function updateFormDistrictOptions(parishName, targetDistrictName = null) {
+        if (!formDistrict) return;
+        if (!parishName) {
+            formDistrict.innerHTML = '<option value="미배정">미배정</option>';
+            return;
+        }
+        
+        const opt = formParish.querySelector(`option[value="${parishName}"]`);
+        const parishId = opt ? opt.dataset.id : null;
+        
+        if (!parishId) {
+            formDistrict.innerHTML = '<option value="미배정">미배정</option>';
+            return;
+        }
+
+        const districts = await fetchDistricts(parishId);
+        if (districts && districts.length > 0) {
+            formDistrict.innerHTML = '<option value="미배정">미배정</option>' + 
+                districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            
+            if (targetDistrictName) {
+                formDistrict.value = targetDistrictName;
+            } else {
+                formDistrict.value = "미배정";
+            }
+        } else {
+            formDistrict.innerHTML = '<option value="미배정">미배정</option>';
+        }
+    }
+
+
     async function loadData() {
         try {
             const response = await fetch('/api/members/search?status=all');
@@ -920,7 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     };
 
-    function openAddModal(isEdit = false) {
+    async function openAddModal(isEdit = false) {
         const sec = document.getElementById('editOnlyRecordSection');
         const deleteMemberFullyBtn = document.getElementById('deleteMemberFullyBtn');
         const linkedFamilyContainer = document.getElementById('linkedFamilyContainer');
@@ -935,9 +1005,33 @@ document.addEventListener('DOMContentLoaded', () => {
         pendingRecords = [];
         renderEditModalRecords([]);
 
+        // 교회 목록 로드 및 옵션 바인딩
+        const allChurches = await fetchChurches();
+        if (formChurch) {
+            formChurch.innerHTML = allChurches.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
+        }
+
         if (!isEdit) { 
             currentMemberData = null; 
             memberAddForm.reset(); 
+            
+            // 등록 모드: 현재 헤더의 선택 상태에 맞추어 디폴트 교회/교구 지정
+            if (headerChurch && formChurch) {
+                const opt = headerChurch.options[headerChurch.selectedIndex];
+                const activeChurchName = opt ? opt.textContent.trim() : '서울중앙교회';
+                formChurch.value = activeChurchName;
+                
+                const churchId = headerChurch.value;
+                const activeParishOpt = filterParishSelect ? filterParishSelect.options[filterParishSelect.selectedIndex] : null;
+                const activeParishName = (activeParishOpt && activeParishOpt.value !== '전체') ? activeParishOpt.textContent.trim() : null;
+                
+                await updateFormParishOptions(churchId, activeParishName);
+                await updateFormDistrictOptions(activeParishName, null);
+            } else {
+                await updateFormParishOptions(null);
+                await updateFormDistrictOptions(null);
+            }
+
             // 새 성도 등록 시에도 기록 섹션 표시
             if (sec) sec.classList.remove('hidden'); 
             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.add('hidden');
@@ -946,8 +1040,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (recordDate) recordDate.value = new Date().toISOString().split('T')[0];
         }
         else {
+            // 수정 모드: 성도의 기존 교회/교구/구역 바인딩
+            if (formChurch) {
+                formChurch.value = currentMemberData.church || '서울중앙교회';
+            }
+            const cOpt = formChurch.querySelector(`option[value="${formChurch.value}"]`);
+            const churchId = cOpt ? cOpt.dataset.id : null;
+            
+            await updateFormParishOptions(churchId, currentMemberData.parish);
+            await updateFormDistrictOptions(currentMemberData.parish, currentMemberData.district);
+
             const ipts = memberAddForm.querySelectorAll('input, select, textarea');
-            ipts.forEach(i => { if (i.type === 'checkbox') { i.checked = (currentMemberData[i.name] || '').split(',').map(s=>s.trim()).includes(i.value); } else if (currentMemberData[i.name] !== undefined) { i.value = currentMemberData[i.name] || ''; } });
+            ipts.forEach(i => { 
+                if (i.name === 'church' || i.name === 'parish' || i.name === 'district') return; // 수동으로 설정 완료했으므로 스킵
+                if (i.type === 'checkbox') { 
+                    i.checked = (currentMemberData[i.name] || '').split(',').map(s=>s.trim()).includes(i.value); 
+                } else if (currentMemberData[i.name] !== undefined) { 
+                    i.value = currentMemberData[i.name] || ''; 
+                } 
+            });
+
             if (currentMemberData.family_id) hiddenFamilyId.value = currentMemberData.family_id;
             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.remove('hidden');
             window._sessionLinkedNames = new Set(); updateFamilyUI();
