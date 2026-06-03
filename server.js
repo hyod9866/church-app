@@ -7,6 +7,7 @@ import * as csv from 'fast-csv';
 import iconv from 'iconv-lite';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import pg from 'pg';
 
 // Load environment variables
 dotenv.config();
@@ -269,6 +270,93 @@ function syncAllMembersProfile(callback) {
             callback && callback(err);
         });
 }
+
+app.get('/api/run-migration-temp', async (req, res) => {
+  const { Client } = pg;
+  
+  const clientDirect = new Client({
+    host: 'db.castdxotoypktiusslpk.supabase.co',
+    port: 5432,
+    user: 'postgres',
+    password: 'qhrdmaemfrh1!',
+    database: 'postgres',
+    ssl: { rejectUnauthorized: false }
+  });
+
+  const clientPooler = new Client({
+    host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+    port: 6543,
+    user: 'postgres.castdxotoypktiusslpk',
+    password: 'qhrdmaemfrh1!',
+    database: 'postgres',
+    ssl: { rejectUnauthorized: false }
+  });
+
+  let logs = [];
+  let success = false;
+
+  try {
+    logs.push("Trying Direct IPv6 connection to db.castdxotoypktiusslpk.supabase.co:5432...");
+    await clientDirect.connect();
+    logs.push("Successfully connected via Direct IPv6 connection!");
+    
+    const checkRes = await clientDirect.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='parishes' AND column_name='parish_no'
+    `);
+    
+    if (checkRes.rows.length === 0) {
+      logs.push("parish_no does not exist. Adding column...");
+      await clientDirect.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
+      logs.push("Column parish_no added successfully.");
+    } else {
+      logs.push("Column parish_no already exists.");
+    }
+
+    logs.push("Reloading schema cache...");
+    await clientDirect.query("NOTIFY pgrst, 'reload schema';");
+    logs.push("Schema cache reloaded successfully!");
+    
+    await clientDirect.end();
+    success = true;
+  } catch (directErr) {
+    logs.push(`Direct connection failed: ${directErr.message}`);
+    logs.push("Trying Pooler IPv4 connection to aws-0-ap-northeast-2.pooler.supabase.com:6543...");
+    try {
+      await clientPooler.connect();
+      logs.push("Successfully connected via Pooler IPv4 connection!");
+      
+      const checkRes = await clientPooler.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='parishes' AND column_name='parish_no'
+      `);
+      
+      if (checkRes.rows.length === 0) {
+        logs.push("parish_no does not exist. Adding column...");
+        await clientPooler.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
+        logs.push("Column parish_no added successfully.");
+      } else {
+        logs.push("Column parish_no already exists.");
+      }
+
+      logs.push("Reloading schema cache...");
+      await clientPooler.query("NOTIFY pgrst, 'reload schema';");
+      logs.push("Schema cache reloaded successfully!");
+
+      await clientPooler.end();
+      success = true;
+    } catch (poolerErr) {
+      logs.push(`Pooler connection failed: ${poolerErr.message}`);
+    }
+  }
+
+  res.json({
+    success,
+    logs
+  });
+});
 
 app.get('/api/members/search', async (req, res) => {
   try {
