@@ -1,4 +1,5 @@
 import pg from 'pg';
+import fs from 'fs';
 const { Client } = pg;
 
 async function run() {
@@ -36,9 +37,13 @@ async function run() {
 
     await client.end();
     console.log("MIGRATION LOGGED AS SUCCESSFUL.");
+    
+    // Write success log
+    fs.writeFileSync('migration_result.txt', 'SUCCESS: Migration completed successfully.');
   } catch (err) {
     console.error("Migration failed:", err.message);
-    process.exit(1);
+    // Write error log to file
+    fs.writeFileSync('migration_result.txt', `FAILED: ${err.message}`);
   }
 }
 
