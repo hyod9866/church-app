@@ -403,6 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th class="p-2 border-b">교구 명칭</th>
                                 <th class="p-2 border-b">교구 코드</th>
                                 <th class="p-2 border-b text-right">구역 수</th>
+                                <th class="p-2 border-b text-center w-12">삭제</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -413,6 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <td class="p-2 font-bold text-blue-900">${p.name}</td>
                                         <td class="p-2 font-mono text-gray-500">${p.parish_no || '-'}번</td>
                                         <td class="p-2 text-right text-gray-700 font-bold">${dCount}개 구역</td>
+                                        <td class="p-2 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('parish', ${p.id}, '${p.name}')">
+                                            <button class="text-rose-500 hover:text-rose-700 transition p-1"><i class="fa-solid fa-trash-can"></i></button>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -429,6 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <tr class="bg-gray-100 font-black text-gray-600">
                                 <th class="p-2 border-b">구역 명칭</th>
                                 <th class="p-2 border-b text-right">등록 인원</th>
+                                <th class="p-2 border-b text-center w-12">삭제</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -437,6 +442,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <tr class="hover:bg-blue-50 border-b cursor-pointer transition" onclick="selectNode('district', ${d.id}, '${d.name}', ${id})">
                                         <td class="p-2 font-bold text-blue-900">${d.name}</td>
                                         <td class="p-2 text-right text-gray-500">조회 가능</td>
+                                        <td class="p-2 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('district', ${d.id}, '${d.name}')">
+                                            <button class="text-rose-500 hover:text-rose-700 transition p-1"><i class="fa-solid fa-trash-can"></i></button>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -594,10 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Delete Node Handler
-    deleteNodeBtn.addEventListener('click', async () => {
-        if (!selectedNode) return;
-        const { type, id, name } = selectedNode;
-        
+    async function deleteNode(type, id, name) {
         let confirmMsg = `'${name}'을 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.`;
         if (type === 'church' && name.includes('서울중앙교회')) {
             return alert('서울중앙교회 본교는 삭제할 수 없습니다.');
@@ -615,9 +620,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (res.ok) {
                     alert('성공적으로 삭제되었습니다.');
-                    selectedNode = null;
-                    detailDashboard.classList.add('hidden');
-                    noSelectionAlert.classList.remove('hidden');
+                    if (selectedNode && selectedNode.type === type && selectedNode.id === id) {
+                        selectedNode = null;
+                        detailDashboard.classList.add('hidden');
+                        noSelectionAlert.classList.remove('hidden');
+                    }
                     await initData();
                 } else {
                     alert(`삭제 실패: ${reply.error || '알 수 없는 오류'}`);
@@ -626,6 +633,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`통신 오류: ${err.message}`);
             }
         }
+    }
+
+    deleteNodeBtn.addEventListener('click', () => {
+        if (!selectedNode) return;
+        deleteNode(selectedNode.type, selectedNode.id, selectedNode.name);
     });
 
     // Submit Node Form (Add / Edit)
@@ -745,6 +757,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Final Execution ---
+    window.selectNode = selectNode;
+    window.deleteNodeDirectly = deleteNode;
+
     initHeaderSelectors();
     initData();
 });
