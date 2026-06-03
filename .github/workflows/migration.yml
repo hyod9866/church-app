@@ -1,0 +1,27 @@
+name: Supabase Database Migration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrate.js'
+      - '.github/workflows/migration.yml'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: '18'
+
+      - name: Install dependencies
+        run: npm install pg
+
+      - name: Run Migration Script
+        run: node migrate.js
