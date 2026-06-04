@@ -53,6 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const nodeAddress = document.getElementById('nodeAddress');
     const churchAddressSection = document.getElementById('churchAddressSection');
     const nodeFormAddress = document.getElementById('nodeFormAddress');
+    
+    // Map links modal elements
+    const mapModal = document.getElementById('mapModal');
+    const mapModalAddress = document.getElementById('mapModalAddress');
+    const modalTmapLink = document.getElementById('modalTmapLink');
+    const modalKakaomapLink = document.getElementById('modalKakaomapLink');
+    const modalNavermapLink = document.getElementById('modalNavermapLink');
+    const modalCopyAddressBtn = document.getElementById('modalCopyAddressBtn');
+    const closeMapModal = document.getElementById('closeMapModal');
+    const closeMapModalBtn = document.getElementById('closeMapModalBtn');
 
     // Buttons
     const addChurchBtn = document.getElementById('addChurchBtn');
@@ -63,14 +73,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const headerChurch = document.getElementById('headerChurchSelect');
     const headerParish = document.getElementById('headerParishSelect');
 
-    // --- Helper Colors mapping ---
-    const getDC = (d) => {
-        if (!d || d === '-') return 'bg-gray-100 text-gray-400 border-gray-200';
-        if (d.includes('581')) return 'bg-blue-100 text-blue-800 border-blue-200';
-        if (d.includes('582')) return 'bg-green-100 text-green-800 border-green-200';
-        if (d.includes('583')) return 'bg-purple-100 text-purple-800 border-purple-200';
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-    };
+    // --- Premium HRM UX Styling Helpers ---
+    function getAvatarHtml(name) {
+        if (!name) return '';
+        const char = name.trim().charAt(0);
+        const colors = [
+            'bg-blue-50 text-blue-600 border-blue-100/70',
+            'bg-indigo-50 text-indigo-600 border-indigo-100/70',
+            'bg-purple-50 text-purple-600 border-purple-100/70',
+            'bg-rose-50 text-rose-600 border-rose-100/70',
+            'bg-emerald-50 text-emerald-600 border-emerald-100/70',
+            'bg-amber-50 text-amber-600 border-amber-100/70',
+            'bg-sky-50 text-sky-600 border-sky-100/70'
+        ];
+        // Simple hash for consistent color assignment
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const color = colors[Math.abs(hash) % colors.length];
+        return `<div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border ${color} shadow-sm flex-shrink-0">${char}</div>`;
+    }
+
+    function getPositionBadgeHtml(position) {
+        if (!position || position === '-') return '<span class="text-gray-400 font-medium">-</span>';
+        let colorClass = 'bg-slate-50 text-slate-600 border-slate-200/60';
+        if (position.includes('목사') || position.includes('전도사')) {
+            colorClass = 'bg-violet-50 text-violet-700 border-violet-200/60';
+        } else if (position.includes('장로') || position.includes('권사')) {
+            colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60';
+        } else if (position.includes('집사')) {
+            colorClass = 'bg-sky-50 text-sky-700 border-sky-200/60';
+        }
+        return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass}">${position}</span>`;
+    }
+
+    function getCategoryBadgeHtml(cat) {
+        if (!cat || cat === '-') return '<span class="text-gray-400 font-medium">-</span>';
+        let colorClass = 'bg-blue-50 text-blue-700 border-blue-200/60';
+        if (cat.includes('봉사회')) colorClass = 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
+        else if (cat.includes('어머니회')) colorClass = 'bg-rose-50 text-rose-700 border-rose-200/60';
+        else if (cat.includes('청년회') || cat.includes('대학부')) colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+        else if (cat.includes('중고등부') || cat.includes('초등부')) colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60';
+        return `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colorClass}">${cat}</span>`;
+    }
 
     // --- API Fetchers ---
     async function fetchChurches() { const res = await fetch('/api/churches/all'); return await res.json(); }
@@ -323,7 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 주소 정보 렌더링
             const curChurch = churches.find(c => c.id === id);
             if (curChurch && curChurch.address) {
-                nodeAddress.textContent = curChurch.address;
+                const addr = curChurch.address.trim();
+                nodeAddress.textContent = addr;
                 nodeAddressContainer.classList.remove('hidden');
             } else {
                 nodeAddressContainer.classList.add('hidden');
@@ -410,87 +457,106 @@ document.addEventListener('DOMContentLoaded', () => {
                 metricSubOrgCount.textContent = `${subCount}개`;
                 
                 tableListContainer.innerHTML = `
-                    <table class="w-full text-xs text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-100 font-black text-gray-600">
-                                <th class="p-2 border-b">교구 명칭</th>
-                                <th class="p-2 border-b">교구 코드</th>
-                                <th class="p-2 border-b text-right">구역 수</th>
-                                <th class="p-2 border-b text-center w-12">삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${churchParishes.map(p => {
-                                const dCount = districts.filter(d => d.parish_id === p.id).length;
-                                return `
-                                    <tr class="hover:bg-blue-50 border-b cursor-pointer transition" onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
-                                        <td class="p-2 font-bold text-blue-900">${p.name}</td>
-                                        <td class="p-2 font-mono text-gray-500">${p.parish_no || '-'}번</td>
-                                        <td class="p-2 text-right text-gray-700 font-bold">${dCount}개 구역</td>
-                                        <td class="p-2 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('parish', ${p.id}, '${p.name}')">
-                                            <button class="text-rose-500 hover:text-rose-700 transition p-1"><i class="fa-solid fa-trash-can"></i></button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
+                        <table class="w-full text-xs text-left border-collapse bg-white">
+                            <thead>
+                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                    <th class="p-3.5">교구 명칭</th>
+                                    <th class="p-3.5">교구 코드</th>
+                                    <th class="p-3.5 text-right">구역 수</th>
+                                    <th class="p-3.5 text-center w-14">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${churchParishes.map(p => {
+                                    const dCount = districts.filter(d => d.parish_id === p.id).length;
+                                    return `
+                                        <tr class="hover:bg-slate-50/50 cursor-pointer transition-colors duration-150" onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
+                                            <td class="p-3.5 font-bold text-slate-900 flex items-center gap-2">
+                                                <i class="fa-solid fa-people-roof text-indigo-500 text-[13px]"></i>
+                                                <span>${p.name}</span>
+                                            </td>
+                                            <td class="p-3.5 font-semibold text-slate-400 font-mono">${p.parish_no || '-'}번 교구</td>
+                                            <td class="p-3.5 text-right text-slate-700 font-bold">${dCount}개 구역</td>
+                                            <td class="p-3.5 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('parish', ${p.id}, '${p.name}')">
+                                                <button class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition flex items-center justify-center mx-auto"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             } else if (type === 'parish') {
                 const subDists = districts.filter(d => d.parish_id === id);
                 metricSubOrgCount.textContent = `${subDists.length}개`;
                 
                 tableListContainer.innerHTML = `
-                    <table class="w-full text-xs text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-100 font-black text-gray-600">
-                                <th class="p-2 border-b">구역 명칭</th>
-                                <th class="p-2 border-b text-right">등록 인원</th>
-                                <th class="p-2 border-b text-center w-12">삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${subDists.map(d => {
-                                return `
-                                    <tr class="hover:bg-blue-50 border-b cursor-pointer transition" onclick="selectNode('district', ${d.id}, '${d.name}', ${id})">
-                                        <td class="p-2 font-bold text-blue-900">${d.name}</td>
-                                        <td class="p-2 text-right text-gray-500">조회 가능</td>
-                                        <td class="p-2 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('district', ${d.id}, '${d.name}')">
-                                            <button class="text-rose-500 hover:text-rose-700 transition p-1"><i class="fa-solid fa-trash-can"></i></button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
+                        <table class="w-full text-xs text-left border-collapse bg-white">
+                            <thead>
+                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                    <th class="p-3.5">구역 명칭</th>
+                                    <th class="p-3.5 text-right">등록 인원</th>
+                                    <th class="p-3.5 text-center w-14">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${subDists.map(d => {
+                                    return `
+                                        <tr class="hover:bg-slate-50/50 cursor-pointer transition-colors duration-150" onclick="selectNode('district', ${d.id}, '${d.name}', ${id})">
+                                            <td class="p-3.5 font-bold text-slate-900 flex items-center gap-2">
+                                                <i class="fa-solid fa-house-chimney text-emerald-500 text-[12px]"></i>
+                                                <span>${d.name}</span>
+                                            </td>
+                                            <td class="p-3.5 text-right text-slate-500 font-medium">조회 가능</td>
+                                            <td class="p-3.5 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('district', ${d.id}, '${d.name}')">
+                                                <button class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition flex items-center justify-center mx-auto"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             } else {
-                // 구역 상세: 소속 성도 명단 테이블화
+                // 구역 상세: 소속 성도 명단 테이블화 (Premium HRM 스타일)
                 tableListContainer.innerHTML = `
-                    <table class="w-full text-[11px] text-left border-collapse whitespace-nowrap">
-                        <thead>
-                            <tr class="bg-gray-100 font-black text-gray-600">
-                                <th class="p-2 border-b">성명</th>
-                                <th class="p-2 border-b">소속회</th>
-                                <th class="p-2 border-b">생년</th>
-                                <th class="p-2 border-b">직분</th>
-                                <th class="p-2 border-b">상태</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${members.map(m => {
-                                return `
-                                    <tr class="hover:bg-gray-50 border-b">
-                                        <td class="p-2 font-black text-gray-800">${m.name}</td>
-                                        <td class="p-2 font-bold text-blue-800">${m.category || '-'}</td>
-                                        <td class="p-2 text-gray-500">${m.birth_year || '-'}년</td>
-                                        <td class="p-2 text-yellow-800 font-bold">${m.position || '-'}</td>
-                                        <td class="p-2"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-black ${m.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${m.status === 'active' ? '교제중' : '쉬는중'}</span></td>
-                                    </tr>
-                                `;
-                            }).join('') || '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">등록된 성도가 없습니다.</td></tr>'}
-                        </tbody>
-                    </table>
+                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
+                        <table class="w-full text-xs text-left border-collapse bg-white whitespace-nowrap">
+                            <thead>
+                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                    <th class="p-3.5">성명</th>
+                                    <th class="p-3.5">소속회</th>
+                                    <th class="p-3.5">생년</th>
+                                    <th class="p-3.5">직분</th>
+                                    <th class="p-3.5">상태</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${members.map(m => {
+                                    return `
+                                        <tr class="hover:bg-slate-50/30 transition-colors duration-150">
+                                            <td class="p-3.5 font-bold text-slate-950 flex items-center gap-2.5">
+                                                ${getAvatarHtml(m.name)}
+                                                <span>${m.name}</span>
+                                            </td>
+                                            <td class="p-3.5">${getCategoryBadgeHtml(m.category)}</td>
+                                            <td class="p-3.5 text-slate-500 font-semibold font-mono text-[11px]">${m.birth_year || '-'}년</td>
+                                            <td class="p-3.5">${getPositionBadgeHtml(m.position)}</td>
+                                            <td class="p-3.5">
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${m.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' : 'bg-rose-50 text-rose-700 border-rose-200/50'}">
+                                                    ${m.status === 'active' ? '교제중' : '쉬는중'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-400 italic font-medium bg-slate-50/30"><i class="fa-solid fa-user-slash text-lg mb-2 block text-slate-300"></i>등록된 성도가 없습니다.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             }
         } catch (err) {
@@ -507,8 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sermonStatLast.textContent = '기록 없음';
             sermonTimelineContainer.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-10 text-gray-400">
-                    <i class="fa-solid fa-microphone-slash text-4xl mb-2 text-gray-200"></i>
-                    <p class="text-xs italic">'${churchName}'으로 다녀온 외부설교 기록이 아직 등록되어 있지 않습니다.</p>
+                    <i class="fa-solid fa-microphone-slash text-4xl mb-3 text-gray-200"></i>
+                    <p class="text-xs italic font-medium text-slate-400">'${churchName}'으로 다녀온 외부설교 기록이 아직 등록되어 있지 않습니다.</p>
                 </div>
             `;
             return;
@@ -529,15 +595,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="relative pl-2 group">
                     <!-- Timeline node dot -->
-                    <span class="absolute -left-[23px] top-1.5 w-3.5 h-3.5 rounded-full ${idx === 0 ? 'bg-purple-600 ring-4 ring-purple-100' : 'bg-gray-300'} border-2 border-white transition group-hover:scale-125 duration-200 z-10"></span>
-                    <div class="bg-gray-50 border rounded-2xl p-4 shadow-sm group-hover:shadow-md transition duration-200">
-                        <div class="flex justify-between items-center mb-1 flex-wrap gap-2">
-                            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">${s.date}</span>
-                            <span class="text-[10px] text-gray-400 font-bold"><i class="fa-solid fa-microphone-lines mr-0.5"></i>외부설교</span>
+                    <span class="absolute -left-[23px] top-2.5 w-3.5 h-3.5 rounded-full ${idx === 0 ? 'bg-purple-500 ring-4 ring-purple-100/80 border border-purple-300' : 'bg-slate-300 border-2 border-white'} transition-all duration-200 group-hover:scale-110 z-10"></span>
+                    <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm group-hover:shadow-md transition-all duration-200">
+                        <div class="flex justify-between items-center mb-1.5 flex-wrap gap-2">
+                            <span class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-100/60 px-2 py-0.5 rounded-full">${s.date}</span>
+                            <span class="text-[9px] text-slate-450 font-bold tracking-wider uppercase"><i class="fa-solid fa-microphone-lines mr-1 text-[10px] text-purple-400"></i>외부설교</span>
                         </div>
-                        <h4 class="font-extrabold text-gray-800 text-sm mb-1 text-blue-900">${s.title}</h4>
-                        ${s.sermon_title ? `<div class="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100 font-black mb-2">설교 본문: ${s.sermon_title}</div>` : ''}
-                        ${s.memo ? `<p class="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">${s.memo}</p>` : '<p class="text-xs text-gray-400 italic">설교 내용 메모 없음</p>'}
+                        <h4 class="font-extrabold text-slate-900 text-sm mb-1.5 leading-snug">${s.title}</h4>
+                        ${s.sermon_title ? `<div class="text-[11px] text-amber-800 bg-amber-50/70 px-2.5 py-1.5 rounded-lg border border-amber-100/60 font-semibold mb-2 flex items-center gap-1.5"><i class="fa-solid fa-book-open text-amber-500 text-[10px]"></i><span>설교 본문: ${s.sermon_title}</span></div>` : ''}
+                        ${s.memo ? `<p class="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">${s.memo}</p>` : '<p class="text-xs text-slate-400 italic">설교 내용 메모 없음</p>'}
                     </div>
                 </div>
             `;
@@ -777,6 +843,50 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('activeParishId', headerParish.value);
         });
     }
+
+    // --- Map Links & Modal Logic (User Friendly / Prevents overlap) ---
+    nodeAddressContainer.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const addressText = nodeAddress.textContent;
+        if (!addressText) return;
+        
+        mapModalAddress.textContent = addressText;
+        modalTmapLink.href = `tmap://search?name=${encodeURIComponent(addressText)}`;
+        modalKakaomapLink.href = `https://map.kakao.com/?q=${encodeURIComponent(addressText)}`;
+        modalNavermapLink.href = `https://map.naver.com/v5/search/${encodeURIComponent(addressText)}`;
+        
+        mapModal.classList.remove('hidden');
+    });
+
+    function hideMapModal() {
+        mapModal.classList.add('hidden');
+    }
+
+    closeMapModal.addEventListener('click', hideMapModal);
+    closeMapModalBtn.addEventListener('click', hideMapModal);
+
+    // Close when clicking backdrop
+    mapModal.addEventListener('click', (e) => {
+        if (e.target === mapModal) {
+            hideMapModal();
+        }
+    });
+
+    // Copy to clipboard from modal
+    modalCopyAddressBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const addressText = mapModalAddress.textContent;
+        if (addressText) {
+            navigator.clipboard.writeText(addressText)
+                .then(() => {
+                    alert('주소가 클립보드에 복사되었습니다.');
+                    hideMapModal();
+                })
+                .catch(err => {
+                    console.error('Copy failed:', err);
+                });
+        }
+    });
 
     // --- Final Execution ---
     window.selectNode = selectNode;

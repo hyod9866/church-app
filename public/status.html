@@ -8,13 +8,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pretendard Font for Premium Typography -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Modern Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
         .tree-node-active {
             background-color: #eff6ff;
-            border-left: 4px solid #2563eb;
-            color: #1e3a8a;
+            border-left: 4px solid #3b82f6;
+            color: #1d4ed8;
+            box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .timeline-line::before {
             content: '';
@@ -23,7 +46,16 @@
             bottom: 0;
             left: 15px;
             width: 2px;
-            background-color: #e2e8f0;
+            background: linear-gradient(to bottom, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
+        }
+        
+        /* Hover micro-interactions */
+        .hover-card-trigger {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-card-trigger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
@@ -72,10 +104,10 @@
     </header>
 
     <!-- Main Content Work Space -->
-    <main class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         <!-- Left: Interactive Tree Navigator -->
-        <aside class="w-80 md:w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 shadow-lg">
+        <aside class="w-full md:w-96 h-64 md:h-full bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col flex-shrink-0 shadow-lg">
             <!-- Search & Actions -->
             <div class="p-4 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50">
                 <div class="flex justify-between items-center">
@@ -112,7 +144,7 @@
         </aside>
 
         <!-- Right: Detail & Integration Control Panel -->
-        <section id="detailSection" class="flex-1 bg-slate-50 overflow-y-auto p-4 md:p-6 flex flex-col relative">
+        <section id="detailSection" class="flex-1 bg-slate-50 overflow-y-auto p-3.5 md:p-6 flex flex-col relative">
             <!-- Alert Banner when no selection -->
             <div id="noSelectionAlert" class="flex-1 flex flex-col justify-center items-center text-center text-gray-400 py-20 bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm">
                 <i class="fa-solid fa-folder-open text-5xl mb-4 text-gray-300"></i>
@@ -123,36 +155,41 @@
             <!-- Dashboard Content (hidden by default) -->
             <div id="detailDashboard" class="space-y-6 hidden">
                 <!-- Info Header card -->
-                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                    <div class="z-10">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <span id="nodeTypeBadge" class="bg-white/20 text-white text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">교회</span>
-                            <span id="nodeParentHierarchy" class="text-blue-100 text-xs font-medium"></span>
+                <div class="bg-gradient-to-br from-[#1e293b] via-[#0f172a] to-[#1e1b4b] text-white rounded-2xl p-4.5 md:p-6 shadow-lg border border-slate-800/80 relative overflow-hidden flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                    <!-- Glow decoration effects -->
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    
+                    <div class="relative z-10 flex flex-col items-center md:items-start text-center md:text-left w-full md:w-auto">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span id="nodeTypeBadge" class="bg-blue-500/20 text-blue-300 text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full border border-blue-500/30">교회</span>
+                            <span id="nodeParentHierarchy" class="text-slate-400 text-xs font-semibold"></span>
                         </div>
-                        <h2 id="nodeTitle" class="text-2xl md:text-3xl font-black">서울중앙교회</h2>
-                        <div id="nodeAddressContainer" class="flex items-center gap-1.5 text-blue-100 text-xs mt-1.5 font-bold hidden">
-                            <i class="fa-solid fa-location-dot text-[10px] text-blue-200"></i>
+                        <h2 id="nodeTitle" class="text-xl md:text-3xl font-black tracking-tight text-white">서울중앙교회</h2>
+                        <div id="nodeAddressContainer" class="flex items-center gap-2 text-slate-300 text-xs mt-2 font-semibold bg-slate-800/40 hover:bg-slate-800/80 w-fit px-2.5 py-1.5 rounded-lg border border-slate-700/50 hidden cursor-pointer transition duration-150">
+                            <i class="fa-solid fa-location-dot text-[11px] text-blue-400"></i>
                             <span id="nodeAddress"></span>
+                            <span class="bg-blue-500/20 text-blue-300 text-[9px] px-1.5 py-0.5 rounded font-black ml-1.5 flex items-center gap-1 border border-blue-500/10"><i class="fa-solid fa-map-location-dot text-[9px]"></i> 길찾기</span>
                         </div>
                     </div>
-                    <div class="flex gap-2 z-10 flex-shrink-0">
-                        <button id="editNodeBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center gap-2">
-                            <i class="fa-solid fa-pen-to-square"></i> 명칭 변경
+                    <div class="flex gap-2 justify-center md:justify-start z-10 flex-shrink-0 w-full md:w-auto">
+                        <button id="editNodeBtn" class="bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-slate-400"></i> 명칭 변경
                         </button>
-                        <button id="deleteNodeBtn" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center gap-2">
+                        <button id="deleteNodeBtn" class="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2">
                             <i class="fa-solid fa-trash-can"></i> 삭제
                         </button>
                     </div>
                 </div>
 
                 <!-- Tabs Menu -->
-                <div class="border-b border-gray-200">
+                <div class="border-b border-slate-200">
                     <div class="flex gap-6 -mb-px">
                         <button id="tabOrgBtn" class="border-b-2 border-blue-600 text-blue-600 pb-3 px-1 text-sm font-black flex items-center gap-2">
                             <i class="fa-solid fa-users"></i> 조직 관리
                         </button>
-                        <button id="tabSermonBtn" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 pb-3 px-1 text-sm font-bold flex items-center gap-2 transition">
-                            <i class="fa-solid fa-microphone"></i> 외부설교 기록 <span id="sermonBadgeCount" class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                        <button id="tabSermonBtn" class="border-b-2 border-transparent text-slate-500 hover:text-slate-800 pb-3 px-1 text-sm font-bold flex items-center gap-2 transition">
+                            <i class="fa-solid fa-microphone"></i> 외부설교 기록 <span id="sermonBadgeCount" class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold hidden border border-slate-200">0</span>
                         </button>
                     </div>
                 </div>
@@ -161,35 +198,35 @@
                 <div id="tabOrgPanel" class="space-y-6">
                     <!-- Metrics Cards row -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div class="p-3 bg-blue-50 text-blue-600 rounded-xl text-xl"><i class="fa-solid fa-user-group"></i></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-user-group"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-gray-400 block uppercase">소속 성도 수</span>
-                                <span id="metricMemberCount" class="text-xl font-extrabold text-gray-800">0명</span>
+                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">소속 성도 수</span>
+                                <span id="metricMemberCount" class="text-lg font-black text-slate-800">0명</span>
                             </div>
                         </div>
-                        <div id="metricSubOrgCard" class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl text-xl"><i class="fa-solid fa-network-wired"></i></div>
+                        <div id="metricSubOrgCard" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-network-wired"></i></div>
                             <div>
-                                <span id="metricSubOrgTitle" class="text-[10px] font-black text-gray-400 block uppercase">하위 교구</span>
-                                <span id="metricSubOrgCount" class="text-xl font-extrabold text-gray-800">0개</span>
+                                <span id="metricSubOrgTitle" class="text-[10px] font-black text-slate-400 block uppercase tracking-wider font-bold">하위 교구</span>
+                                <span id="metricSubOrgCount" class="text-lg font-black text-slate-800">0개</span>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xl"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-shield-halved"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-gray-400 block uppercase">직분자 비율</span>
-                                <span id="metricOfficerRatio" class="text-xl font-extrabold text-gray-800">0%</span>
+                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">직분자 비율</span>
+                                <span id="metricOfficerRatio" class="text-lg font-black text-slate-800">0%</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Inner actions and tables -->
-                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h3 id="tableSectionTitle" class="font-extrabold text-gray-800 text-sm">하위 조직 리스트</h3>
-                            <button id="addSubOrgBtn" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm hover:bg-blue-700 transition flex items-center gap-1">
-                                <i class="fa-solid fa-plus text-[9px]"></i> 하위 조직 추가
+                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h3 id="tableSectionTitle" class="font-extrabold text-slate-800 text-sm">하위 조직 리스트</h3>
+                            <button id="addSubOrgBtn" class="bg-blue-600 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-md shadow-blue-100 hover:bg-blue-700 hover:shadow-none transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus text-[10px]"></i> 하위 조직 추가
                             </button>
                         </div>
                         <div id="tableListContainer" class="p-2 overflow-x-auto">
@@ -202,30 +239,30 @@
                 <div id="tabSermonPanel" class="space-y-6 hidden">
                     <!-- Stats row -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div class="p-3 bg-purple-50 text-purple-600 rounded-xl text-xl"><i class="fa-solid fa-microphone-lines"></i></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-microphone-lines"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-gray-400 block uppercase">총 외부설교 횟수</span>
-                                <span id="sermonStatTotal" class="text-xl font-extrabold text-gray-800">0회</span>
+                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">총 외부설교 횟수</span>
+                                <span id="sermonStatTotal" class="text-lg font-black text-slate-800">0회</span>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div class="p-3 bg-amber-50 text-amber-600 rounded-xl text-xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-clock-rotate-left"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-gray-400 block uppercase">마지막 설교</span>
-                                <span id="sermonStatLast" class="text-xl font-extrabold text-gray-800">기록 없음</span>
+                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">마지막 설교</span>
+                                <span id="sermonStatLast" class="text-lg font-black text-slate-800 font-bold">기록 없음</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Timeline Card -->
-                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                        <h3 class="font-extrabold text-gray-800 mb-6 text-sm flex items-center gap-2">
-                            <i class="fa-solid fa-timeline text-purple-600"></i> 외부설교 히스토리 타임라인
+                    <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+                        <h3 class="font-extrabold text-slate-850 mb-6 text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-timeline text-purple-500"></i> 외부설교 히스토리 타임라인
                         </h3>
                         <div class="relative timeline-line pl-8 space-y-6" id="sermonTimelineContainer">
                             <!-- Populated dynamically -->
-                            <p class="text-gray-400 text-xs italic text-center py-4">기록된 외부설교가 없습니다.</p>
+                            <p class="text-slate-400 text-xs italic text-center py-4">기록된 외부설교가 없습니다.</p>
                         </div>
                     </div>
                 </div>
@@ -236,11 +273,11 @@
     </main>
 
     <!-- Modal: General Node Dialog (Add/Edit) -->
-    <div id="nodeModal" class="fixed inset-0 bg-black/60 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
-            <div class="p-4 bg-gray-900 text-white flex justify-between items-center">
-                <h3 id="modalTitle" class="font-black text-base">새 교회 등록</h3>
-                <button type="button" class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <div id="nodeModal" class="fixed inset-0 bg-[#0f172a]/60 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
+            <div class="p-4.5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex justify-between items-center px-6 py-4">
+                <h3 id="modalTitle" class="font-extrabold text-sm tracking-tight">새 교회 등록</h3>
+                <button type="button" class="close-modal text-slate-400 hover:text-white transition-colors duration-150"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
             <form id="nodeForm" class="p-6 space-y-4">
                 <input type="hidden" id="nodeFormAction" value="create">
@@ -249,25 +286,78 @@
                 <input type="hidden" id="nodeFormTargetId" value="">
                 
                 <div>
-                    <label id="inputLabel" class="block text-xs font-black text-gray-400 uppercase mb-1">교회명</label>
-                    <input type="text" id="nodeFormName" required class="w-full border-2 rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200" placeholder="교회 이름 입력...">
+                    <label id="inputLabel" class="block text-[10px] font-black text-slate-450 uppercase mb-1.5 tracking-wider">교회명</label>
+                    <input type="text" id="nodeFormName" required class="w-full border rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 border-slate-200 transition-all duration-150" placeholder="교회 이름 입력...">
                 </div>
                 
                 <div id="parishLeaderSection" class="hidden">
-                    <label class="block text-xs font-black text-gray-400 uppercase mb-1">교구 부서 고유번호</label>
-                    <input type="number" id="nodeFormParishNo" class="w-full border-2 rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200" placeholder="교구 번호 입력 (예: 1, 2)...">
+                    <label class="block text-[10px] font-black text-slate-450 uppercase mb-1.5 tracking-wider">교구 부서 고유번호</label>
+                    <input type="number" id="nodeFormParishNo" class="w-full border rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 border-slate-200 transition-all duration-150" placeholder="교구 번호 입력 (예: 1, 2)...">
                 </div>
                 
                 <div id="churchAddressSection" class="hidden">
-                    <label class="block text-xs font-black text-gray-400 uppercase mb-1">교회 주소</label>
-                    <input type="text" id="nodeFormAddress" class="w-full border-2 rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200" placeholder="교회 주소 입력...">
+                    <label class="block text-[10px] font-black text-slate-450 uppercase mb-1.5 tracking-wider">교회 주소</label>
+                    <input type="text" id="nodeFormAddress" class="w-full border rounded-xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 border-slate-200 transition-all duration-150" placeholder="교회 주소 입력...">
                 </div>
 
-                <div class="pt-4 flex justify-end gap-2">
-                    <button type="button" class="close-modal px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200 transition shadow-sm border border-gray-200">취소</button>
-                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-black hover:bg-blue-700 transition shadow-md">확인</button>
+                <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                    <button type="button" class="close-modal px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200">취소</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-100 transition-all">확인</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Map Integration App Selector (User Friendly) -->
+    <div id="mapModal" class="fixed inset-0 bg-[#0f172a]/65 hidden z-[110] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white w-full max-w-xs rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
+            <div class="p-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex justify-between items-center px-5 py-3.5">
+                <h3 class="font-extrabold text-xs tracking-tight flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-400"></i> 길찾기 지도선택</h3>
+                <button type="button" id="closeMapModal" class="text-slate-400 hover:text-white transition-colors duration-150"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="p-5 space-y-3.5">
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">교회 주소</span>
+                    <div class="text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-150 font-bold select-all text-center break-all leading-normal" id="mapModalAddress">-</div>
+                </div>
+                
+                <div class="space-y-1.5">
+                    <span class="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">앱 선택</span>
+                    <div class="grid grid-cols-1 gap-1.5">
+                        <a href="#" id="modalTmapLink" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-orange-500 text-white rounded-lg text-xs flex items-center justify-center font-black">T</span>
+                                <span class="text-slate-800">티맵 (T-map)</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">실행 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                        <a href="#" id="modalKakaomapLink" target="_blank" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-yellow-400 text-slate-900 rounded-lg text-xs flex items-center justify-center font-black">K</span>
+                                <span class="text-slate-800">카카오맵</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">이동 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                        <a href="#" id="modalNavermapLink" target="_blank" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-emerald-500 text-white rounded-lg text-xs flex items-center justify-center font-black">N</span>
+                                <span class="text-slate-800">네이버 지도</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">이동 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="pt-3 border-t border-slate-100 flex gap-2">
+                    <button type="button" id="modalCopyAddressBtn" class="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center justify-center gap-1.5">
+                        <i class="fa-regular fa-copy text-slate-400 text-[11px]"></i>
+                        주소 복사
+                    </button>
+                    <button type="button" id="closeMapModalBtn" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center">
+                        닫기
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
