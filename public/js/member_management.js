@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `${index + 1}`;
 
             const rateInfo = attendanceRates[m.id];
-            const rateText = rateInfo ? `${rateInfo.ratePercent}%` : '-';
+            const rateText = rateInfo ? `${rateInfo.attendCount}/${rateInfo.totalCount} (${rateInfo.ratePercent}%)` : '-';
             const rateDetail = rateInfo ? `title="${rateInfo.attendCount}/${rateInfo.totalCount}회"` : '';
             let rateBadgeClass = 'text-gray-400';
             if (rateInfo && rateInfo.totalCount > 0) {
