@@ -29,6 +29,79 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* 모바일 가로 모드 최적화 (Landscape 다이어트) */
+        @media (max-width: 930px) and (orientation: landscape) {
+            header {
+                padding: 0.25rem 0.5rem !important;
+            }
+            header h1 {
+                font-size: 0.85rem !important;
+            }
+            header a {
+                padding: 0.25rem 0.5rem !important;
+                font-size: 0.7rem !important;
+            }
+            main {
+                padding: 0.35rem !important;
+            }
+            main > div {
+                padding: 0.45rem !important;
+            }
+            .toolbar-container {
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+            }
+            .toolbar-container h2 {
+                font-size: 0.85rem !important;
+            }
+            .toolbar-container h2 svg {
+                width: 1rem !important;
+                height: 1rem !important;
+            }
+            #totalCount {
+                padding: 0.15rem 0.4rem !important;
+                font-size: 0.7rem !important;
+                border-radius: 0.5rem !important;
+            }
+            .toolbar-buttons {
+                gap: 0.2rem !important;
+            }
+            .toolbar-buttons button {
+                padding: 0.3rem 0.45rem !important;
+                font-size: 0.7rem !important;
+                border-radius: 0.5rem !important;
+            }
+            .toolbar-buttons button svg {
+                width: 0.85rem !important;
+                height: 0.85rem !important;
+            }
+            .toolbar-btn-text {
+                display: none !important;
+            }
+            .flex-col.gap-3.mb-4 {
+                gap: 0.25rem !important;
+                margin-bottom: 0.35rem !important;
+            }
+            .bg-slate-50\/70.p-4 {
+                padding: 0.35rem !important;
+                gap: 0.25rem !important;
+                border-radius: 0.75rem !important;
+            }
+            #searchName {
+                padding-top: 0.35rem !important;
+                padding-bottom: 0.35rem !important;
+                font-size: 0.75rem !important;
+                border-radius: 0.6rem !important;
+            }
+            #toggleFilterBtn {
+                padding: 0.35rem 0.5rem !important;
+                font-size: 0.7rem !important;
+                border-radius: 0.6rem !important;
+            }
+        }
+
         /* 커스텀 스크롤바 */
         ::-webkit-scrollbar {
             width: 6px;
@@ -97,32 +170,32 @@
         <div class="bg-white rounded-2xl shadow-xl p-4 md:p-5 flex flex-col md:h-full border border-slate-100/80">
             <!-- Toolbar -->
             <div class="flex flex-col gap-3 mb-4">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div class="toolbar-container flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
                         <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                         성도 현황
                     </h2>
-                    <div class="flex flex-wrap gap-2 items-center">
+                    <div class="toolbar-buttons flex flex-wrap gap-2 items-center">
                         <span id="totalCount" class="text-xs md:text-sm font-bold text-blue-650 bg-blue-50/70 px-3 py-1.5 rounded-xl border border-blue-100/50 shadow-sm">0명 조회됨</span>
                         <button id="btnCustomSort" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl font-bold hover:shadow transition-all active:scale-[0.98] flex items-center gap-1.5 shadow-sm text-xs md:text-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
-                            커스텀 순서
+                            <span class="toolbar-btn-text">커스텀 순서</span>
                         </button>
                         <button id="btnEditSortMode" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl font-bold hover:shadow transition-all active:scale-[0.98] flex items-center gap-1.5 shadow-sm text-xs md:text-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            커스텀 정렬 수정
+                            <span class="toolbar-btn-text">커스텀 정렬 수정</span>
                         </button>
                         <button id="btnSaveSort" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl font-bold hover:shadow transition-all active:scale-[0.98] flex items-center gap-1.5 shadow-sm text-xs md:text-sm hidden">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            순서 저장
+                            <span class="toolbar-btn-text">순서 저장</span>
                         </button>
                         <button id="exportExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl font-bold hover:shadow transition-all active:scale-[0.98] flex items-center gap-1.5 shadow-sm text-xs md:text-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            엑셀 저장
+                            <span class="toolbar-btn-text">엑셀 저장</span>
                         </button>
                         <button id="importExcelBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl font-bold hover:shadow transition-all active:scale-[0.98] flex items-center gap-1.5 shadow-sm text-xs md:text-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                            엑셀 업로드
+                            <span class="toolbar-btn-text">엑셀 업로드</span>
                         </button>
                     </div>
                 </div>
