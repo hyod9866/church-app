@@ -26,10 +26,90 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Token generation & verification helpers
+const COOKIE_SECRET = process.env.COOKIE_SECRET || 'super-secret-key-12345';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@church.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'church1234!';
+
+import crypto from 'crypto';
+
+function generateToken(payload) {
+  const data = JSON.stringify({ ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 }); // 1일 만료
+  const hmac = crypto.createHmac('sha256', COOKIE_SECRET).update(data).digest('hex');
+  return Buffer.from(data).toString('base64') + '.' + hmac;
+}
+
+function verifyToken(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const dataStr = Buffer.from(parts[0], 'base64').toString('utf8');
+  const expectedHmac = crypto.createHmac('sha256', COOKIE_SECRET).update(dataStr).digest('hex');
+  if (parts[1] !== expectedHmac) return null;
+  
+  try {
+    const payload = JSON.parse(dataStr);
+    if (payload.exp < Date.now()) return null; // 만료됨
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Cookie parser helper
+function getCookie(req, name) {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';').reduce((acc, c) => {
+    const parts = c.split('=');
+    acc[parts[0].trim()] = (parts[1] || '').trim();
+    return acc;
+  }, {});
+  return cookies[name] || null;
+}
+
+// Auth middleware
+function checkAuth(req, res, next) {
+  const url = req.url.split('?')[0];
+
+  // Pass-through list (No auth required)
+  const passThroughExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+  const isStaticAsset = passThroughExtensions.some(ext => url.endsWith(ext));
+
+  if (
+    url === '/login.html' || 
+    url === '/api/login' || 
+    isStaticAsset
+  ) {
+    return next();
+  }
+
+  // Token verification
+  const token = getCookie(req, 'auth_token');
+  const user = verifyToken(token);
+
+  if (user) {
+    req.user = user;
+    return next();
+  }
+
+  // Auth failed
+  if (url.startsWith('/api/')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  // For web page requests, redirect to login page
+  res.redirect('/login.html');
+}
+
+app.use(express.json());
+
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
   next();
 });
+
+app.use(checkAuth);
 
 const uploadDir = process.env.VERCEL ? '/tmp/uploads' : 'uploads';
 try {
@@ -45,7 +125,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.use(express.static(dirname(fileURLToPath(import.meta.url)) + '/public'));
-app.use(express.json());
 
 // --- Family Link Sync Engine ---
 function getSymmetricRelation(relation) {
@@ -270,6 +349,27 @@ function syncAllMembersProfile(callback) {
             callback && callback(err);
         });
 }
+
+// Login & Logout APIs
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const token = generateToken({ email });
+    res.setHeader('Set-Cookie', `auth_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+    return res.json({ success: true });
+  }
+  res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+});
+
+app.post('/api/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'auth_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  res.json({ success: true });
+});
+
+app.get('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'auth_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  res.redirect('/login.html');
+});
 
 app.get('/api/run-migration-temp', async (req, res) => {
   const { Client } = pg;
