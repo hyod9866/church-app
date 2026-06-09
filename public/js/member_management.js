@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     let allMembersData = []; 
     let filteredMembersData = []; 
+    let attendanceRates = {};
     let currentSort = { column: 'district', direction: 'asc' };
     let currentMemberData = null;
     let pendingCrossUpdates = [];
@@ -128,8 +129,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadData() {
         try {
-            const response = await fetch('/api/members/search?status=all');
+            const [response, ratesResponse] = await Promise.all([
+                fetch('/api/members/search?status=all'),
+                fetch('/api/members/attendance-rates')
+            ]);
             allMembersData = await response.json();
+            attendanceRates = await ratesResponse.json();
             allMembersData.forEach(m => {
                 const fid = parseInt(m.family_id);
                 m.family_id = isNaN(fid) ? null : fid;
@@ -421,6 +426,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (orderA !== orderB) return orderA - orderB;
                 return a.name.localeCompare(b.name);
             });
+        } else if (currentSort.column === 'attendance_rate') {
+            filteredMembersData.sort((a, b) => {
+                const rateA = attendanceRates[a.id] ? attendanceRates[a.id].ratePercent : -1;
+                const rateB = attendanceRates[b.id] ? attendanceRates[b.id].ratePercent : -1;
+                return currentSort.direction === 'asc' ? rateA - rateB : rateB - rateA;
+            });
         } else {
             filteredMembersData.sort((a, b) => {
                 let vA = a[currentSort.column] || '', vB = b[currentSort.column] || '';
@@ -448,8 +459,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const indexCol = isEditSortMode 
                 ? `<button type="button" class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[11px] px-2 py-0.5 rounded font-black shadow-sm transition active:scale-95" onclick="moveMemberIndex(${index}, '${m.name}')">${index + 1} ⇄</button>`
                 : `${index + 1}`;
+
+            const rateInfo = attendanceRates[m.id];
+            const rateText = rateInfo ? `${rateInfo.ratePercent}%` : '-';
+            const rateDetail = rateInfo ? `title="${rateInfo.attendCount}/${rateInfo.totalCount}회"` : '';
+            let rateBadgeClass = 'text-gray-400';
+            if (rateInfo && rateInfo.totalCount > 0) {
+                if (rateInfo.ratePercent >= 80) rateBadgeClass = 'text-emerald-600 font-bold';
+                else if (rateInfo.ratePercent >= 50) rateBadgeClass = 'text-amber-600 font-bold';
+                else rateBadgeClass = 'text-rose-500 font-bold';
+            }
+            const rateHtml = `<span class="${rateBadgeClass}" ${rateDetail}>${rateText}</span>`;
             
-            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${m.address || '-'}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
+            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${rateHtml}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${m.address || '-'}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
         }).join('');
     }
 
