@@ -6,6 +6,8 @@
     <title>성도 관리 - Pastoral Ministry Program</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS for XLSX export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- SortableJS for custom sorting -->
@@ -19,8 +21,10 @@
             z-index: 10;
             border-bottom: 2px solid #e2e8f0 !important;
         }
-        .table-container {
-            max-height: calc(100vh - 140px);
+        @media (min-width: 768px) {
+            .table-container {
+                max-height: calc(100vh - 140px);
+            }
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -42,7 +46,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 min-h-screen md:h-screen flex flex-col md:overflow-hidden">
 
     <!-- Header -->
     <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white p-3 md:p-4 shadow-lg border-b border-blue-950/20 flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
@@ -89,8 +93,8 @@
         </div>
     </header>
 
-    <main class="flex-1 p-4 flex flex-col overflow-hidden bg-slate-50/50">
-        <div class="bg-white rounded-2xl shadow-xl p-4 md:p-5 flex flex-col h-full border border-slate-100/80">
+    <main class="flex-1 p-4 flex flex-col md:overflow-hidden bg-slate-50/50">
+        <div class="bg-white rounded-2xl shadow-xl p-4 md:p-5 flex flex-col md:h-full border border-slate-100/80">
             <!-- Toolbar -->
             <div class="flex flex-col gap-3 mb-4">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -125,15 +129,25 @@
 
                 <!-- Filters -->
                 <div class="flex flex-col gap-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/60">
-                    <div class="flex flex-wrap items-center gap-3">
+                    <!-- 상단: 검색 및 필터 토글 버튼 -->
+                    <div class="flex items-center justify-between gap-3 w-full">
                         <!-- Name Search -->
-                        <div class="relative flex-1 min-w-[200px] max-w-md">
+                        <div class="relative flex-1 max-w-md">
                             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                 <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </span>
                             <input type="text" id="searchName" placeholder="성도 성명으로 검색..." class="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm transition font-bold shadow-sm">
                         </div>
+                        
+                        <!-- 필터 토글 버튼 -->
+                        <button id="toggleFilterBtn" class="md:hidden bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition text-xs shadow-sm active:scale-[0.98]">
+                            <i class="fa-solid fa-sliders text-blue-600"></i>
+                            <span>상세 필터</span>
+                        </button>
+                    </div>
 
+                    <!-- 하단: 상세 필터 옵션들 (모바일 기본 숨김, PC 항시 노출) -->
+                    <div id="detailedFilters" class="hidden md:flex flex-wrap items-center gap-3 w-full border-t border-slate-200/60 pt-3 md:border-t-0 md:pt-0">
                         <!-- 교회 및 교구 선택기 -->
                         <div class="flex gap-1.5 items-center bg-slate-200/50 p-1.5 rounded-xl border border-slate-200">
                             <select id="filterChurchSelect" class="bg-white text-[10px] md:text-xs font-bold rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none cursor-pointer text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 max-w-[100px] md:max-w-none transition duration-200"></select>
@@ -165,6 +179,11 @@
                             <option value="inactive">교제 안나옴</option>
                             <option value="all">전체 상태</option>
                         </select>
+                        <select id="filterMaritalStatus" class="border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white cursor-pointer shadow-sm transition duration-150">
+                            <option value="전체">전체 선택</option>
+                            <option value="기혼">기혼</option>
+                            <option value="미혼_미선택">미혼/미선택</option>
+                        </select>
                         
                         <div class="border-l border-slate-200 mx-1 h-6 hidden md:block"></div>
                         
@@ -174,8 +193,6 @@
                             <label class="flex items-center gap-1.5 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600 focus:ring-blue-500/25 border-slate-300 rounded" value="deacon"> 집사</label>
                             <label class="flex items-center gap-1.5 cursor-pointer hover:text-blue-600 transition"><input type="checkbox" class="role-filter w-4 h-4 text-blue-600 focus:ring-blue-500/25 border-slate-300 rounded" value="none"> 미봉사자</label>
                         </div>
-
-
                     </div>
                 </div>
             </div>
@@ -342,6 +359,14 @@
                         <select name="bs" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium bg-white outline-none transition duration-150 cursor-pointer">
                             <option value="B">B (형제)</option>
                             <option value="S">S (자매)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">결혼 여부</label>
+                        <select name="marital_status" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium bg-white outline-none transition duration-150 cursor-pointer">
+                            <option value="">미선택</option>
+                            <option value="미혼">미혼</option>
+                            <option value="기혼">기혼</option>
                         </select>
                     </div>
                     <div>
@@ -660,7 +685,7 @@
         </div>
     </div>
 
-    <script src="/js/member_management.js?v=20260531-7"></script>
+    <script src="/js/member_management.js?v=20260604-12"></script>
 </body>
 </html>
 

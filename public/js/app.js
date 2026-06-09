@@ -141,15 +141,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadMemberList() {
         const q = searchInput.value.trim(), dist = sidebarDistrictFilter.value, cat = sidebarCategoryFilter.value, st = sidebarStatusFilter.value;
+        const sidebarMaritalFilter = document.getElementById('sidebarMaritalFilter');
+        const marital = sidebarMaritalFilter ? sidebarMaritalFilter.value : '전체';
         try {
             const churchName = getSelectedChurchName();
             const parishName = getSelectedParishName();
             const params = new URLSearchParams({ q, district: dist, category: cat, status: st });
-            if (churchName && churchName !== '교회 없음') {
+            if (churchName && churchName !== '교회 없음' && churchName !== '전체') {
                 params.append('church', churchName);
             }
-            if (parishName && parishName !== '교구 없음') {
+            if (parishName && parishName !== '교구 없음' && parishName !== '전체') {
                 params.append('parish', parishName);
+            }
+            if (marital && marital !== '전체') {
+                params.append('marital_status', marital);
             }
             const res = await fetch(`/api/members/search?${params.toString()}`);
             const members = await res.json();
@@ -245,6 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 member.parish ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">${member.parish}</span>` : '',
                 member.district ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold ${getDC(member.district)} border">${member.district}</span>` : '',
                 member.category ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">${member.category}</span>` : '',
+                member.marital_status ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">${member.marital_status}</span>` : '',
                 ...calculatedPosArray.map(p => `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">${p}</span>`)
             ].filter(x => x).join(' ');
 
@@ -1085,15 +1091,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('openAddMemberModal').addEventListener('click', () => openAddModal(false));
     searchInput.addEventListener('input', loadMemberList);
-    [sidebarDistrictFilter, sidebarCategoryFilter].forEach(f => f.addEventListener('change', loadMemberList));
+    [sidebarDistrictFilter, sidebarCategoryFilter, sidebarStatusFilter, document.getElementById('sidebarMaritalFilter')].forEach(f => {
+        if (f) f.addEventListener('change', loadMemberList);
+    });
     // --- Header Church/Parish Selectors ---
     async function updateHeaderParishOptions(churchId, targetParishId = null) {
         const headerParish = document.getElementById('headerParishSelect');
         if (!headerParish) return;
         if (!churchId) return;
+
+        if (churchId === '전체') {
+            const optionsHtml = `<option value="전체" data-name="전체">모든 교구</option>`;
+            headerParish.innerHTML = optionsHtml;
+            headerParish.value = '전체';
+            headerParish.style.display = 'inline-block';
+            return;
+        }
+
         const parishes = await fetchParishes(churchId);
         if (parishes.length > 0) {
-            headerParish.innerHTML = parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+            const optionsHtml = `<option value="전체" data-name="전체">모든 교구</option>` + parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+            headerParish.innerHTML = optionsHtml;
             headerParish.style.display = 'inline-block';
             
             if (targetParishId) {
@@ -1103,12 +1121,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     const bp = parishes.find(p => p.name.includes('부곡교구'));
                     if (bp) headerParish.value = bp.id;
-                    else headerParish.value = parishes[0].id;
+                    else headerParish.value = '전체';
                 }
             } else {
                 const bp = parishes.find(p => p.name.includes('부곡교구'));
                 if (bp) headerParish.value = bp.id;
-                else headerParish.value = parishes[0].id;
+                else headerParish.value = '전체';
             }
         } else {
             headerParish.innerHTML = '<option value="">교구 없음</option>';
@@ -1121,7 +1139,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!headerChurch || !headerParish) return;
 
         const churches = await fetchChurches();
-        headerChurch.innerHTML = churches.map(c => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('');
+        const churchesHtml = `<option value="전체" data-name="전체">모든 교회</option>` + churches.map(c => `<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('');
+        headerChurch.innerHTML = churchesHtml;
 
         let savedChurchId = localStorage.getItem('activeChurchId');
         let savedParishId = localStorage.getItem('activeParishId');

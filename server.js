@@ -178,9 +178,9 @@ async function syncMemberProfileFromRecords(memberId) {
     if (memError) throw memError;
     if (!member) throw new Error('Member not found');
 
-    let currentChurch = '서울중앙교회';
-    let currentParish = '부곡교구'; // Always start from '부곡교구' to handle future migrations correctly
-    let currentDistrict = member.district || '미배정';
+    let currentChurch = member.church || '교회정보없음';
+    let currentParish = member.parish || '교구정보없음';
+    let currentDistrict = member.district || '구역정보없음';
     let currentCategory = member.category || '봉사회';
     let currentStatus = member.status || 'active';
     let currentPosition = [];
@@ -209,7 +209,7 @@ async function syncMemberProfileFromRecords(memberId) {
                 currentStatus = 'active';
             } else {
                 currentChurch = rec.remark;
-                currentStatus = 'inactive'; // Transfer out
+                currentStatus = 'active'; // Transfer out but keep active
             }
         } else if (rec.status === 'PARISH_MOVE') {
             currentParish = rec.remark;
@@ -284,7 +284,7 @@ app.get('/api/run-migration-temp', async (req, res) => {
   });
 
   const clientPooler = new Client({
-    host: 'aws-0-ap-northeast-2.pooler.supabase.com',
+    host: 'db.castdxotoypktiusslpk.supabase.co',
     port: 6543,
     user: 'postgres.castdxotoypktiusslpk',
     password: 'qhrdmaemfrh1!',
@@ -314,6 +314,19 @@ app.get('/api/run-migration-temp', async (req, res) => {
       logs.push("Column parish_no already exists.");
     }
 
+    const checkChRes = await clientDirect.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='churches' AND column_name='address'
+    `);
+    if (checkChRes.rows.length === 0) {
+      logs.push("churches address does not exist. Adding column...");
+      await clientDirect.query("ALTER TABLE churches ADD COLUMN address TEXT;");
+      logs.push("Column address added to churches successfully.");
+    } else {
+      logs.push("Column address in churches already exists.");
+    }
+
     logs.push("Reloading schema cache...");
     await clientDirect.query("NOTIFY pgrst, 'reload schema';");
     logs.push("Schema cache reloaded successfully!");
@@ -341,6 +354,19 @@ app.get('/api/run-migration-temp', async (req, res) => {
         logs.push("Column parish_no already exists.");
       }
 
+      const checkChRes = await clientPooler.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='churches' AND column_name='address'
+      `);
+      if (checkChRes.rows.length === 0) {
+        logs.push("churches address does not exist. Adding column...");
+        await clientPooler.query("ALTER TABLE churches ADD COLUMN address TEXT;");
+        logs.push("Column address added to churches successfully.");
+      } else {
+        logs.push("Column address in churches already exists.");
+      }
+
       logs.push("Reloading schema cache...");
       await clientPooler.query("NOTIFY pgrst, 'reload schema';");
       logs.push("Schema cache reloaded successfully!");
@@ -364,7 +390,7 @@ app.get('/api/members/search', async (req, res) => {
     // 성도 등록/수정/삭제 시 개별 프로필 동기화가 이미 수행되므로, 검색 API를 호출할 때마다 전체 성도를 동기화하는 무거운 로직은 제외합니다.
     // await syncAllMembersProfilePromise();
     
-    const { q, gender, category, district, status: st, parish, church } = req.query;
+    const { q, gender, category, district, status: st, parish, church, marital_status } = req.query;
     let query = supabase.from('members').select('*');
     
     if (st === 'inactive') {
@@ -390,6 +416,13 @@ app.get('/api/members/search', async (req, res) => {
     }
     if (church && church !== '전체') {
       query = query.eq('church', church);
+    }
+    if (marital_status && marital_status !== '전체') {
+      if (marital_status === '기혼') {
+        query = query.eq('marital_status', '기혼');
+      } else if (marital_status === '미혼_미선택') {
+        query = query.or('marital_status.is.null,marital_status.neq.기혼');
+      }
     }
     if (q) {
       query = query.ilike('name', `%${q}%`);
@@ -527,8 +560,10 @@ app.post('/api/members', async (req, res) => {
       church_service: b.church_service,
       status: b.status || 'active',
       family_id: fid,
-      church: b.church || '서울중앙교회',
-      parish: b.parish || '부곡교구'
+      church: b.church || '교회정보없음',
+      parish: b.parish || '교구정보없음',
+      district: b.district || '구역정보없음',
+      marital_status: b.marital_status
     };
 
     const { data, error } = await supabase
@@ -557,6 +592,11 @@ app.post('/api/members', async (req, res) => {
             .insert(recordsToInsert);
           if (recErr) console.error('Pending records insert error:', recErr);
         }
+      }
+      try {
+        await syncMemberProfileFromRecords(newId);
+      } catch (syncErr) {
+        console.error('Initial sync error:', syncErr);
       }
       res.json({ id: newId, family_id: finalFid });
     });
@@ -599,7 +639,8 @@ app.put('/api/members/:id', async (req, res) => {
       status: b.status || 'active',
       family_id: fid,
       church: b.church,
-      parish: b.parish
+      parish: b.parish,
+      marital_status: b.marital_status
     };
 
     const { error } = await supabase

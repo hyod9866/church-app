@@ -26,6 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSaveSort = document.getElementById('btnSaveSort');
     const btnCustomSort = document.getElementById('btnCustomSort');
 
+    // --- 상세 필터 토글 이벤트 (모바일) ---
+    const toggleFilterBtn = document.getElementById('toggleFilterBtn');
+    const detailedFilters = document.getElementById('detailedFilters');
+
+    if (toggleFilterBtn && detailedFilters) {
+        toggleFilterBtn.addEventListener('click', () => {
+            detailedFilters.classList.toggle('hidden');
+            detailedFilters.classList.toggle('flex');
+        });
+    }
+
     // --- memberAddForm 교회-교구-구역 셀렉트 박스 연동 이벤트 ---
     const formChurch = document.querySelector('#memberAddForm select[name="church"]');
     const formParish = document.querySelector('#memberAddForm select[name="parish"]');
@@ -50,10 +61,22 @@ document.addEventListener('DOMContentLoaded', () => {
             formParish.innerHTML = '<option value="">교구 선택 (없음)</option>';
             return;
         }
-        const parishes = await fetchParishes(churchId);
-        if (parishes && parishes.length > 0) {
+        let parishes = [];
+        if (churchId !== 'temp-ext') {
+            parishes = await fetchParishes(churchId);
+        }
+        
+        let options = [...parishes];
+        if (targetParishName) {
+            const exists = parishes.some(p => p.name === targetParishName);
+            if (!exists) {
+                options.push({ id: 'temp-ext-parish', name: targetParishName });
+            }
+        }
+
+        if (options.length > 0) {
             formParish.innerHTML = '<option value="">교구 선택 (없음)</option>' + 
-                parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+                options.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
             
             if (targetParishName) {
                 formParish.value = targetParishName;
@@ -75,15 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const opt = formParish.querySelector(`option[value="${parishName}"]`);
         const parishId = opt ? opt.dataset.id : null;
         
-        if (!parishId) {
-            formDistrict.innerHTML = '<option value="미배정">미배정</option>';
-            return;
+        let districts = [];
+        if (parishId && parishId !== 'temp-ext-parish') {
+            districts = await fetchDistricts(parishId);
+        }
+        
+        let options = [...districts];
+        if (targetDistrictName) {
+            const exists = districts.some(d => d.name === targetDistrictName);
+            if (!exists) {
+                options.push({ name: targetDistrictName });
+            }
         }
 
-        const districts = await fetchDistricts(parishId);
-        if (districts && districts.length > 0) {
+        if (options.length > 0) {
             formDistrict.innerHTML = '<option value="미배정">미배정</option>' + 
-                districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+                options.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
             
             if (targetDistrictName) {
                 formDistrict.value = targetDistrictName;
@@ -137,6 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const churchName = getSelectedChurchName();
         const parishName = getSelectedParishName();
         const district = filterDistrict.value, gender = filterGender.value, category = filterCategory.value, statusVal = filterStatus.value;
+        const filterMaritalStatus = document.getElementById('filterMaritalStatus');
+        const maritalVal = filterMaritalStatus ? filterMaritalStatus.value : '전체';
         const checkedRoles = Array.from(roleCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
         const isAllChecked = checkedRoles.includes('all');
 
@@ -159,6 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gender !== '전체' && m.bs !== gender) return false;
             if (category !== '전체' && m.category !== category) return false;
             if (statusVal !== 'all' && (m.status || 'active') !== statusVal) return false;
+            if (maritalVal !== '전체') {
+                if (maritalVal === '기혼' && m.marital_status !== '기혼') return false;
+                if (maritalVal === '미혼_미선택' && m.marital_status === '기혼') return false;
+            }
             
             // 모든 기본 조건(이름, 소속 등)을 통과한 후, 체크박스(역할) 조건 검사
             if (isAllChecked) return true;
@@ -393,6 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     vB = b.birth_year ? parseInt(b.birth_year) : (currentSort.column === 'age' ? -1 : 9999);
                     return currentSort.direction === 'asc' ? (currentSort.column === 'age' ? vB - vA : vA - vB) : (currentSort.column === 'age' ? vA - vB : vB - vA);
                 }
+                if (currentSort.column === 'church_service') {
+                    const isNoSvcA = (!vA || vA === '-' || vA === '없음');
+                    const isNoSvcB = (!vB || vB === '-' || vB === '없음');
+                    if (isNoSvcA && !isNoSvcB) return 1;
+                    if (!isNoSvcA && isNoSvcB) return -1;
+                    if (isNoSvcA && isNoSvcB) return 0;
+                }
                 return currentSort.direction === 'asc' ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
             });
         }
@@ -436,6 +479,176 @@ document.addEventListener('DOMContentLoaded', () => {
         'ETC': '기타' 
     };
 
+    window.getRecordRemarkInputHTML = function(targetId, recordId, status, currentRemark) {
+        const idSuffix = `${targetId}-${recordId}`;
+        const remark = currentRemark || '';
+        
+        if (status === 'CHURCH_IN' || status === 'CHURCH_MOVE' || status === 'PARISH_MOVE') {
+            setTimeout(() => {
+                setupInlineOrgSelectors(targetId, recordId, status, remark);
+            }, 0);
+            return `
+                <div id="inline-org-container-${idSuffix}" class="flex flex-col gap-1.5 min-w-[150px]">
+                    <span class="text-[11px] text-gray-400 italic">로딩 중...</span>
+                </div>
+            `;
+        } else if (status === 'DISTRICT') {
+            const districts = ['581구역', '582구역', '583구역', '미배정'];
+            return `
+                <select id="edit-rec-remark-val-${idSuffix}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] bg-white outline-none font-bold cursor-pointer">
+                    ${districts.map(d => `<option value="${d}" ${remark === d ? 'selected' : ''}>${d}</option>`).join('')}
+                </select>
+            `;
+        } else if (status === 'CATEGORY') {
+            const categories = ['봉사회', '어머니회', '청년회', '은장회'];
+            return `
+                <select id="edit-rec-remark-val-${idSuffix}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] bg-white outline-none font-bold cursor-pointer">
+                    ${categories.map(c => `<option value="${c}" ${remark === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+            `;
+        } else if (status === 'SERVICE' || status === 'SERVICE_DISMISS') {
+            const allServices = ['찬양대', '농인선교부', '청년회 임원', '중고등부', '환경조경부', '방송실', '미디어선교부', '문서선교부', '유아부', '시설관리부', '새신자부', '유치부', '교회직원', '대학선교부 임원', '미술선교부', '전도인'];
+            const checkedSvc = remark.split(',').map(s => s.trim());
+            return `
+                <div class="flex flex-wrap gap-1.5 p-1.5 bg-white border border-slate-200 rounded max-h-[100px] overflow-y-auto min-w-[200px]">
+                    ${allServices.map(s => `
+                        <label class="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-1 rounded transition text-[10px]">
+                            <input type="checkbox" class="inline-rec-sub-svc-${idSuffix} w-3.5 h-3.5 text-blue-600 rounded" value="${s}" ${checkedSvc.includes(s) ? 'checked' : ''}>
+                            <span class="font-bold text-gray-700">${s}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        } else if (status === 'POSITION' || status === 'POSITION_DISMISS') {
+            const allPositions = ['교구장', '집사', '구역장', '조장', '구역총무', '조총무', '교구총무', '교구자매총무', '교구청년회장', '교구청년임원', '교구체육부장', '교구체육총무'];
+            const checkedPos = remark.split(',').map(p => p.trim());
+            return `
+                <div class="flex flex-wrap gap-1.5 p-1.5 bg-white border border-slate-200 rounded max-h-[100px] overflow-y-auto min-w-[200px]">
+                    ${allPositions.map(p => `
+                        <label class="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-1 rounded transition text-[10px]">
+                            <input type="checkbox" class="inline-rec-sub-pos-${idSuffix} w-3.5 h-3.5 text-blue-600 rounded" value="${p}" ${checkedPos.includes(p) ? 'checked' : ''}>
+                            <span class="font-bold text-gray-700">${p}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            return `
+                <input type="text" value="${remark}" id="edit-rec-remark-val-${idSuffix}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold" placeholder="비고 입력...">
+            `;
+        }
+    };
+
+    async function setupInlineOrgSelectors(targetId, recordId, status, initialRemark) {
+        const idSuffix = `${targetId}-${recordId}`;
+        const container = document.getElementById(`inline-org-container-${idSuffix}`);
+        if (!container) return;
+
+        if (status === 'PARISH_MOVE') {
+            const activeChurchName = currentMemberData ? currentMemberData.church : '서울중앙교회';
+            const churches = await fetch('/api/churches/all').then(res => res.json());
+            const matched = churches.find(c => c.name === activeChurchName);
+            const churchId = matched ? matched.id : null;
+            
+            let parishes = [];
+            if (churchId) {
+                parishes = await fetchParishes(churchId);
+            }
+            
+            container.innerHTML = `
+                <select id="inline-parish-${idSuffix}" class="w-full border rounded px-1 py-0.5 text-[11px] font-bold text-blue-800 bg-white">
+                    <option value="">교구 선택</option>
+                    ${parishes.map(p => `<option value="${p.id}" data-name="${p.name}" ${p.name === initialRemark ? 'selected' : ''}>${p.name}</option>`).join('')}
+                </select>
+            `;
+            return;
+        }
+
+        const churches = await fetch('/api/churches/all').then(res => res.json());
+        
+        const parts = initialRemark.split(' > ');
+        const initialChurch = parts[0] || '';
+        const initialParish = parts[1] || '';
+        const initialDistrict = parts[2] || '';
+
+        container.innerHTML = `
+            <input type="text" id="inline-church-${idSuffix}" list="inline-church-list-${idSuffix}" value="${initialChurch}" class="w-full border rounded px-1 py-0.5 text-[11px] font-bold text-blue-800 bg-white" placeholder="교회 검색..." autocomplete="off">
+            <datalist id="inline-church-list-${idSuffix}">
+                ${churches.map(c => `<option value="${c.name}"></option>`).join('')}
+            </datalist>
+            <select id="inline-parish-${idSuffix}" class="w-full border rounded px-1 py-0.5 text-[11px] font-bold text-blue-800 bg-white hidden">
+                <option value="">교구 선택</option>
+            </select>
+            <select id="inline-district-${idSuffix}" class="w-full border rounded px-1 py-0.5 text-[11px] font-bold text-blue-800 bg-white hidden">
+                <option value="">구역 선택</option>
+            </select>
+        `;
+
+        const subChurch = document.getElementById(`inline-church-${idSuffix}`);
+        const subParish = document.getElementById(`inline-parish-${idSuffix}`);
+        const subDistrict = document.getElementById(`inline-district-${idSuffix}`);
+
+        const loadParish = async (churchId, targetParishName = null) => {
+            if (!churchId) { subParish.classList.add('hidden'); subDistrict.classList.add('hidden'); return; }
+            const parishes = await fetchParishes(churchId);
+            if (parishes.length > 0) {
+                subParish.innerHTML = '<option value="">교구 선택</option>' + parishes.map(p => `<option value="${p.id}" data-name="${p.name}" ${p.name === targetParishName ? 'selected' : ''}>${p.name}</option>`).join('');
+                subParish.classList.remove('hidden');
+            } else {
+                subParish.innerHTML = '<option value="none">교구 정보 없음</option>';
+                subParish.classList.remove('hidden');
+            }
+            subDistrict.classList.add('hidden');
+        };
+
+        const loadDistrict = async (parishId, targetDistrictName = null) => {
+            if (status === 'PARISH_MOVE') return;
+            if (!parishId || parishId === 'none') { subDistrict.classList.add('hidden'); return; }
+            const districts = await fetchDistricts(parishId);
+            if (districts.length > 0) {
+                subDistrict.innerHTML = '<option value="">구역 선택</option>' + districts.map(d => `<option value="${d.id}" data-name="${d.name}" ${d.name === targetDistrictName ? 'selected' : ''}>${d.name}</option>`).join('');
+                subDistrict.classList.remove('hidden');
+            } else {
+                subDistrict.innerHTML = '<option value="none">구역 정보 없음</option>';
+                subDistrict.classList.remove('hidden');
+            }
+        };
+
+        const onChurchSelect = async (churchName) => {
+            const matched = churches.find(c => c.name === churchName);
+            if (matched && matched.name === '서울중앙교회') {
+                await loadParish(matched.id, initialParish);
+                let initParishId = "";
+                const activeParishOpt = subParish.options[subParish.selectedIndex];
+                if (activeParishOpt && activeParishOpt.value !== 'none') {
+                    initParishId = activeParishOpt.value;
+                }
+                if (initParishId) {
+                    await loadDistrict(initParishId, initialDistrict);
+                }
+            } else {
+                subParish.classList.add('hidden');
+                subDistrict.classList.add('hidden');
+            }
+        };
+
+        subChurch.addEventListener('change', () => onChurchSelect(subChurch.value));
+        subChurch.addEventListener('input', () => onChurchSelect(subChurch.value));
+
+        if (initialChurch) {
+            await onChurchSelect(initialChurch);
+        }
+    }
+
+    window.onRecordStatusChange = function(targetId, recordId, selectElement) {
+        const idSuffix = `${targetId}-${recordId}`;
+        const container = document.getElementById(`edit-rec-remark-container-${idSuffix}`);
+        if (!container) return;
+        
+        const newStatus = selectElement.value;
+        container.innerHTML = getRecordRemarkInputHTML(targetId, recordId, newStatus, '');
+    };
+
     function renderEditModalRecords(recs) {
         const targets = ['editModalRecordTableBody', 'recordTableBody'];
         targets.forEach(targetId => {
@@ -449,24 +662,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `
                         <tr class="text-[12px] border-b border-gray-50 bg-amber-50/30 transition">
                             <td class="p-2">
-                                <input type="date" value="${r.date}" id="edit-rec-date-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold">
+                                <input type="date" value="${r.date}" id="edit-rec-date-${targetId}-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold">
                             </td>
                             <td class="p-2">
-                                <select id="edit-rec-status-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1 py-1 text-[11px] bg-white outline-none font-bold cursor-pointer">
+                                <select id="edit-rec-status-${targetId}-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1 py-1 text-[11px] bg-white outline-none font-bold cursor-pointer" onchange="onRecordStatusChange('${targetId}', ${r.id || idx}, this)">
                                     ${Object.entries(RECORD_STATUS_MAP).map(([k, v]) => `
                                         <option value="${k}" ${r.status === k ? 'selected' : ''}>${v}</option>
                                     `).join('')}
                                 </select>
                             </td>
-                            <td class="p-2">
-                                <input type="text" value="${r.remark || ''}" id="edit-rec-remark-${r.id || idx}" class="w-full border border-slate-200 focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-1 text-[11px] outline-none font-bold" placeholder="비고 입력...">
+                            <td class="p-2" id="edit-rec-remark-container-${targetId}-${r.id || idx}">
+                                ${getRecordRemarkInputHTML(targetId, r.id || idx, r.status, r.remark)}
                             </td>
                             <td class="p-2 text-right whitespace-nowrap">
-                                <button type="button" class="text-emerald-600 hover:text-emerald-700 font-bold p-1 mr-1 transition" onclick="saveRecordFromModal(${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'}, ${idx})">
-                                    <i class="fa-solid fa-check text-sm"></i>
+                                <button type="button" class="text-emerald-600 hover:text-emerald-700 font-bold p-1 mr-1 transition" onclick="saveRecordFromModal('${targetId}', ${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'}, ${idx})">
+                                    <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
                                 </button>
                                 <button type="button" class="text-gray-400 hover:text-gray-600 font-bold p-1 transition" onclick="cancelRecordEdit()">
-                                    <i class="fa-solid fa-xmark text-sm"></i>
+                                    <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </td>
                         </tr>
@@ -480,10 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="p-2 text-gray-700 font-bold">${r.remark || ''}</td>
                             <td class="p-2 text-right whitespace-nowrap">
                                 <button type="button" class="text-blue-500 hover:text-blue-700 font-bold p-1 mr-1 transition" onclick="startRecordEdit(${currentMemberData ? r.id : idx})">
-                                    <i class="fa-solid fa-pen text-xs"></i>
+                                    <svg class="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-2.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                 </button>
                                 <button type="button" class="text-red-400 hover:text-red-600 font-bold p-1 transition" onclick="deleteRecordFromModal(${currentMemberData ? r.id : idx}, ${currentMemberData ? currentMemberData.id : 'null'}, ${idx})">
-                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                    <svg class="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </td>
                         </tr>
@@ -514,16 +727,62 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // 수정 저장
-    window.saveRecordFromModal = async function(recordId, memberId, idx) {
-        const dateInput = document.getElementById(`edit-rec-date-${recordId}`);
-        const statusInput = document.getElementById(`edit-rec-status-${recordId}`);
-        const remarkInput = document.getElementById(`edit-rec-remark-${recordId}`);
+    window.saveRecordFromModal = async function(targetId, recordId, memberId, idx) {
+        const dateInput = document.getElementById(`edit-rec-date-${targetId}-${recordId}`);
+        const statusInput = document.getElementById(`edit-rec-status-${targetId}-${recordId}`);
 
         const date = dateInput ? dateInput.value : '';
         const status = statusInput ? statusInput.value : '';
-        const remark = remarkInput ? remarkInput.value.trim() : '';
 
         if (!date) return alert('날짜는 필수 입력 항목입니다.');
+
+        let remark = '';
+        const idSuffix = `${targetId}-${recordId}`;
+        
+        if (status === 'PARISH_MOVE') {
+            const subParish = document.getElementById(`inline-parish-${idSuffix}`);
+            if (subParish && subParish.value && subParish.value !== 'none') {
+                remark = subParish.options[subParish.selectedIndex].textContent.trim();
+            } else {
+                return alert('이동할 교구를 선택하세요.');
+            }
+        } else if (status === 'CHURCH_IN' || status === 'CHURCH_MOVE') {
+            const subChurch = document.getElementById(`inline-church-${idSuffix}`);
+            const subParish = document.getElementById(`inline-parish-${idSuffix}`);
+            const subDistrict = document.getElementById(`inline-district-${idSuffix}`);
+            
+            const cName = subChurch ? subChurch.value.trim() : '';
+            if (cName) {
+                let result = cName;
+                
+                if (cName === '서울중앙교회' && subParish && subParish.value && subParish.value !== 'none') {
+                    const pName = subParish.options[subParish.selectedIndex].textContent.trim();
+                    result += ' > ' + pName;
+                    
+                    if (subDistrict && subDistrict.value && subDistrict.value !== 'none') {
+                        const dName = subDistrict.options[subDistrict.selectedIndex].textContent.trim();
+                        result += ' > ' + dName;
+                    }
+                }
+                remark = result;
+            } else {
+                return alert('교회를 입력 또는 선택하세요.');
+            }
+        } else if (status === 'DISTRICT' || status === 'CATEGORY') {
+            const el = document.getElementById(`edit-rec-remark-val-${idSuffix}`);
+            remark = el ? el.value : '';
+        } else if (status === 'SERVICE' || status === 'SERVICE_DISMISS') {
+            const checked = Array.from(document.querySelectorAll(`.inline-rec-sub-svc-${idSuffix}:checked`)).map(cb => cb.value);
+            if (checked.length > 0) remark = checked.join(', ');
+            else return alert('봉사 항목을 최소 하나 이상 선택하세요.');
+        } else if (status === 'POSITION' || status === 'POSITION_DISMISS') {
+            const checked = Array.from(document.querySelectorAll(`.inline-rec-sub-pos-${idSuffix}:checked`)).map(cb => cb.value);
+            if (checked.length > 0) remark = checked.join(', ');
+            else return alert('직분 항목을 최소 하나 이상 선택하세요.');
+        } else {
+            const el = document.getElementById(`edit-rec-remark-val-${idSuffix}`);
+            remark = el ? el.value.trim() : '';
+        }
 
         if (memberId && memberId !== 'null') {
             // 서버에 저장된 기록 수정
@@ -665,6 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 member.parish ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">${member.parish}</span>` : '',
                 member.district ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold ${getDC(member.district)} border">${member.district}</span>` : '',
                 member.category ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">${member.category}</span>` : '',
+                member.marital_status ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">${member.marital_status}</span>` : '',
                 ...calculatedPosArray.map(p => `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">${p}</span>`)
             ].filter(x => x).join(' ');
 
@@ -1001,6 +1261,22 @@ document.addEventListener('DOMContentLoaded', () => {
         linkedFamilyContainer.innerHTML = ''; hiddenFamilyId.value = '';
         if (familyRelationText) familyRelationText.value = '';
 
+        if (formChurch) {
+            formChurch.disabled = false;
+            formChurch.classList.remove('bg-slate-100', 'cursor-not-allowed', 'text-slate-400');
+            formChurch.classList.add('bg-blue-50/50', 'text-blue-800');
+        }
+        if (formParish) {
+            formParish.disabled = false;
+            formParish.classList.remove('bg-slate-100', 'cursor-not-allowed', 'text-slate-400');
+            formParish.classList.add('bg-blue-50/50', 'text-blue-800');
+        }
+        if (formDistrict) {
+            formDistrict.disabled = false;
+            formDistrict.classList.remove('bg-slate-100', 'cursor-not-allowed', 'text-slate-400');
+            formDistrict.classList.add('bg-white');
+        }
+
         pendingCrossUpdates = [];
         pendingRecords = [];
         renderEditModalRecords([]);
@@ -1008,7 +1284,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 교회 목록 로드 및 옵션 바인딩
         const allChurches = await fetchChurches();
         if (formChurch) {
-            formChurch.innerHTML = allChurches.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
+            let options = [...allChurches];
+            if (isEdit && currentMemberData && currentMemberData.church) {
+                const exists = allChurches.some(c => c.name === currentMemberData.church);
+                if (!exists) {
+                    options.push({ id: 'temp-ext', name: currentMemberData.church });
+                }
+            }
+            formChurch.innerHTML = options.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
         }
 
         if (!isEdit) { 
@@ -1065,7 +1348,24 @@ document.addEventListener('DOMContentLoaded', () => {
             window._sessionLinkedNames = new Set(); updateFamilyUI();
             if (currentMemberData.id) {
                 fetch(`/api/members/${currentMemberData.id}/history`).then(r => r.json()).then(d => { if (d.family) { d.family.forEach(f => window._sessionLinkedNames.add(f.name.trim())); updateFamilyUI(); } });
-                fetch(`/api/members/${currentMemberData.id}/records`).then(r => r.json()).then(recs => renderEditModalRecords(recs));
+                fetch(`/api/members/${currentMemberData.id}/records`).then(r => r.json()).then(recs => {
+                    renderEditModalRecords(recs);
+                    const hasOrgRecord = recs.some(rec => 
+                        rec.status === 'CHURCH_IN' || 
+                        rec.status === 'CHURCH_MOVE' || 
+                        rec.status === 'PARISH_MOVE' || 
+                        rec.status === 'DISTRICT'
+                    );
+                    if (hasOrgRecord) {
+                        [formChurch, formParish, formDistrict].forEach(el => {
+                            if (el) {
+                                el.disabled = true;
+                                el.classList.add('bg-slate-100', 'cursor-not-allowed', 'text-slate-400');
+                                el.classList.remove('bg-blue-50/50', 'text-blue-800', 'bg-white');
+                            }
+                        });
+                    }
+                });
             }
             if (sec) { sec.classList.remove('hidden'); if(recordDate) recordDate.value = new Date().toISOString().split('T')[0]; }
         }
@@ -1157,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (statusKey === 'CATEGORY') {
                 const subCat = document.getElementById('recordSubCategory');
                 if (subCat) remark = subCat.value;
-            } else if (statusKey === 'SERVICE') {
+            } else if (statusKey === 'SERVICE' || statusKey === 'SERVICE_DISMISS') {
                 const checked = Array.from(document.querySelectorAll('.record-sub-svc:checked')).map(cb => cb.value);
                 if (checked.length > 0) remark = checked.join(', ');
                 else return alert('봉사 항목을 최소 하나 이상 선택하세요.');
@@ -1165,16 +1465,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const checked = Array.from(document.querySelectorAll('.record-sub-pos:checked')).map(cb => cb.value);
                 if (checked.length > 0) remark = checked.join(', ');
                 else return alert('직분을 최소 하나 이상 선택하세요.');
-            } else if (statusKey === 'CHURCH_IN') {
+            } else if (statusKey === 'CHURCH_IN' || statusKey === 'CHURCH_MOVE') {
                 const c = document.getElementById('subChurch'), p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
-                const cName = c.options[c.selectedIndex]?.text || '', pName = p.options[p.selectedIndex]?.text || '', dName = d.options[d.selectedIndex]?.text || '';
-                if (!cName || cName === '교회 선택') return alert('교회를 선택하세요.');
-                remark = `${cName}${pName && pName !== '교구 선택' && pName !== '교구 정보 없음' ? ' > ' + pName : ''}${dName && dName !== '구역 선택' && dName !== '구역 정보 없음' ? ' > ' + dName : ''}`;
-            } else if (statusKey === 'CHURCH_MOVE') {
-                const c = document.getElementById('subChurch'), p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
-                const cName = c ? (c.options[c.selectedIndex]?.text || '') : '', pName = p ? (p.options[p.selectedIndex]?.text || '') : '', dName = d ? (d.options[d.selectedIndex]?.text || '') : '';
-                if (!cName || cName === '교회 선택') return alert('이동할 교회를 선택하세요.');
+                const cName = c ? c.value.trim() : '';
+                if (!cName) return alert('교회를 입력 또는 선택하세요.');
                 if (cName === '서울중앙교회') {
+                    const pName = p ? (p.options[p.selectedIndex]?.text || '') : '', dName = d ? (d.options[d.selectedIndex]?.text || '') : '';
                     remark = `${cName}${pName && pName !== '교구 선택' && pName !== '교구 정보 없음' ? ' > ' + pName : ''}${dName && dName !== '구역 선택' && dName !== '구역 정보 없음' ? ' > ' + dName : ''}`;
                 } else {
                     remark = cName;
@@ -1215,17 +1511,39 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchDistricts(parishId) { const res = await fetch(`/api/districts?parish_id=${parishId}`); return await res.json(); }
 
     async function setupOrgSelectors(container, status) {
-        const churches = await fetchChurches();
+        if (status === 'PARISH_MOVE') {
+            const activeChurchName = currentMemberData ? currentMemberData.church : (formChurch ? formChurch.value : '서울중앙교회');
+            const churches = await fetch('/api/churches/all').then(res => res.json());
+            const matched = churches.find(c => c.name === activeChurchName);
+            const churchId = matched ? matched.id : null;
+            
+            let parishes = [];
+            if (churchId) {
+                parishes = await fetchParishes(churchId);
+            }
+            
+            container.innerHTML = `
+                <div class="flex flex-col gap-2">
+                    <select id="subParish" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white">
+                        <option value="">교구 선택</option>
+                        ${parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            return;
+        }
+
+        const churches = await fetch('/api/churches/all').then(res => res.json());
         container.innerHTML = `
             <div class="flex flex-col gap-2">
-                <select id="subChurch" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white">
-                    <option value="">교회 선택</option>
-                    ${churches.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-                </select>
-                <select id="subParish" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
+                <input type="text" id="subChurch" list="church-list" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white shadow-sm" placeholder="교회 이름 검색 및 선택..." autocomplete="off">
+                <datalist id="church-list">
+                    ${churches.map(c => `<option value="${c.name}"></option>`).join('')}
+                </datalist>
+                <select id="subParish" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden shadow-sm">
                     <option value="">교구 선택</option>
                 </select>
-                <select id="subDistrict" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
+                <select id="subDistrict" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden shadow-sm">
                     <option value="">구역 선택</option>
                 </select>
             </div>
@@ -1235,9 +1553,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const subParish = document.getElementById('subParish');
         const subDistrict = document.getElementById('subDistrict');
 
-        subChurch.addEventListener('change', async () => {
-            if (!subChurch.value) { subParish.classList.add('hidden'); subDistrict.classList.add('hidden'); return; }
-            const parishes = await fetchParishes(subChurch.value);
+        const onChurchSelect = async (churchName) => {
+            const matched = churches.find(c => c.name === churchName);
+            if (!matched || matched.name !== '서울중앙교회') {
+                subParish.classList.add('hidden');
+                subDistrict.classList.add('hidden');
+                return;
+            }
+            const parishes = await fetchParishes(matched.id);
             if (parishes.length > 0) {
                 subParish.innerHTML = '<option value="">교구 선택</option>' + parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
                 subParish.classList.remove('hidden');
@@ -1246,7 +1569,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 subParish.classList.remove('hidden');
             }
             subDistrict.classList.add('hidden');
-        });
+        };
+
+        subChurch.addEventListener('change', () => onChurchSelect(subChurch.value));
+        subChurch.addEventListener('input', () => onChurchSelect(subChurch.value));
 
         subParish.addEventListener('change', async () => {
             if (status === 'PARISH_MOVE') return;
@@ -1260,11 +1586,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 subDistrict.classList.remove('hidden');
             }
         });
-        
-        if (status === 'CHURCH_MOVE') {
-            subParish.classList.add('hidden');
-            subDistrict.classList.add('hidden');
-        }
     }
 
     if (recordStatus) {
@@ -1300,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select>
                 `;
                 if (remarkInput && remarkInput.parentElement) remarkInput.parentElement.classList.add('hidden');
-            } else if (val === 'SERVICE') {
+            } else if (val === 'SERVICE' || val === 'SERVICE_DISMISS') {
                 subContainer.classList.remove('hidden');
                 const allServices = ['찬양대', '농인선교부', '청년회 임원', '중고등부', '환경조경부', '방송실', '미디어선교부', '문서선교부', '유아부', '시설관리부', '새신자부', '유치부', '교회직원', '대학선교부 임원', '미술선교부', '전도인'];
                 subInputContainer.innerHTML = `
@@ -1339,6 +1660,14 @@ document.addEventListener('DOMContentLoaded', () => {
     memberAddForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = {}; new FormData(memberAddForm).forEach((v, k) => data[k] = v);
+        
+        // disabled 상태여서 FormData에서 생략된 소속 정보 보정
+        if (currentMemberData) {
+            if (!data.church) data.church = currentMemberData.church;
+            if (!data.parish) data.parish = currentMemberData.parish;
+            if (!data.district) data.district = currentMemberData.district;
+        }
+
         data.crossUpdates = pendingCrossUpdates;
         data.pendingRecords = pendingRecords; // 새 성도용 임시 기록 포함
         
@@ -1488,6 +1817,10 @@ document.addEventListener('DOMContentLoaded', () => {
     filterGender.addEventListener('change', applyFilters);
     filterCategory.addEventListener('change', applyFilters);
     filterStatus.addEventListener('change', applyFilters);
+    const filterMaritalStatus = document.getElementById('filterMaritalStatus');
+    if (filterMaritalStatus) {
+        filterMaritalStatus.addEventListener('change', applyFilters);
+    }
     roleCheckboxes.forEach(cb => cb.addEventListener('change', applyFilters));
 
     // --- Excel Export Control ---

@@ -6,6 +6,8 @@
     <title>Pastoral Ministry Program</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- FullCalendar CDN -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <style>
@@ -342,6 +344,11 @@
                     <option value="inactive">교제 안나옴</option>
                     <option value="all">전체 상태</option>
                 </select>
+                <select id="sidebarMaritalFilter" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200">
+                    <option value="전체">전체 선택</option>
+                    <option value="기혼">기혼</option>
+                    <option value="미혼_미선택">미혼/미선택</option>
+                </select>
             </div>
             <div id="memberList" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50 no-scrollbar"></div>
             <div class="p-3 border-t border-slate-100 bg-white">
@@ -545,6 +552,14 @@
                         </select>
                     </div>
                     <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">결혼 여부</label>
+                        <select name="marital_status" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium bg-white outline-none transition duration-150 cursor-pointer">
+                            <option value="">미선택</option>
+                            <option value="미혼">미혼</option>
+                            <option value="기혼">기혼</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">구역 (기록으로 변경)</label>
                         <input type="text" name="district" readonly placeholder="인적사항 기록에서 변경하세요" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold bg-slate-100 text-slate-400 cursor-not-allowed outline-none" title="구역 변경은 하단 인적사항 기록을 이용해 주세요.">
                     </div>
@@ -707,6 +722,6 @@
         </div>
     </div>
 
-    <script src="/js/app.js?v=20260531-7"></script>
+    <script src="/js/app.js?v=20260604-4"></script>
 </body>
 </html>
