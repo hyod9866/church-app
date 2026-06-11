@@ -35,7 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dayCellDidMount: (info) => {
             if (info.view.type.startsWith('timeGrid')) {
                 const colEl = info.el;
-                if (!colEl.classList.contains('fc-timegrid-col')) return;
+                if (colEl.classList.contains('fc-daygrid-day') || colEl.classList.contains('fc-col-header-cell')) {
+                    return;
+                }
                 const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
                 
                 const startHour = 5;
@@ -43,7 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const totalMinutes = (endHour - startHour) * 60;
                 
                 const container = document.createElement('div');
-                container.className = 'absolute inset-0 pointer-events-none select-none overflow-hidden';
+                container.style.position = 'absolute';
+                container.style.inset = '0';
+                container.style.pointerEvents = 'none';
+                container.style.userSelect = 'none';
+                container.style.overflow = 'hidden';
                 
                 for (let h = startHour; h < endHour; h++) {
                     if (h === 5) continue;
@@ -52,7 +58,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     const timeStr = String(h).padStart(2, '0');
                     const label = document.createElement('div');
-                    label.className = 'absolute left-2.5 text-[11px] text-slate-400/10 font-semibold';
+                    label.style.position = 'absolute';
+                    label.style.left = '10px';
+                    label.style.fontSize = '11px';
+                    label.style.color = 'rgba(100, 116, 139, 0.15)'; // Slate-400 색상에 투명도 15% 적용
+                    label.style.fontWeight = '600';
                     label.style.top = `${topPercent}%`;
                     label.style.transform = 'translateY(-100%)';
                     label.textContent = timeStr;
