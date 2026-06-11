@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (info.view.type.startsWith('timeGrid')) {
                 const colEl = info.el;
                 if (!colEl.classList.contains('fc-timegrid-col')) return;
-                if (info.allDay) return;
                 const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
                 
                 const startHour = 5;
