@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         dayCellDidMount: (info) => {
             if (info.view.type.startsWith('timeGrid')) {
+                if (info.allDay) return;
                 const colEl = info.el;
                 const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
                 
