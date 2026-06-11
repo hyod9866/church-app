@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMaxTime: '24:00:00', // 24시까지 표기
         slotLabelFormat: {
             hour: '2-digit',
-            minute: '2-digit',
             hour12: false
         },
         datesSet: (info) => {
