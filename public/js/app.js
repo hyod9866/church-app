@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     const timeStr = String(h).padStart(2, '0');
                     const label = document.createElement('div');
-                    label.className = 'absolute left-2.5 text-[8px] text-slate-400/20 font-black';
+                    label.className = 'absolute left-2.5 text-[11px] text-slate-400/10 font-semibold';
                     label.style.top = `${topPercent}%`;
                     label.style.transform = 'translateY(-100%)';
                     label.textContent = timeStr;
