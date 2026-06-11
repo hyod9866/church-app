@@ -21,12 +21,14 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMaxTime: '24:00:00', // 24시까지 표기
         slotLabelFormat: {
             hour: '2-digit',
+            minute: '2-digit',
             hour12: false
         },
         dayCellDidMount: (info) => {
             if (info.view.type.startsWith('timeGrid')) {
-                if (info.allDay) return;
                 const colEl = info.el;
+                if (!colEl.classList.contains('fc-timegrid-col')) return;
+                if (info.allDay) return;
                 const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
                 
                 const startHour = 5;
