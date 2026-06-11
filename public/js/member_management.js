@@ -471,7 +471,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const rateHtml = `<span class="${rateBadgeClass}" ${rateDetail}>${rateText}</span>`;
             
-            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${rateHtml}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${m.address || '-'}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
+            const addrHtml = m.address 
+                ? `<span class="cursor-pointer hover:underline hover:text-blue-600 font-semibold flex items-center gap-1" onclick="event.stopPropagation(); triggerMapModal('${m.address.replace(/'/g, "\\'")}')" title="${m.address}"><i class="fa-solid fa-map-location-dot text-rose-500 text-[10px]"></i> ${m.address}</span>` 
+                : '-';
+
+            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${rateHtml}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${addrHtml}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
         }).join('');
     }
 
@@ -989,7 +993,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">주소</span>
                 <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span class="truncate" title="${member.address || ''}">${member.address || '-'}</span>
+                    ${member.address 
+                        ? `<span class="truncate cursor-pointer hover:underline hover:text-blue-600 font-semibold" onclick="triggerMapModal('${member.address.replace(/'/g, "\\'")}')" title="${member.address}">${member.address}</span>` 
+                        : '-'}
                 </span>
             </div>
             <div class="col-span-2 md:col-span-4 bg-blue-50/40 p-4 rounded-xl border border-blue-100/50 flex flex-col gap-1">
@@ -2242,4 +2248,49 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- Map Modal Logic for Members ---
+    const mapModal = document.getElementById('mapModal');
+    const closeMapModal = document.getElementById('closeMapModal');
+    const closeMapModalBtn = document.getElementById('closeMapModalBtn');
+    const mapModalAddress = document.getElementById('mapModalAddress');
+    const modalTmapLink = document.getElementById('modalTmapLink');
+    const modalKakaomapLink = document.getElementById('modalKakaomapLink');
+    const modalNavermapLink = document.getElementById('modalNavermapLink');
+    const modalCopyAddressBtn = document.getElementById('modalCopyAddressBtn');
+
+    window.triggerMapModal = function(addressText) {
+        if (!addressText) return;
+        mapModalAddress.textContent = addressText;
+        modalTmapLink.href = `tmap://search?name=${encodeURIComponent(addressText)}`;
+        modalKakaomapLink.href = `https://map.kakao.com/?q=${encodeURIComponent(addressText)}`;
+        modalNavermapLink.href = `https://map.naver.com/v5/search/${encodeURIComponent(addressText)}`;
+        mapModal.classList.remove('hidden');
+    };
+
+    function hideMapModal() {
+        mapModal.classList.add('hidden');
+    }
+
+    if (closeMapModal) closeMapModal.addEventListener('click', hideMapModal);
+    if (closeMapModalBtn) closeMapModalBtn.addEventListener('click', hideMapModal);
+    if (mapModal) {
+        mapModal.addEventListener('click', (e) => {
+            if (e.target === mapModal) {
+                hideMapModal();
+            }
+        });
+    }
+
+    if (modalCopyAddressBtn) {
+        modalCopyAddressBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const addressText = mapModalAddress.textContent;
+            if (addressText) {
+                navigator.clipboard.writeText(addressText)
+                    .then(() => alert('주소가 복사되었습니다.'))
+                    .catch(err => console.error('복사 실패:', err));
+            }
+        });
+    }
 });

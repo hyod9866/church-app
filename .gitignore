@@ -29,3 +29,4 @@ dist-ssr
 server_backup.js
 server_backup_sqlite.js
 uploads/
+.env*

@@ -51,6 +51,13 @@
                 </div>
             </div>
 
+            <div class="flex items-center justify-between px-1">
+                <label class="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer select-none">
+                    <input type="checkbox" id="rememberMe" class="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-600 focus:ring-blue-500/50 focus:ring-offset-slate-900 focus:ring-2 accent-blue-600 transition">
+                    <span>이메일 저장</span>
+                </label>
+            </div>
+
             <div id="errorMessage" class="text-rose-400 text-xs font-bold ml-1 hidden">
                 <!-- Error msg placeholder -->
             </div>
@@ -78,10 +85,18 @@
         const loginForm = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
+        const rememberMeInput = document.getElementById('rememberMe');
         const errorMessage = document.getElementById('errorMessage');
         const togglePassword = document.getElementById('togglePassword');
         const eyeIcon = document.getElementById('eyeIcon');
         const passkeyBtn = document.getElementById('passkeyBtn');
+
+        // Load saved email if exists
+        const savedEmail = localStorage.getItem('savedEmail');
+        if (savedEmail) {
+            emailInput.value = savedEmail;
+            rememberMeInput.checked = true;
+        }
 
         // Toggle password visibility
         togglePassword.addEventListener('click', () => {
@@ -115,6 +130,12 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
+                    // Save or remove email in localStorage
+                    if (rememberMeInput.checked) {
+                        localStorage.setItem('savedEmail', email);
+                    } else {
+                        localStorage.removeItem('savedEmail');
+                    }
                     // Redirect to dashboard or home page
                     location.href = '/';
                 } else {
