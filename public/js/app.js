@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 container.className = 'absolute inset-0 pointer-events-none select-none overflow-hidden';
                 
                 for (let h = startHour; h < endHour; h++) {
+                    if (h === 5) continue;
                     const currentMinutes = (h - startHour) * 60;
                     const topPercent = (currentMinutes / totalMinutes) * 100;
                     
@@ -46,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const label = document.createElement('div');
                     label.className = 'absolute left-2.5 text-[8px] text-slate-400/20 font-black';
                     label.style.top = `${topPercent}%`;
-                    label.style.transform = 'translateY(-50%)';
+                    label.style.transform = 'translateY(-100%)';
                     label.textContent = timeStr;
                     container.appendChild(label);
                 }
