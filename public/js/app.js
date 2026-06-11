@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
         cols.forEach(colEl => {
             if (colEl.querySelector('.custom-time-guide-container')) return;
             
-            const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
-            bgEl.style.position = 'relative'; // 자식 absolute 요소 정렬을 위한 기준점 강제
+            // td 엘리먼트 자체를 기준으로 강제 relative 정렬 지정
+            colEl.style.position = 'relative';
             
             const startHour = 5;
             const endHour = 24;
@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.zIndex = '0';
             
             for (let h = startHour; h < endHour; h++) {
-                if (h === 5) continue;
                 const currentMinutes = (h - startHour) * 60;
                 const topPercent = (currentMinutes / totalMinutes) * 100;
                 
@@ -39,14 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 label.style.position = 'absolute';
                 label.style.left = '10px';
                 label.style.fontSize = '11px';
-                label.style.color = 'rgba(100, 116, 139, 0.18)';
+                label.style.color = 'rgba(100, 116, 139, 0.15)'; // 다소 연하게
                 label.style.fontWeight = '600';
                 label.style.top = `${topPercent}%`;
                 label.style.transform = 'translateY(-100%)';
                 label.textContent = timeStr;
                 container.appendChild(label);
             }
-            bgEl.appendChild(container);
+            colEl.appendChild(container); // td에 직접 추가하여 위치 오프셋 방지
         });
     }
 
