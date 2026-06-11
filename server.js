@@ -83,6 +83,7 @@ function checkAuth(req, res, next) {
   if (
     url === '/login.html' || 
     url === '/api/login' || 
+    url === '/api/run-migration-temp' || 
     isStaticAsset
   ) {
     return next();
@@ -395,7 +396,7 @@ app.get('/api/run-migration-temp', async (req, res) => {
   const { Client } = pg;
   
   const clientDirect = new Client({
-    host: 'db.castdxotoypktiusslpk.supabase.co',
+    host: '2406:da12:557:f802:f78e:4591:9fd3:4ad7',
     port: 5432,
     user: 'postgres',
     password: 'qhrdmaemfrh1!',
@@ -404,7 +405,7 @@ app.get('/api/run-migration-temp', async (req, res) => {
   });
 
   const clientPooler = new Client({
-    host: 'db.castdxotoypktiusslpk.supabase.co',
+    host: 'aws-0-ap-northeast-2.pooler.supabase.com',
     port: 6543,
     user: 'postgres.castdxotoypktiusslpk',
     password: 'qhrdmaemfrh1!',
@@ -447,6 +448,32 @@ app.get('/api/run-migration-temp', async (req, res) => {
       logs.push("Column address in churches already exists.");
     }
 
+    const checkMeetRes = await clientDirect.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='meetings' AND column_name='start_time'
+    `);
+    if (checkMeetRes.rows.length === 0) {
+      logs.push("meetings start_time does not exist. Adding column...");
+      await clientDirect.query("ALTER TABLE meetings ADD COLUMN start_time TEXT;");
+      logs.push("Column start_time added to meetings successfully.");
+    } else {
+      logs.push("Column start_time in meetings already exists.");
+    }
+
+    const checkMeetEndRes = await clientDirect.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='meetings' AND column_name='end_time'
+    `);
+    if (checkMeetEndRes.rows.length === 0) {
+      logs.push("meetings end_time does not exist. Adding column...");
+      await clientDirect.query("ALTER TABLE meetings ADD COLUMN end_time TEXT;");
+      logs.push("Column end_time added to meetings successfully.");
+    } else {
+      logs.push("Column end_time in meetings already exists.");
+    }
+
     logs.push("Reloading schema cache...");
     await clientDirect.query("NOTIFY pgrst, 'reload schema';");
     logs.push("Schema cache reloaded successfully!");
@@ -485,6 +512,32 @@ app.get('/api/run-migration-temp', async (req, res) => {
         logs.push("Column address added to churches successfully.");
       } else {
         logs.push("Column address in churches already exists.");
+      }
+
+      const checkMeetRes = await clientPooler.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='meetings' AND column_name='start_time'
+      `);
+      if (checkMeetRes.rows.length === 0) {
+        logs.push("meetings start_time does not exist. Adding column...");
+        await clientPooler.query("ALTER TABLE meetings ADD COLUMN start_time TEXT;");
+        logs.push("Column start_time added to meetings successfully.");
+      } else {
+        logs.push("Column start_time in meetings already exists.");
+      }
+
+      const checkMeetEndRes = await clientPooler.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='meetings' AND column_name='end_time'
+      `);
+      if (checkMeetEndRes.rows.length === 0) {
+        logs.push("meetings end_time does not exist. Adding column...");
+        await clientPooler.query("ALTER TABLE meetings ADD COLUMN end_time TEXT;");
+        logs.push("Column end_time added to meetings successfully.");
+      } else {
+        logs.push("Column end_time in meetings already exists.");
       }
 
       logs.push("Reloading schema cache...");
@@ -1433,11 +1486,11 @@ app.get('/api/meetings', async (req, res) => {
 });
 
 app.post('/api/meetings', async (req, res) => {
-  const { title, date, end_date, type, sermon_title, memo, church } = req.body;
+  const { title, date, end_date, type, sermon_title, memo, church, start_time, end_time } = req.body;
   try {
     const { data, error } = await supabase
       .from('meetings')
-      .insert({ title, date, end_date: end_date || null, type, sermon_title, memo, church })
+      .insert({ title, date, end_date: end_date || null, type, sermon_title, memo, church, start_time: start_time || null, end_time: end_time || null })
       .select('id')
       .single();
       
@@ -1518,11 +1571,11 @@ app.post('/api/attendance', async (req, res) => {
 });
 
 app.put('/api/meetings/:id', async (req, res) => {
-  const { title, date, end_date, type, sermon_title, memo, church } = req.body;
+  const { title, date, end_date, type, sermon_title, memo, church, start_time, end_time } = req.body;
   try {
     const { error } = await supabase
       .from('meetings')
-      .update({ title, date, end_date: end_date || null, type, sermon_title, memo, church })
+      .update({ title, date, end_date: end_date || null, type, sermon_title, memo, church, start_time: start_time || null, end_time: end_time || null })
       .eq('id', req.params.id);
     if (error) throw error;
     res.json({ status: 'success' });

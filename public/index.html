@@ -37,6 +37,21 @@
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; 
         }
         
+        /* 주간 뷰 시간 슬롯 라벨 스타일 커스텀 */
+        .fc-timegrid-slot-label-cushion {
+            font-size: 10px !important;
+            color: #94a3b8 !important; /* 연한 Slate Gray */
+            font-weight: 600 !important;
+            padding-right: 6px !important;
+            text-align: right !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        .fc-timegrid-slot-label-frame {
+            justify-content: flex-end !important;
+            padding-right: 2px !important;
+        }
+        
         /* 툴바 영역 스타일링 */
         .fc-toolbar {
             margin-bottom: 1.25rem !important;
@@ -387,7 +402,21 @@
                                 <label id="meetingDateLabel" class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">날짜</label>
                                 <input type="date" id="meetingDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
                             </div>
-                            <div id="meetingEndDateField" class="hidden">
+                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">시작 시간</label>
+                                    <label class="flex items-center gap-1.5 text-[10px] font-black text-blue-600 cursor-pointer">
+                                        <input type="checkbox" id="isAllDayEvent" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500/25 border-slate-300"> 종일
+                                    </label>
+                                </div>
+                                <input type="time" id="meetingStartTime" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                            </div>
+                            <div id="meetingEndTimeField">
+                                <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">종료 시간</label>
+                                <input type="time" id="meetingEndTime" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                            </div>
+                            <div id="meetingEndDateField" class="hidden col-span-2">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">종료일</label>
                                     <label class="flex items-center gap-1.5 text-[10px] font-black text-blue-600 cursor-pointer">
@@ -396,7 +425,6 @@
                                 </div>
                                 <input type="date" id="meetingEndDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
                             </div>
-                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
                         </div>
                         <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교</label><input type="text" id="meetingSermon" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 shadow-sm outline-none transition duration-150"></div>
                         <div id="memoField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">메모</label><textarea id="meetingMemo" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm h-24 shadow-sm outline-none transition duration-150"></textarea></div>

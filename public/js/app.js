@@ -13,8 +13,77 @@ document.addEventListener('DOMContentLoaded', function() {
         aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
         dayMaxEvents: true,
         eventOrder: 'order',
+        selectable: true,
+        selectMirror: true,
+        selectLongPressDelay: 1000,
+        eventDisplay: 'block', // 시간 지정 일정도 파스텔톤 배경색 박스로 강제 채움 처리
+        slotMinTime: '05:00:00', // 시작시간 05시부터
+        slotMaxTime: '24:00:00', // 24시까지 표기
+        slotLabelFormat: {
+            hour: '2-digit',
+            hour12: false
+        },
+        dayCellDidMount: (info) => {
+            if (info.view.type.startsWith('timeGrid')) {
+                const colEl = info.el;
+                const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
+                
+                const startHour = 5;
+                const endHour = 24;
+                const totalMinutes = (endHour - startHour) * 60;
+                
+                const container = document.createElement('div');
+                container.className = 'absolute inset-0 pointer-events-none select-none overflow-hidden';
+                
+                for (let h = startHour; h < endHour; h++) {
+                    const currentMinutes = (h - startHour) * 60;
+                    const topPercent = (currentMinutes / totalMinutes) * 100;
+                    
+                    const timeStr = String(h).padStart(2, '0');
+                    const label = document.createElement('div');
+                    label.className = 'absolute left-2.5 text-[8px] text-slate-400/20 font-black';
+                    label.style.top = `${topPercent}%`;
+                    label.style.transform = 'translateY(-50%)';
+                    label.textContent = timeStr;
+                    container.appendChild(label);
+                }
+                bgEl.appendChild(container);
+            }
+        },
         dayCellContent: (info) => ({ html: `<span>${info.date.getDate()}</span>` }),
-        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+        select: (info) => {
+            const getPrevDay = (dateStr) => {
+                const d = new Date(dateStr);
+                d.setDate(d.getDate() - 1);
+                return d.toISOString().split('T')[0];
+            };
+            const startParts = info.startStr.split('T');
+            const endParts = info.endStr.split('T');
+            
+            const startDate = startParts[0];
+            let endDate = endParts[0];
+            
+            let realEndDate = getPrevDay(endDate);
+            let startTimeVal = '';
+            let endTimeVal = '';
+            
+            if (startParts[1]) {
+                startTimeVal = startParts[1].substring(0, 5);
+                if (endParts[1]) {
+                    endTimeVal = endParts[1].substring(0, 5);
+                }
+                if (startParts[0] === endParts[0]) {
+                    realEndDate = startParts[0];
+                }
+            }
+            
+            const isSameDay = (startDate === realEndDate);
+            const endDateVal = isSameDay ? '' : realEndDate;
+            
+            openMeetingModal(null, startDate, '', '581구역모임', '', '', '', endDateVal, startTimeVal, endTimeVal);
+            calendar.unselect();
+        },
         events: async (fetchInfo, successCallback, failureCallback) => {
             const addOneDay = (dateStr) => {
                 const d = new Date(dateStr);
@@ -35,10 +104,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     else if (t.includes('교회행사')) { bg = '#f3e8ff'; tc = '#6b21a8'; br = '#e9d5ff'; }
                     else if (t.includes('구원기념일')) { bg = 'transparent'; tc = '#0f172a'; br = 'transparent'; ord = 2; }
                     else { bg = '#f3f4f6'; tc = '#111827'; br = '#e5e7eb'; }
+                    
+                    let startVal = m.date;
+                    if (m.start_time) {
+                        startVal = `${m.date}T${m.start_time}:00`;
+                    }
+                    
+                    let endVal = m.end_date ? addOneDay(m.end_date) : undefined;
+                    if (m.start_time && m.end_time) {
+                        endVal = `${m.end_date || m.date}T${m.end_time}:00`;
+                    }
+
                     return { 
                         ...m, 
-                        start: m.date, 
-                        end: m.end_date ? addOneDay(m.end_date) : undefined,
+                        start: startVal, 
+                        end: endVal, 
                         backgroundColor: bg, 
                         textColor: tc, 
                         borderColor: br,
@@ -53,15 +133,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const sermon = arg.event.extendedProps.sermon_title || '';
             const type = arg.event.extendedProps.type || '';
             const memo = arg.event.extendedProps.memo || '';
+            const startTime = arg.event.extendedProps.start_time || '';
+            const endTime = arg.event.extendedProps.end_time || '';
             let subtext = '';
             if (sermon) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${sermon}</div>`;
             } else if (type === '교회행사' && memo) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${memo}</div>`;
             }
-            return { html: `<div class="p-1 overflow-hidden"><div class="font-bold text-[13px] truncate">${arg.event.title}${(type === '설교' || type === '외부설교' || type === '교회행사' || type === '구원기념일') ? '' : ` (${count})`}</div>${subtext}</div>` };
+            const timePrefix = startTime ? `<span class="hidden md:inline text-[11px] text-slate-500 font-semibold mr-1">${startTime}</span>` : '';
+            return { html: `<div class="p-1 overflow-hidden"><div class="font-bold text-[13px] truncate">${timePrefix}${arg.event.title}${(type === '설교' || type === '외부설교' || type === '교회행사' || type === '구원기념일') ? '' : ` (${count})`}</div>${subtext}</div>` };
         },
-        dateClick: (info) => openMeetingModal(null, info.dateStr),
+        dateClick: (info) => {
+            const parts = info.dateStr.split('T');
+            const clickedDate = parts[0];
+            const clickedTime = parts[1] ? parts[1].substring(0, 5) : '';
+            
+            // 종료 시간은 기본적으로 시작시간 + 1시간 추천
+            let endTimeVal = '';
+            if (clickedTime) {
+                const [h, m] = clickedTime.split(':').map(Number);
+                const nextHour = (h + 1) % 24;
+                endTimeVal = `${String(nextHour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+            
+            openMeetingModal(null, clickedDate, '', '581구역모임', '', '', '', '', clickedTime, endTimeVal);
+        },
         eventClick: (info) => {
             const id = info.event.id;
             if (id && id.toString().startsWith('salvation-')) {
@@ -71,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
-            showMeetingDetail(id, info.event.startStr, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church);
+            showMeetingDetail(id, info.event.startStr.split('T')[0], info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time);
         }
     });
     calendar.render();
@@ -1227,11 +1324,16 @@ async function fetchDistricts(parishId) { const res = await fetch(`/api/district
 // Meeting Functions
 let currentMeetingId = null, extraAttendees = [], selectedChurch = '';
 
-async function showMeetingDetail(id, date, title, type, sermon, memo, church = '') {
+async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '') {
     currentMeetingId = id; const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden'); setTimeout(() => { c.classList.remove('translate-x-full'); c.classList.add('translate-x-0'); }, 10);
     document.getElementById('meetingDetailPanel').classList.remove('hidden'); document.getElementById('meetingModal').classList.add('hidden');
-    document.getElementById('detailTitle').textContent = title; document.getElementById('detailDate').textContent = `${date} | ${type}`;
+    document.getElementById('detailTitle').textContent = title;
+    let timeStr = startTime;
+    if (startTime && endTime) {
+        timeStr = `${startTime}~${endTime}`;
+    }
+    document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type}`;
     const res = await fetch(`/api/meetings/${id}/attendance`); const att = await res.json();
     const p = att.filter(a => a.is_present);
     const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
@@ -1351,10 +1453,10 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
 document.getElementById('editMeetingDetailBtn').addEventListener('click', async () => {
     const res = await fetch(`/api/meetings`); const ms = await res.json();
     const m = ms.find(x => x.id == currentMeetingId);
-    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date);
+    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time);
 });
 
-async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '') {
+async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '') {
     currentMeetingId = id; extraAttendees = [];
     const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden');
@@ -1371,29 +1473,85 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
+    // 종일 체크박스 제어 로직
+    const isAllDayEvent = document.getElementById('isAllDayEvent');
+    const startTimeEl = document.getElementById('meetingStartTime');
+    const endTimeEl = document.getElementById('meetingEndTime');
+    const endTimeField = document.getElementById('meetingEndTimeField');
+    if (isAllDayEvent && startTimeEl && endTimeEl) {
+        let finalStartTime = startTime;
+        let finalEndTime = endTime;
+
+        // 신규 등록 시 구역모임이면 19:30 ~ 21:30, 조모임이면 10:30 ~ 14:00 추천
+        if (!id && !startTime && type) {
+            if (type.includes('구역모임')) {
+                finalStartTime = '19:30';
+                finalEndTime = '21:30';
+            } else if (type.includes('조모임')) {
+                finalStartTime = '10:30';
+                finalEndTime = '14:00';
+            }
+        }
+
+        const isAllDay = !finalStartTime;
+        isAllDayEvent.checked = isAllDay;
+        startTimeEl.value = finalStartTime || '';
+        endTimeEl.value = finalEndTime || '';
+        
+        if (isAllDay) {
+            startTimeEl.classList.add('hidden');
+            endTimeField.classList.add('hidden');
+        } else {
+            startTimeEl.classList.remove('hidden');
+            endTimeField.classList.remove('hidden');
+        }
+
+        if (!isAllDayEvent._listenerAdded) {
+            isAllDayEvent.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    startTimeEl.classList.add('hidden');
+                    endTimeField.classList.add('hidden');
+                    startTimeEl.value = '';
+                    endTimeEl.value = '';
+                } else {
+                    startTimeEl.classList.remove('hidden');
+                    endTimeField.classList.remove('hidden');
+                    startTimeEl.value = '09:00';
+                    endTimeEl.value = '10:00';
+                }
+            });
+            isAllDayEvent._listenerAdded = true;
+        }
+
+        // 시작 시간 입력 시 종료 시간 +1시간 자동 매핑
+        if (!startTimeEl._autoTimeAdded) {
+            startTimeEl.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val) {
+                    const [h, m] = val.split(':').map(Number);
+                    const nextHour = (h + 1) % 24;
+                    endTimeEl.value = `${String(nextHour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                }
+            });
+            startTimeEl._autoTimeAdded = true;
+        }
+    }
+
     // 당일행사 체크박스 제어 로직
     const isSameDayEvent = document.getElementById('isSameDayEvent');
     const meetingEndDate = document.getElementById('meetingEndDate');
     const meetingDate = document.getElementById('meetingDate');
 
-    if (!id) {
-        // 신규 모드: 기본적으로 당일행사 활성화
-        isSameDayEvent.checked = true;
+    const isSame = !end_date || date === end_date;
+    isSameDayEvent.checked = isSame;
+    if (isSame) {
         meetingEndDate.value = date;
         meetingEndDate.disabled = true;
         meetingEndDate.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
     } else {
-        // 수정 모드: 시작일과 종료일이 같으면 당일행사 활성화
-        const isSame = !end_date || date === end_date;
-        isSameDayEvent.checked = isSame;
-        if (isSame) {
-            meetingEndDate.value = date;
-            meetingEndDate.disabled = true;
-            meetingEndDate.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        } else {
-            meetingEndDate.disabled = false;
-            meetingEndDate.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        }
+        meetingEndDate.value = end_date;
+        meetingEndDate.disabled = false;
+        meetingEndDate.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
     }
 
     const updateEndDateState = () => {
@@ -1622,6 +1780,29 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
         }
         window._meetingTypeChangeListener = () => {
             refreshAttendanceList();
+            
+            // 구역모임(19:30-21:30) 또는 조모임(10:30-14:00) 선택 시 디폴트 시간 추천
+            const typeVal = meetingTypeEl.value || '';
+            const isAllDayEvent = document.getElementById('isAllDayEvent');
+            const startTimeEl = document.getElementById('meetingStartTime');
+            const endTimeEl = document.getElementById('meetingEndTime');
+            const endTimeField = document.getElementById('meetingEndTimeField');
+            
+            if (isAllDayEvent && startTimeEl && endTimeEl && endTimeField) {
+                if (typeVal.includes('구역모임')) {
+                    isAllDayEvent.checked = false;
+                    startTimeEl.classList.remove('hidden');
+                    endTimeField.classList.remove('hidden');
+                    startTimeEl.value = '19:30';
+                    endTimeEl.value = '21:30';
+                } else if (typeVal.includes('조모임')) {
+                    isAllDayEvent.checked = false;
+                    startTimeEl.classList.remove('hidden');
+                    endTimeField.classList.remove('hidden');
+                    startTimeEl.value = '10:30';
+                    endTimeEl.value = '14:00';
+                }
+            }
         };
         meetingTypeEl.addEventListener('change', window._meetingTypeChangeListener);
     }
@@ -1647,6 +1828,8 @@ window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id 
 document.getElementById('saveMeeting').addEventListener('click', async () => {
     const title = document.getElementById('meetingTitle').value.trim();
     const date = document.getElementById('meetingDate').value;
+    const startTime = document.getElementById('meetingStartTime').value;
+    const endTime = document.getElementById('meetingEndTime').value;
     const endDate = document.getElementById('meetingEndDate').value;
     const type = document.getElementById('meetingType').value;
     const sermon = document.getElementById('meetingSermon').value.trim();
@@ -1655,7 +1838,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 
     try {
         const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
-        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch }) });
+        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
         const { id } = await res.json();
         const mid = currentMeetingId || id;
 
