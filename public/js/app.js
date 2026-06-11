@@ -32,43 +32,46 @@ document.addEventListener('DOMContentLoaded', function() {
             minute: '2-digit',
             hour12: false
         },
-        dayCellDidMount: (info) => {
+        datesSet: (info) => {
             if (info.view.type.startsWith('timeGrid')) {
-                const colEl = info.el;
-                if (colEl.classList.contains('fc-daygrid-day') || colEl.classList.contains('fc-col-header-cell')) {
-                    return;
-                }
-                const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
-                
-                const startHour = 5;
-                const endHour = 24;
-                const totalMinutes = (endHour - startHour) * 60;
-                
-                const container = document.createElement('div');
-                container.style.position = 'absolute';
-                container.style.inset = '0';
-                container.style.pointerEvents = 'none';
-                container.style.userSelect = 'none';
-                container.style.overflow = 'hidden';
-                
-                for (let h = startHour; h < endHour; h++) {
-                    if (h === 5) continue;
-                    const currentMinutes = (h - startHour) * 60;
-                    const topPercent = (currentMinutes / totalMinutes) * 100;
+                const cols = document.querySelectorAll('.fc-timegrid-col');
+                cols.forEach(colEl => {
+                    const oldContainer = colEl.querySelector('.custom-time-guide-container');
+                    if (oldContainer) oldContainer.remove();
                     
-                    const timeStr = String(h).padStart(2, '0');
-                    const label = document.createElement('div');
-                    label.style.position = 'absolute';
-                    label.style.left = '10px';
-                    label.style.fontSize = '11px';
-                    label.style.color = 'rgba(100, 116, 139, 0.15)'; // Slate-400 색상에 투명도 15% 적용
-                    label.style.fontWeight = '600';
-                    label.style.top = `${topPercent}%`;
-                    label.style.transform = 'translateY(-100%)';
-                    label.textContent = timeStr;
-                    container.appendChild(label);
-                }
-                bgEl.appendChild(container);
+                    const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
+                    
+                    const startHour = 5;
+                    const endHour = 24;
+                    const totalMinutes = (endHour - startHour) * 60;
+                    
+                    const container = document.createElement('div');
+                    container.className = 'custom-time-guide-container';
+                    container.style.position = 'absolute';
+                    container.style.inset = '0';
+                    container.style.pointerEvents = 'none';
+                    container.style.userSelect = 'none';
+                    container.style.overflow = 'hidden';
+                    
+                    for (let h = startHour; h < endHour; h++) {
+                        if (h === 5) continue;
+                        const currentMinutes = (h - startHour) * 60;
+                        const topPercent = (currentMinutes / totalMinutes) * 100;
+                        
+                        const timeStr = String(h).padStart(2, '0');
+                        const label = document.createElement('div');
+                        label.style.position = 'absolute';
+                        label.style.left = '10px';
+                        label.style.fontSize = '11px';
+                        label.style.color = 'rgba(100, 116, 139, 0.15)';
+                        label.style.fontWeight = '600';
+                        label.style.top = `${topPercent}%`;
+                        label.style.transform = 'translateY(-100%)';
+                        label.textContent = timeStr;
+                        container.appendChild(label);
+                    }
+                    bgEl.appendChild(container);
+                });
             }
         },
 
