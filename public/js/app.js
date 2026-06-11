@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
+        views: {
+            dayGridMonth: {
+                dayCellContent: (info) => ({ html: `<span>${info.date.getDate()}</span>` })
+            }
+        },
         locale: 'ko',
         height: 'auto',
         aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
@@ -54,11 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 bgEl.appendChild(container);
             }
         },
-        dayCellContent: (info) => {
-            if (info.view.type === 'dayGridMonth') {
-                return { html: `<span>${info.date.getDate()}</span>` };
-            }
-        },
+
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
         select: (info) => {
             const getPrevDay = (dateStr) => {
