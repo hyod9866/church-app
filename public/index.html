@@ -140,6 +140,10 @@
         .fc-theme-standard td, .fc-theme-standard th {
             border-color: #f1f5f9 !important;
         }
+        /* 주간 뷰 12시 가로선 강조 */
+        .fc-timegrid-slots tr[data-time="12:00:00"] td {
+            border-top: 1.8px solid rgba(100, 116, 139, 0.45) !important;
+        }
         .fc-theme-standard .fc-scrollgrid {
             border-radius: 0.75rem;
             overflow: hidden;
@@ -750,6 +754,6 @@
         </div>
     </div>
 
-    <script src="/js/app.js?v=20260611-2136"></script>
+    <script src="/js/app.js?v=20260611-2140"></script>
 </body>
 </html>

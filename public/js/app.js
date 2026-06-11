@@ -6,48 +6,6 @@ window.onerror = function(message, source, lineno, colno, error) {
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
 
-    function injectTimeGuides() {
-        const cols = document.querySelectorAll('.fc-timegrid-col');
-        if (cols.length === 0) return;
-        
-        cols.forEach(colEl => {
-            if (colEl.querySelector('.custom-time-guide-container')) return;
-            
-            const bgEl = colEl.querySelector('.fc-timegrid-col-bg') || colEl;
-            const startHour = 5;
-            const endHour = 24;
-            const totalMinutes = (endHour - startHour) * 60;
-            
-            const container = document.createElement('div');
-            container.className = 'custom-time-guide-container';
-            container.style.position = 'absolute';
-            container.style.inset = '0';
-            container.style.pointerEvents = 'none';
-            container.style.userSelect = 'none';
-            container.style.overflow = 'hidden';
-            container.style.zIndex = '0';
-            
-            for (let h = startHour; h < endHour; h++) {
-                if (h === 5) continue;
-                const currentMinutes = (h - startHour) * 60;
-                const topPercent = (currentMinutes / totalMinutes) * 100;
-                
-                const timeStr = String(h).padStart(2, '0');
-                const label = document.createElement('div');
-                label.style.position = 'absolute';
-                label.style.left = '10px';
-                label.style.fontSize = '11px';
-                label.style.color = 'rgba(100, 116, 139, 0.18)';
-                label.style.fontWeight = '600';
-                label.style.top = `${topPercent}%`;
-                label.style.transform = 'translateY(-100%)';
-                label.textContent = timeStr;
-                container.appendChild(label);
-            }
-            bgEl.appendChild(container);
-        });
-    }
-
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         views: {
@@ -74,12 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
             minute: '2-digit',
             hour12: false
         },
-        datesSet: (info) => {
-            if (info.view.type.startsWith('timeGrid')) {
-                setTimeout(injectTimeGuides, 50);
-                setTimeout(injectTimeGuides, 200);
-            }
-        },
+
 
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
         select: (info) => {
@@ -156,8 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         classNames: t.includes('구원기념일') ? ['salvation-event'] : []
                     };
                 }));
-                setTimeout(injectTimeGuides, 100);
-                setTimeout(injectTimeGuides, 300);
+
             } catch (e) { failureCallback(e); }
         },
         eventContent: (arg) => {
@@ -205,13 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     calendar.render();
 
-    // 주간 뷰 배경 시간 표시 감시 및 재주입 폴링 등록
-    setInterval(() => {
-        const activeView = calendar.view;
-        if (activeView && activeView.type.startsWith('timeGrid')) {
-            injectTimeGuides();
-        }
-    }, 500);
+
 
     // --- Touch Swipe Navigation for Mobile/iPad ---
     let touchstartX = 0;
