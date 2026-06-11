@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cols.length === 0) return;
         
         cols.forEach(colEl => {
+            // data-date 속성이 없으면 요일 시간 컬럼이 아니므로(제일 왼쪽 시간 축 등) 건너뜀
+            if (!colEl.hasAttribute('data-date')) return;
+            
             if (colEl.querySelector('.custom-time-guide-container')) return;
             
             // td 엘리먼트 자체를 기준으로 강제 relative 정렬 지정
@@ -72,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMaxTime: '24:00:00', // 24시까지 표기
         slotLabelFormat: {
             hour: '2-digit',
+            minute: '2-digit',
             hour12: false
         },
         datesSet: (info) => {
