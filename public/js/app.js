@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
         views: {
             dayGridMonth: {
                 dayCellContent: (info) => ({ html: `<span>${info.date.getDate()}</span>` })
+            },
+            timeGridWeek: {
+                dayHeaderFormat: { month: 'numeric', day: 'numeric', weekday: 'short', omitCommas: true }
             }
         },
         locale: 'ko',
