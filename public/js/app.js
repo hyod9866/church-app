@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (info.view.type === 'dayGridMonth') {
                 return { html: `<span>${info.date.getDate()}</span>` };
             }
-            return info.dayNumberText;
         },
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
         select: (info) => {
