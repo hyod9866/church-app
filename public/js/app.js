@@ -181,16 +181,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
             let formattedTime = startTime;
             if (startTime) {
-                const parts = startTime.split(':');
-                if (parts.length >= 2) {
-                    const h = parseInt(parts[0], 10);
-                    const m = parseInt(parts[1], 10);
-                    if (m === 0) {
-                        formattedTime = `${h}`;
-                    } else if (m === 30) {
-                        formattedTime = `${h}.5`;
-                    } else {
-                        formattedTime = `${h}:${String(m).padStart(2, '0')}`;
+                const isLargeDesktop = window.innerWidth >= 1200;
+                if (!isLargeDesktop) {
+                    const parts = startTime.split(':');
+                    if (parts.length >= 2) {
+                        const h = parseInt(parts[0], 10);
+                        const m = parseInt(parts[1], 10);
+                        if (m === 0) {
+                            formattedTime = `${h}`;
+                        } else if (m === 30) {
+                            formattedTime = `${h}½`;
+                        } else {
+                            formattedTime = `${h}:${String(m).padStart(2, '0')}`;
+                        }
                     }
                 }
             }
