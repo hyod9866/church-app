@@ -54,10 +54,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 label.style.position = 'absolute';
                 label.style.left = '10px';
                 label.style.fontSize = '11px';
-                label.style.color = 'rgba(100, 116, 139, 0.15)';
+                label.style.color = 'rgba(100, 116, 139, 0.3)';
                 label.style.fontWeight = '600';
                 label.style.top = `${item.top}px`;
-                label.style.transform = 'translateY(-50%)';
+                label.style.transform = 'translateY(-100%)';
                 label.textContent = item.hour;
                 container.appendChild(label);
             });
