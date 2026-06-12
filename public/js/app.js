@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const startTime = arg.event.extendedProps.start_time || '';
             const endTime = arg.event.extendedProps.end_time || '';
             let subtext = '';
-            if (sermon) {
+            if (sermon && type !== '설교') {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${sermon}</div>`;
             } else if (type === '교회행사' && memo) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${memo}</div>`;
@@ -1507,7 +1507,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <span class="text-2xl font-black text-blue-600">${p.length}명</span>
             </div>
             ${church ? `<div class="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-200"><h4 class="text-[10px] font-black text-blue-700">외부 교회</h4><p class="font-bold">${church}</p></div>` : ''}
-            ${sermon ? `<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h4 class="text-[10px] font-black text-yellow-700">설교</h4><p class="font-bold">${sermon}</p></div>` : ''}
+            ${(sermon && type !== '설교') ? `<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h4 class="text-[10px] font-black text-yellow-700">설교</h4><p class="font-bold">${sermon}</p></div>` : ''}
             ${memo ? `<div class="mb-4 bg-slate-50 p-4.5 rounded-xl border border-slate-200"><h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">${memo}</p></div>` : ''}
             
             <div class="mb-4">
@@ -1540,21 +1540,11 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingModal').classList.remove('hidden'); 
     document.getElementById('meetingDetailPanel').classList.add('hidden');
     document.getElementById('modalTitle').textContent = id ? '기록 수정' : '신규 일정 등록';
-    let parsedTitle = title;
-    let parsedSermon = sermon;
-    if (type === '설교' && title) {
-        const tagMatch = title.match(/^(.*?)\s*\(([^)]+)\)$/);
-        if (tagMatch) {
-            parsedTitle = tagMatch[1].trim();
-            parsedSermon = tagMatch[2].trim();
-        }
-    }
-
-    document.getElementById('meetingTitle').value = parsedTitle;
+    document.getElementById('meetingTitle').value = title;
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingType').value = type;
-    document.getElementById('meetingSermon').value = parsedSermon;
+    document.getElementById('meetingSermon').value = sermon;
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
@@ -1567,7 +1557,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             sermonTagsField.classList.add('hidden');
         }
     }
-    updateSermonTagActiveState(parsedSermon);
+    updateSermonTagActiveState(sermon);
 
     // 설교 자동완성 datalist 채우기
     try {
@@ -1957,15 +1947,9 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const memo = document.getElementById('meetingMemo').value.trim();
     if (!title || !date) return alert('제목과 날짜를 입력하세요.');
 
-    let finalTitle = title;
-    if (type === '설교' && sermon) {
-        const cleanTitle = title.replace(/\s*\([^)]+\)$/, '').trim();
-        finalTitle = `${cleanTitle} (${sermon})`;
-    }
-
     try {
         const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
-        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: finalTitle, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
+        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
         const { id } = await res.json();
         const mid = currentMeetingId || id;
 
@@ -2048,12 +2032,19 @@ function initSermonTags() {
         
         const val = btn.getAttribute('data-value');
         const sermonInput = document.getElementById('meetingSermon');
+        const titleInput = document.getElementById('meetingTitle');
         
         if (val === '직접입력') {
             sermonInput.value = '';
-            sermonInput.focus();
+            if (titleInput) {
+                titleInput.value = '';
+                titleInput.focus();
+            }
         } else {
             sermonInput.value = val;
+            if (titleInput) {
+                titleInput.value = val;
+            }
         }
         
         updateSermonTagActiveState(sermonInput.value);
@@ -2061,9 +2052,14 @@ function initSermonTags() {
     
     // 직접 입력 시 실시간 연동
     const sermonInput = document.getElementById('meetingSermon');
+    const titleInput = document.getElementById('meetingTitle');
     if (sermonInput) {
         sermonInput.addEventListener('input', (e) => {
-            updateSermonTagActiveState(e.target.value);
+            const val = e.target.value;
+            updateSermonTagActiveState(val);
+            if (titleInput) {
+                titleInput.value = val;
+            }
         });
     }
 }
