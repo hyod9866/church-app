@@ -65,6 +65,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     targetTop = item.top + prevDiff;
                 }
                 
+                const oneHourHeight = hourOffsets.length > 1 ? (hourOffsets[1].top - hourOffsets[0].top) : 40;
+                targetTop = targetTop - (oneHourHeight / 2);
+                
                 label.style.top = `${targetTop}px`;
                 label.style.transform = 'translateY(-100%)';
                 label.textContent = item.hour;
