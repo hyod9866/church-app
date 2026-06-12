@@ -178,7 +178,24 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (type === '교회행사' && memo) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${memo}</div>`;
             }
-            const timePrefix = startTime ? `<span class="hidden md:inline text-[11px] text-slate-500 font-semibold mr-1">${startTime}</span>` : '';
+            
+            let formattedTime = startTime;
+            if (startTime) {
+                const parts = startTime.split(':');
+                if (parts.length >= 2) {
+                    const h = parseInt(parts[0], 10);
+                    const m = parseInt(parts[1], 10);
+                    if (m === 0) {
+                        formattedTime = `${h}`;
+                    } else if (m === 30) {
+                        formattedTime = `${h}.5`;
+                    } else {
+                        formattedTime = `${h}:${String(m).padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            const timePrefix = startTime ? `<span class="hidden md:inline text-[11px] text-slate-500 font-semibold mr-1">${formattedTime}</span>` : '';
             return { html: `<div class="p-1 overflow-hidden"><div class="font-bold text-[13px] truncate">${timePrefix}${arg.event.title}${(type === '설교' || type === '외부설교' || type === '교회행사' || type === '구원기념일') ? '' : ` (${count})`}</div>${subtext}</div>` };
         },
         dateClick: (info) => {
