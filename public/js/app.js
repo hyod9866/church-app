@@ -1548,6 +1548,22 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
+    // 설교 자동완성 datalist 채우기
+    try {
+        const res = await fetch('/api/meetings');
+        const ms = await res.json();
+        const sermonTitles = [...new Set(ms
+            .map(m => m.sermon_title)
+            .filter(t => t && t.trim() !== '')
+        )];
+        const datalist = document.getElementById('sermonListOptions');
+        if (datalist) {
+            datalist.innerHTML = sermonTitles.map(t => `<option value="${t}"></option>`).join('');
+        }
+    } catch (err) {
+        console.error('Failed to load sermon titles for datalist:', err);
+    }
+
     // 종일 체크박스 제어 로직
     const isAllDayEvent = document.getElementById('isAllDayEvent');
     const startTimeEl = document.getElementById('meetingStartTime');
