@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 label.style.color = 'rgba(100, 116, 139, 0.15)'; // 다소 연하게
                 label.style.fontWeight = '600';
                 label.style.top = `${topPercent}%`;
-                label.style.transform = 'translateY(-100%)';
+                label.style.transform = 'translateY(-50%)';
                 label.textContent = timeStr;
                 container.appendChild(label);
             }
