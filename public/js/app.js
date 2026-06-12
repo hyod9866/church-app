@@ -49,27 +49,14 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.overflow = 'hidden';
             container.style.zIndex = '0';
             
-            hourOffsets.forEach((item, index) => {
+            hourOffsets.forEach(item => {
                 const label = document.createElement('div');
                 label.style.position = 'absolute';
                 label.style.left = '10px';
                 label.style.fontSize = '11px';
                 label.style.color = 'rgba(100, 116, 139, 0.3)';
                 label.style.fontWeight = '600';
-                
-                let targetTop = item.top;
-                if (index < hourOffsets.length - 1) {
-                    targetTop = hourOffsets[index + 1].top;
-                } else {
-                    const prevDiff = hourOffsets.length > 1 ? (hourOffsets[1].top - hourOffsets[0].top) : 40;
-                    targetTop = item.top + prevDiff;
-                }
-                
-                const oneHourHeight = hourOffsets.length > 1 ? (hourOffsets[1].top - hourOffsets[0].top) : 40;
-                targetTop = targetTop - (oneHourHeight / 2);
-                
-                label.style.top = `${targetTop}px`;
-                label.style.transform = 'translateY(-100%)';
+                label.style.top = `${item.top}px`;
                 label.textContent = item.hour;
                 container.appendChild(label);
             });
