@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
         dayMaxEvents: true,
-        eventOrder: ['order', 'start', 'title'],
+        eventOrder: ['order', 'start_time', 'title'],
         selectable: true,
         selectMirror: true,
         selectLongPressDelay: 1000,
