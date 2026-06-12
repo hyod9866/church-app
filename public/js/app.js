@@ -1540,11 +1540,21 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingModal').classList.remove('hidden'); 
     document.getElementById('meetingDetailPanel').classList.add('hidden');
     document.getElementById('modalTitle').textContent = id ? '기록 수정' : '신규 일정 등록';
-    document.getElementById('meetingTitle').value = title;
+    let parsedTitle = title;
+    let parsedSermon = sermon;
+    if (type === '설교' && title) {
+        const tagMatch = title.match(/^(.*?)\s*\(([^)]+)\)$/);
+        if (tagMatch) {
+            parsedTitle = tagMatch[1].trim();
+            parsedSermon = tagMatch[2].trim();
+        }
+    }
+
+    document.getElementById('meetingTitle').value = parsedTitle;
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingType').value = type;
-    document.getElementById('meetingSermon').value = sermon;
+    document.getElementById('meetingSermon').value = parsedSermon;
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
@@ -1557,7 +1567,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             sermonTagsField.classList.add('hidden');
         }
     }
-    updateSermonTagActiveState(sermon);
+    updateSermonTagActiveState(parsedSermon);
 
     // 설교 자동완성 datalist 채우기
     try {
@@ -1947,9 +1957,15 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const memo = document.getElementById('meetingMemo').value.trim();
     if (!title || !date) return alert('제목과 날짜를 입력하세요.');
 
+    let finalTitle = title;
+    if (type === '설교' && sermon) {
+        const cleanTitle = title.replace(/\s*\([^)]+\)$/, '').trim();
+        finalTitle = `${cleanTitle} (${sermon})`;
+    }
+
     try {
         const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
-        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
+        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: finalTitle, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
         const { id } = await res.json();
         const mid = currentMeetingId || id;
 
