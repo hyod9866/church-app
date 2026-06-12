@@ -10,18 +10,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const cols = document.querySelectorAll('.fc-timegrid-col');
         if (cols.length === 0) return;
         
-        const slotTrs = document.querySelectorAll('.fc-timegrid-slots tr[data-time]');
-        if (slotTrs.length === 0) return;
+        const slotEls = document.querySelectorAll('.fc-timegrid-slots [data-time]');
+        if (slotEls.length === 0) return;
         
         const hourOffsets = [];
-        slotTrs.forEach(tr => {
-            const timeVal = tr.getAttribute('data-time');
+        const seenHours = new Set();
+        slotEls.forEach(el => {
+            const timeVal = el.getAttribute('data-time');
             if (timeVal && timeVal.endsWith(':00:00')) {
                 const hour = timeVal.split(':')[0];
-                hourOffsets.push({
-                    hour: hour,
-                    top: tr.offsetTop
-                });
+                if (!seenHours.has(hour)) {
+                    seenHours.add(hour);
+                    const parentTr = el.closest('tr');
+                    if (parentTr) {
+                        hourOffsets.push({
+                            hour: hour,
+                            top: parentTr.offsetTop
+                        });
+                    }
+                }
             }
         });
         
