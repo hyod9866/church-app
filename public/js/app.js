@@ -10,18 +10,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const cols = document.querySelectorAll('.fc-timegrid-col');
         if (cols.length === 0) return;
         
+        const slotTrs = document.querySelectorAll('.fc-timegrid-slots tr[data-time]');
+        if (slotTrs.length === 0) return;
+        
+        const hourOffsets = [];
+        slotTrs.forEach(tr => {
+            const timeVal = tr.getAttribute('data-time');
+            if (timeVal && timeVal.endsWith(':00:00')) {
+                const hour = timeVal.split(':')[0];
+                hourOffsets.push({
+                    hour: hour,
+                    top: tr.offsetTop
+                });
+            }
+        });
+        
+        if (hourOffsets.length === 0) return;
+        
         cols.forEach(colEl => {
-            // data-date 속성이 없으면 요일 시간 컬럼이 아니므로(제일 왼쪽 시간 축 등) 건너뜀
             if (!colEl.hasAttribute('data-date')) return;
-            
             if (colEl.querySelector('.custom-time-guide-container')) return;
             
-            // td 엘리먼트 자체를 기준으로 강제 relative 정렬 지정
             colEl.style.position = 'relative';
-            
-            const startHour = 5;
-            const endHour = 24;
-            const totalMinutes = (endHour - startHour) * 60;
             
             const container = document.createElement('div');
             container.className = 'custom-time-guide-container';
@@ -32,23 +42,19 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.overflow = 'hidden';
             container.style.zIndex = '0';
             
-            for (let h = startHour; h < endHour; h++) {
-                const currentMinutes = (h - startHour) * 60;
-                const topPercent = (currentMinutes / totalMinutes) * 100;
-                
-                const timeStr = String(h).padStart(2, '0');
+            hourOffsets.forEach(item => {
                 const label = document.createElement('div');
                 label.style.position = 'absolute';
                 label.style.left = '10px';
                 label.style.fontSize = '11px';
-                label.style.color = 'rgba(100, 116, 139, 0.15)'; // 다소 연하게
+                label.style.color = 'rgba(100, 116, 139, 0.15)';
                 label.style.fontWeight = '600';
-                label.style.top = `${topPercent}%`;
+                label.style.top = `${item.top}px`;
                 label.style.transform = 'translateY(-50%)';
-                label.textContent = timeStr;
+                label.textContent = item.hour;
                 container.appendChild(label);
-            }
-            colEl.appendChild(container); // td에 직접 추가하여 위치 오프셋 방지
+            });
+            colEl.appendChild(container);
         });
     }
 
