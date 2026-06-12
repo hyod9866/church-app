@@ -407,6 +407,18 @@
                                 <input type="date" id="meetingDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
                             </div>
                             <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
+                            <div id="sermonTagsField" class="col-span-2 hidden">
+                                <label class="text-[10px] font-black text-slate-450 block mb-1.5 uppercase tracking-wider">설교 구분 태그</label>
+                                <div class="flex flex-wrap gap-1.5" id="sermonTagsList">
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="청년회토요교제">#청년회토요교제</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="교회학교공과">#교회학교공과</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="시설부">#시설부</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="직장인모임">#직장인모임</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="새신자말씀">#새신자말씀</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="새신자부봉사자말씀">#새신자부봉사자말씀</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="직접입력">#직접입력</button>
+                                </div>
+                            </div>
                             <div>
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">시작 시간</label>

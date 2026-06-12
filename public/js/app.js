@@ -1548,6 +1548,17 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
+    // 설교 태그 필드 제어 및 상태 초기화
+    const sermonTagsField = document.getElementById('sermonTagsField');
+    if (sermonTagsField) {
+        if (type === '설교') {
+            sermonTagsField.classList.remove('hidden');
+        } else {
+            sermonTagsField.classList.add('hidden');
+        }
+    }
+    updateSermonTagActiveState(sermon);
+
     // 설교 자동완성 datalist 채우기
     try {
         const res = await fetch('/api/meetings');
@@ -1744,6 +1755,15 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
         const defaultAttSec = document.getElementById('defaultAttendanceSection');
         const extraAttSec = document.getElementById('openExtraMemberSearch')?.closest('.border-t');
         const memoField = document.getElementById('memoField');
+        
+        const sermonTagsField = document.getElementById('sermonTagsField');
+        if (sermonTagsField) {
+            if (currentType === '설교') {
+                sermonTagsField.classList.remove('hidden');
+            } else {
+                sermonTagsField.classList.add('hidden');
+            }
+        }
 
         // 교회행사 동적 폼 제어
         if (currentType === '교회행사') {
@@ -1968,3 +1988,69 @@ window.addExtraAttendee = (id, name, district) => {
     if (!extraAttendees.some(x => x.id === id)) { extraAttendees.push({ id, name, district, is_present: true, testimony_snapshot: '' }); renderExtras(); }
     document.getElementById('extraMemberSearchModal').classList.add('hidden'); document.getElementById('extraMemberSearchInput').value = '';
 };
+
+// 설교 태그 활성화 상태 업데이트 함수
+function updateSermonTagActiveState(sermonVal) {
+    const tags = document.querySelectorAll('.sermon-tag');
+    let matched = false;
+    tags.forEach(tag => {
+        const val = tag.getAttribute('data-value');
+        if (val === sermonVal) {
+            tag.classList.remove('bg-slate-100', 'text-slate-800');
+            tag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+            matched = true;
+        } else {
+            tag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            tag.classList.add('bg-slate-100', 'text-slate-800');
+        }
+    });
+
+    // 아무것도 일치하지 않고 sermonVal이 비어있지 않으면 '직접입력' 태그를 하이라이트
+    const directInputTag = Array.from(tags).find(t => t.getAttribute('data-value') === '직접입력');
+    if (directInputTag) {
+        if (!matched && sermonVal && sermonVal.trim() !== '') {
+            directInputTag.classList.remove('bg-slate-100', 'text-slate-800');
+            directInputTag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        } else if (matched && sermonVal !== '직접입력') {
+            directInputTag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            directInputTag.classList.add('bg-slate-100', 'text-slate-800');
+        } else {
+            directInputTag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            directInputTag.classList.add('bg-slate-100', 'text-slate-800');
+        }
+    }
+}
+
+// 설교 태그 이벤트 초기화
+function initSermonTags() {
+    const tagsContainer = document.getElementById('sermonTagsList');
+    if (!tagsContainer) return;
+    
+    tagsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sermon-tag');
+        if (!btn) return;
+        
+        const val = btn.getAttribute('data-value');
+        const sermonInput = document.getElementById('meetingSermon');
+        
+        if (val === '직접입력') {
+            sermonInput.value = '';
+            sermonInput.focus();
+        } else {
+            sermonInput.value = val;
+        }
+        
+        updateSermonTagActiveState(sermonInput.value);
+    });
+    
+    // 직접 입력 시 실시간 연동
+    const sermonInput = document.getElementById('meetingSermon');
+    if (sermonInput) {
+        sermonInput.addEventListener('input', (e) => {
+            updateSermonTagActiveState(e.target.value);
+        });
+    }
+}
+
+// 스크립트 로드 시 즉시 초기화
+initSermonTags();
