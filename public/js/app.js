@@ -187,12 +187,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (parts.length >= 2) {
                         const h = parseInt(parts[0], 10);
                         const m = parseInt(parts[1], 10);
-                        if (m === 0) {
-                            formattedTime = `${h}`;
-                        } else if (m === 30) {
+                        if (m === 30) {
                             formattedTime = `${h}½`;
-                        } else {
-                            formattedTime = `${h}:${String(m).padStart(2, '0')}`;
                         }
                     }
                 }
