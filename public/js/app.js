@@ -1544,7 +1544,17 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingType').value = type;
-    document.getElementById('meetingSermon').value = sermon;
+    let parsedSermonTitle = sermon || '';
+    let parsedTag = '';
+    if (type === '설교' && sermon) {
+        const tagMatch = sermon.match(/^(.*?)\s*\(([^)]+)\)$/);
+        if (tagMatch) {
+            parsedSermonTitle = tagMatch[1].trim();
+            parsedTag = tagMatch[2].trim();
+        }
+    }
+
+    document.getElementById('meetingSermon').value = parsedSermonTitle;
     document.getElementById('meetingMemo').value = memo;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
 
@@ -1557,7 +1567,11 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             sermonTagsField.classList.add('hidden');
         }
     }
-    updateSermonTagActiveState(sermon);
+    const directTagInput = document.getElementById('directSermonTag');
+    if (directTagInput) {
+        directTagInput.value = parsedTag;
+    }
+    updateSermonTagActiveState(parsedTag);
 
     // 설교 자동완성 datalist 채우기
     try {
@@ -1947,9 +1961,28 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const memo = document.getElementById('meetingMemo').value.trim();
     if (!title || !date) return alert('제목과 날짜를 입력하세요.');
 
+    // 설교 태그 값 추출 및 결합
+    let finalSermon = sermon;
+    if (type === '설교') {
+        const activeTagBtn = document.querySelector('.sermon-tag.bg-blue-600');
+        let tagVal = '';
+        if (activeTagBtn) {
+            const val = activeTagBtn.getAttribute('data-value');
+            if (val === '직접입력') {
+                const directTagInput = document.getElementById('directSermonTag');
+                tagVal = directTagInput ? directTagInput.value.trim() : '';
+            } else {
+                tagVal = val;
+            }
+        }
+        if (tagVal) {
+            finalSermon = `${sermon} (${tagVal})`;
+        }
+    }
+
     try {
         const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
-        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: sermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
+        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: finalSermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
         const { id } = await res.json();
         const mid = currentMeetingId || id;
 
@@ -1990,12 +2023,13 @@ window.addExtraAttendee = (id, name, district) => {
 };
 
 // 설교 태그 활성화 상태 업데이트 함수
-function updateSermonTagActiveState(sermonVal) {
+function updateSermonTagActiveState(tagVal) {
     const tags = document.querySelectorAll('.sermon-tag');
     let matched = false;
+    
     tags.forEach(tag => {
         const val = tag.getAttribute('data-value');
-        if (val === sermonVal) {
+        if (val !== '직접입력' && val === tagVal) {
             tag.classList.remove('bg-slate-100', 'text-slate-800');
             tag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
             matched = true;
@@ -2005,18 +2039,21 @@ function updateSermonTagActiveState(sermonVal) {
         }
     });
 
-    // 아무것도 일치하지 않고 sermonVal이 비어있지 않으면 '직접입력' 태그를 하이라이트
     const directInputTag = Array.from(tags).find(t => t.getAttribute('data-value') === '직접입력');
+    const directTagField = document.getElementById('directSermonTagField');
+    const directTagInput = document.getElementById('directSermonTag');
+
     if (directInputTag) {
-        if (!matched && sermonVal && sermonVal.trim() !== '') {
+        if (tagVal === '직접입력' || (!matched && tagVal && tagVal.trim() !== '')) {
             directInputTag.classList.remove('bg-slate-100', 'text-slate-800');
             directInputTag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-        } else if (matched && sermonVal !== '직접입력') {
-            directInputTag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-            directInputTag.classList.add('bg-slate-100', 'text-slate-800');
+            if (directTagField) directTagField.classList.remove('hidden');
+            if (directTagInput && tagVal !== '직접입력') directTagInput.value = tagVal;
         } else {
             directInputTag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
             directInputTag.classList.add('bg-slate-100', 'text-slate-800');
+            if (directTagField) directTagField.classList.add('hidden');
+            if (directTagInput && !tagVal) directTagInput.value = '';
         }
     }
 }
@@ -2031,26 +2068,21 @@ function initSermonTags() {
         if (!btn) return;
         
         const val = btn.getAttribute('data-value');
-        const sermonInput = document.getElementById('meetingSermon');
+        const directTagField = document.getElementById('directSermonTagField');
+        const directTagInput = document.getElementById('directSermonTag');
         
         if (val === '직접입력') {
-            sermonInput.value = '';
-            sermonInput.focus();
+            if (directTagField) directTagField.classList.remove('hidden');
+            if (directTagInput) {
+                directTagInput.value = '';
+                directTagInput.focus();
+            }
+            updateSermonTagActiveState('직접입력');
         } else {
-            sermonInput.value = val;
-        }
-        
-        updateSermonTagActiveState(sermonInput.value);
-    });
-    
-    // 직접 입력 시 실시간 연동 제거 (모임 명칭과 분리)
-    const sermonInput = document.getElementById('meetingSermon');
-    if (sermonInput) {
-        sermonInput.addEventListener('input', (e) => {
-            const val = e.target.value;
+            if (directTagField) directTagField.classList.add('hidden');
             updateSermonTagActiveState(val);
-        });
-    }
+        }
+    });
 }
 
 // 스크립트 로드 시 즉시 초기화
