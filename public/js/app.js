@@ -2032,34 +2032,23 @@ function initSermonTags() {
         
         const val = btn.getAttribute('data-value');
         const sermonInput = document.getElementById('meetingSermon');
-        const titleInput = document.getElementById('meetingTitle');
         
         if (val === '직접입력') {
             sermonInput.value = '';
-            if (titleInput) {
-                titleInput.value = '';
-                titleInput.focus();
-            }
+            sermonInput.focus();
         } else {
             sermonInput.value = val;
-            if (titleInput) {
-                titleInput.value = val;
-            }
         }
         
         updateSermonTagActiveState(sermonInput.value);
     });
     
-    // 직접 입력 시 실시간 연동
+    // 직접 입력 시 실시간 연동 제거 (모임 명칭과 분리)
     const sermonInput = document.getElementById('meetingSermon');
-    const titleInput = document.getElementById('meetingTitle');
     if (sermonInput) {
         sermonInput.addEventListener('input', (e) => {
             const val = e.target.value;
             updateSermonTagActiveState(val);
-            if (titleInput) {
-                titleInput.value = val;
-            }
         });
     }
 }
