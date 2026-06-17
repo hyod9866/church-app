@@ -524,10 +524,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (gA.groupKey !== gB.groupKey) {
                     return gB.rate - gA.rate;
                 } else {
-                    const relA = gA.relation || '';
-                    const relB = gB.relation || '';
-                    if (relA.includes('남편') && !relB.includes('남편')) return -1;
-                    if (!relA.includes('남편') && relB.includes('남편')) return 1;
+                    const bsA = a.bs || '';
+                    const bsB = b.bs || '';
+                    if (bsA === 'B' && bsB !== 'B') return -1;
+                    if (bsA !== 'B' && bsB === 'B') return 1;
                     return a.name.localeCompare(b.name);
                 }
             });
