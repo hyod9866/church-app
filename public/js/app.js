@@ -1387,8 +1387,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    initHeaderSelectors().then(() => {
+    initHeaderSelectors().then(async () => {
         loadMemberList();
+
+        // URL 파라미터가 있는 경우 모임 수정 모달 자동 열기
+        const urlParams = new URLSearchParams(window.location.search);
+        const editMeetingId = urlParams.get('editMeetingId');
+        if (editMeetingId) {
+            try {
+                const res = await fetch('/api/meetings');
+                const ms = await res.json();
+                const m = ms.find(x => x.id == editMeetingId);
+                if (m) {
+                    openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time);
+                }
+            } catch (err) {
+                console.error('Failed to auto-open meeting modal from URL parameter:', err);
+            }
+        }
     });
 });
 

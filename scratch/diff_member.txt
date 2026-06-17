@@ -1,0 +1,237 @@
+﻿diff --git a/public/js/member_management.js b/public/js/member_management.js
+index 2a3f571..8da83c6 100644
+--- a/public/js/member_management.js
++++ b/public/js/member_management.js
+@@ -583,7 +583,49 @@ document.addEventListener('DOMContentLoaded', () => {
+         }
+     };
+ 
+-    window.deleteRecord = async (id) => { if (confirm('??젣?좉퉴??')) { try { await fetch(`/api/members/records/${id}`, { method: 'DELETE' }); openMemberHistoryModal(currentMemberData.id); } catch (e) { console.error(e); } } };
++    window.deleteRecord = async (id) => { 
++        if (confirm('??젣?좉퉴??')) { 
++            try { 
++                await fetch(`/api/members/records/${id}`, { method: 'DELETE' }); 
++                await openMemberHistoryModal(currentMemberData.id); 
++                await refreshCurrentMemberFields();
++            } catch (e) { console.error(e); } 
++        } 
++    };
++
++    async function refreshCurrentMemberFields() {
++        if (!currentMemberData) return;
++        try {
++            const res = await fetch(`/api/members/${currentMemberData.id}/history`);
++            const { member } = await res.json();
++            currentMemberData = member; // 理쒖떊 ?곗씠??媛깆떊
++            
++            // ?곷떒 ?쇱쓽 ?뚯냽 ?꾨뱶 媛깆떊
++            const churchSelect = memberAddForm.querySelector('select[name="church"]');
++            const parishSelect = memberAddForm.querySelector('select[name="parish"]');
++            const districtInput = memberAddForm.querySelector('input[name="district"]');
++            
++            if (churchSelect) {
++                churchSelect.value = currentMemberData.church || '';
++                const selectedOpt = churchSelect.options[churchSelect.selectedIndex];
++                const churchId = selectedOpt ? selectedOpt.getAttribute('data-id') : null;
++                
++                if (parishSelect && churchId) {
++                    const pRes = await fetch(`/api/parishes?church_id=${churchId}`);
++                    const parishes = await pRes.json();
++                    parishSelect.innerHTML = '<option value="">援먭뎄 ?좏깮</option>' + parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
++                    parishSelect.value = currentMemberData.parish || '';
++                } else if (parishSelect) {
++                    parishSelect.value = currentMemberData.parish || '';
++                }
++            }
++            if (districtInput) {
++                districtInput.value = currentMemberData.district || '';
++            }
++        } catch (e) {
++            console.error('Failed to refresh member fields:', e);
++        }
++    }
+ 
+     // ???대┃ 諛붿씤??(理쒖큹 1?뚮쭔 ?깅줉?섎룄濡?member_management.js 濡쒕뱶 ?쒖젏?대굹 ?뱀? ?ш린??諛붿씤?⑺븿)
+     if (!window._tabsBound) {
+@@ -1005,6 +1047,21 @@ document.addEventListener('DOMContentLoaded', () => {
+         pendingRecords = [];
+         renderEditModalRecords([]);
+ 
++        // 援먰쉶/援먭뎄/援ъ뿭 ?좏깮 而⑦듃濡?珥덇린??+        const controls = [formChurch, formParish, formDistrict];
++        controls.forEach(ctrl => {
++            if (ctrl) {
++                ctrl.disabled = false;
++                ctrl.classList.remove('bg-slate-100', 'cursor-not-allowed');
++                if (ctrl.parentElement) {
++                    ctrl.parentElement.classList.remove('hidden');
++                }
++            }
++        });
++        if (formChurch) {
++            formChurch.setAttribute('required', '');
++        }
++
+         // 援먰쉶 紐⑸줉 濡쒕뱶 諛??듭뀡 諛붿씤??         const allChurches = await fetchChurches();
+         if (formChurch) {
+@@ -1032,6 +1089,16 @@ document.addEventListener('DOMContentLoaded', () => {
+                 await updateFormDistrictOptions(null);
+             }
+ 
++            // ?깅줉 紐⑤뱶?????뚯냽 ?꾨뱶 ?④린湲?諛?required ?띿꽦 ?쒓굅
++            controls.forEach(ctrl => {
++                if (ctrl && ctrl.parentElement) {
++                    ctrl.parentElement.classList.add('hidden');
++                }
++            });
++            if (formChurch) {
++                formChurch.removeAttribute('required');
++            }
++
+             // ???깅룄 ?깅줉 ?쒖뿉??湲곕줉 ?뱀뀡 ?쒖떆
+             if (sec) sec.classList.remove('hidden'); 
+             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.add('hidden');
+@@ -1060,6 +1127,14 @@ document.addEventListener('DOMContentLoaded', () => {
+                 } 
+             });
+ 
++            // ?섏젙 紐⑤뱶?????뚯냽 ?꾨뱶瑜?吏곸젒 ?몄쭛?????덈룄濡?鍮꾪솢?깊솕 泥섎━ ?쒓굅
++            controls.forEach(ctrl => {
++                if (ctrl) {
++                    ctrl.disabled = false;
++                    ctrl.classList.remove('bg-slate-100', 'cursor-not-allowed');
++                }
++            });
++
+             if (currentMemberData.family_id) hiddenFamilyId.value = currentMemberData.family_id;
+             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.remove('hidden');
+             window._sessionLinkedNames = new Set(); updateFamilyUI();
+@@ -1166,13 +1241,19 @@ document.addEventListener('DOMContentLoaded', () => {
+                 if (checked.length > 0) remark = checked.join(', ');
+                 else return alert('吏곷텇??理쒖냼 ?섎굹 ?댁긽 ?좏깮?섏꽭??');
+             } else if (statusKey === 'CHURCH_IN') {
+-                const c = document.getElementById('subChurch'), p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
+-                const cName = c.options[c.selectedIndex]?.text || '', pName = p.options[p.selectedIndex]?.text || '', dName = d.options[d.selectedIndex]?.text || '';
++                const cSearch = document.getElementById('subChurchSearch');
++                const p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
++                const cName = cSearch ? cSearch.value.trim() : '';
++                const pName = p ? (p.options[p.selectedIndex]?.text || '') : '';
++                const dName = d ? (d.options[d.selectedIndex]?.text || '') : '';
+                 if (!cName || cName === '援먰쉶 ?좏깮') return alert('援먰쉶瑜??좏깮?섏꽭??');
+                 remark = `${cName}${pName && pName !== '援먭뎄 ?좏깮' && pName !== '援먭뎄 ?뺣낫 ?놁쓬' ? ' > ' + pName : ''}${dName && dName !== '援ъ뿭 ?좏깮' && dName !== '援ъ뿭 ?뺣낫 ?놁쓬' ? ' > ' + dName : ''}`;
+             } else if (statusKey === 'CHURCH_MOVE') {
+-                const c = document.getElementById('subChurch'), p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
+-                const cName = c ? (c.options[c.selectedIndex]?.text || '') : '', pName = p ? (p.options[p.selectedIndex]?.text || '') : '', dName = d ? (d.options[d.selectedIndex]?.text || '') : '';
++                const cSearch = document.getElementById('subChurchSearch');
++                const p = document.getElementById('subParish'), d = document.getElementById('subDistrict');
++                const cName = cSearch ? cSearch.value.trim() : '';
++                const pName = p ? (p.options[p.selectedIndex]?.text || '') : '';
++                const dName = d ? (d.options[d.selectedIndex]?.text || '') : '';
+                 if (!cName || cName === '援먰쉶 ?좏깮') return alert('?대룞??援먰쉶瑜??좏깮?섏꽭??');
+                 if (cName === '?쒖슱以묒븰援먰쉶') {
+                     remark = `${cName}${pName && pName !== '援먭뎄 ?좏깮' && pName !== '援먭뎄 ?뺣낫 ?놁쓬' ? ' > ' + pName : ''}${dName && dName !== '援ъ뿭 ?좏깮' && dName !== '援ъ뿭 ?뺣낫 ?놁쓬' ? ' > ' + dName : ''}`;
+@@ -1197,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
+                         recordRemark.value = '';
+                         // 由ъ뀑
+                         recordStatus.dispatchEvent(new Event('change'));
++                        await refreshCurrentMemberFields();
+                     }
+                 } catch (e) { console.error(e); }
+             } else {
+@@ -1217,24 +1299,71 @@ document.addEventListener('DOMContentLoaded', () => {
+     async function setupOrgSelectors(container, status) {
+         const churches = await fetchChurches();
+         container.innerHTML = `
+-            <div class="flex flex-col gap-2">
+-                <select id="subChurch" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white">
+-                    <option value="">援먰쉶 ?좏깮</option>
+-                    ${churches.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+-                </select>
+-                <select id="subParish" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
++            <div class="flex flex-col gap-2 relative">
++                <!-- Searchable Autocomplete Input for Churches -->
++                <div class="relative w-full">
++                    <input type="text" id="subChurchSearch" placeholder="援먰쉶紐?寃??(?? 媛?? ?뚯＜)..." class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-400">
++                    <input type="hidden" id="subChurch" value="">
++                    <!-- Suggestions list -->
++                    <div id="subChurchSuggestions" class="hidden absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto divide-y divide-slate-50"></div>
++                </div>
++                <select id="subParish" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
+                     <option value="">援먭뎄 ?좏깮</option>
+                 </select>
+-                <select id="subDistrict" class="w-full border rounded px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
++                <select id="subDistrict" class="w-full border rounded-lg px-3 py-2 text-sm font-bold text-blue-800 bg-white hidden">
+                     <option value="">援ъ뿭 ?좏깮</option>
+                 </select>
+             </div>
+         `;
+ 
++        const subChurchSearch = document.getElementById('subChurchSearch');
+         const subChurch = document.getElementById('subChurch');
++        const subChurchSuggestions = document.getElementById('subChurchSuggestions');
+         const subParish = document.getElementById('subParish');
+         const subDistrict = document.getElementById('subDistrict');
+ 
++        // Setup Church Autocomplete Logic
++        subChurchSearch.addEventListener('input', () => {
++            const q = subChurchSearch.value.trim().toLowerCase();
++            if (!q) {
++                subChurchSuggestions.classList.add('hidden');
++                return;
++            }
++            const matches = churches.filter(c => c.name.toLowerCase().includes(q));
++            if (matches.length > 0) {
++                subChurchSuggestions.innerHTML = matches.map(c => `
++                    <div class="p-2.5 hover:bg-slate-50 cursor-pointer text-xs font-bold text-slate-800" data-id="${c.id}" data-name="${c.name}">
++                        ${c.name}
++                    </div>
++                `).join('');
++                subChurchSuggestions.classList.remove('hidden');
++            } else {
++                subChurchSuggestions.innerHTML = `<div class="p-2.5 text-slate-400 text-xs italic text-center">?쇱튂?섎뒗 援먰쉶 ?놁쓬</div>`;
++                subChurchSuggestions.classList.remove('hidden');
++            }
++        });
++
++        subChurchSuggestions.addEventListener('click', (e) => {
++            const target = e.target.closest('[data-id]');
++            if (!target) return;
++            
++            const cid = target.dataset.id;
++            const cname = target.dataset.name;
++            
++            subChurchSearch.value = cname;
++            subChurch.value = cid;
++            subChurchSuggestions.classList.add('hidden');
++            
++            subChurch.dispatchEvent(new Event('change'));
++        });
++
++        // Close suggestions when clicking outside
++        document.addEventListener('click', (e) => {
++            if (e.target !== subChurchSearch && e.target !== subChurchSuggestions) {
++                subChurchSuggestions.classList.add('hidden');
++            }
++        });
++
+         subChurch.addEventListener('change', async () => {
+             if (!subChurch.value) { subParish.classList.add('hidden'); subDistrict.classList.add('hidden'); return; }
+             const parishes = await fetchParishes(subChurch.value);
+@@ -1339,6 +1468,18 @@ document.addEventListener('DOMContentLoaded', () => {
+     memberAddForm.addEventListener('submit', async (e) => {
+         e.preventDefault();
+         const data = {}; new FormData(memberAddForm).forEach((v, k) => data[k] = v);
++        
++        // ???곗씠?곗뿉 ?뚯냽 ?꾨뱶媛 ?놁쓣 ?뚮쭔 湲곗〈 ?곗씠?곕굹 湲곕낯媛믪쑝濡?蹂닿컯
++        if (!data.church) {
++            data.church = currentMemberData ? currentMemberData.church : '援먰쉶?뺣낫?놁쓬';
++        }
++        if (!data.parish) {
++            data.parish = currentMemberData ? currentMemberData.parish : '援먭뎄?뺣낫?놁쓬';
++        }
++        if (!data.district) {
++            data.district = currentMemberData ? currentMemberData.district : '援ъ뿭?뺣낫?놁쓬';
++        }
++
+         data.crossUpdates = pendingCrossUpdates;
+         data.pendingRecords = pendingRecords; // ???깅룄???꾩떆 湲곕줉 ?ы븿
+         
