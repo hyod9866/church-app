@@ -508,7 +508,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (gA.priority === -1 && gB.priority !== -1) return -1;
                 if (gA.priority !== -1 && gB.priority === -1) return 1;
                 if (gA.priority === -1 && gB.priority === -1) {
-                    return a.name.localeCompare(b.name);
+                    if (gA.groupKey !== gB.groupKey) {
+                        return a.name.localeCompare(b.name);
+                    } else {
+                        const bsA = a.bs || '';
+                        const bsB = b.bs || '';
+                        if (bsA === 'B' && bsB !== 'B') return -1;
+                        if (bsA !== 'B' && bsB === 'B') return 1;
+                        return a.name.localeCompare(b.name);
+                    }
                 }
 
                 const distA = a.district || '';
