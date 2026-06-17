@@ -1,3 +1,28 @@
+function parseRecurringMetadata(m) {
+    if (m.memo && m.memo.startsWith('__RECURRING__:')) {
+        const lines = m.memo.split('\n');
+        const metaLine = lines[0];
+        try {
+            const metaJson = metaLine.substring('__RECURRING__:'.length);
+            const meta = JSON.parse(metaJson);
+            m.rrule_type = meta.rrule_type || 'none';
+            m.rrule_end_date = meta.rrule_end_date || null;
+            m.exdates = meta.exdates || null;
+            m.memo = lines.slice(1).join('\n');
+        } catch (e) {
+            console.error('Failed to parse recurring metadata:', e);
+            m.rrule_type = 'none';
+            m.rrule_end_date = null;
+            m.exdates = null;
+        }
+    } else {
+        m.rrule_type = 'none';
+        m.rrule_end_date = null;
+        m.exdates = null;
+    }
+    return m;
+}
+
 window.onerror = function(message, source, lineno, colno, error) {
     alert("자바스크립트 오류: " + message + " (라인: " + lineno + ")");
     return false;
@@ -139,7 +164,8 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             try {
                 const res = await fetch('/api/meetings');
-                const meetings = await res.json();
+                const rawMeetings = await res.json();
+                const meetings = rawMeetings.map(parseRecurringMetadata);
                 successCallback(meetings.map(m => {
                     const t = m.type || '';
                     let bg, tc, br;
@@ -152,26 +178,75 @@ document.addEventListener('DOMContentLoaded', function() {
                     else if (t.includes('구원기념일')) { bg = 'transparent'; tc = '#0f172a'; br = 'transparent'; ord = 2; }
                     else { bg = '#f3f4f6'; tc = '#111827'; br = '#e5e7eb'; }
                     
-                    let startVal = m.date;
-                    if (m.start_time) {
-                        startVal = `${m.date}T${m.start_time}:00`;
-                    }
-                    
-                    let endVal = m.end_date ? addOneDay(m.end_date) : undefined;
-                    if (m.start_time && m.end_time) {
-                        endVal = `${m.end_date || m.date}T${m.end_time}:00`;
-                    }
+                    const isAllDay = !m.start_time;
 
-                    return { 
-                        ...m, 
-                        start: startVal, 
-                        end: endVal, 
+                    const eventObj = { 
+                        ...m,
+                        id: m.id,
+                        title: m.title || '',
                         backgroundColor: bg, 
                         textColor: tc, 
                         borderColor: br,
                         order: ord,
                         classNames: t.includes('구원기념일') ? ['salvation-event'] : []
                     };
+
+                    if (m.rrule_type && m.rrule_type !== 'none') {
+                        const rruleObj = {
+                            freq: m.rrule_type, // 'weekly', 'monthly', 'yearly'
+                            dtstart: isAllDay ? m.date : `${m.date}T${m.start_time}:00`
+                        };
+                        
+                        if (m.rrule_end_date) {
+                            rruleObj.until = m.rrule_end_date;
+                        }
+
+                        if (m.rrule_type === 'weekly') {
+                            const dateObj = new Date(m.date);
+                            const weekdays = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
+                            const dayOfWeek = weekdays[dateObj.getDay()];
+                            rruleObj.byweekday = [dayOfWeek];
+                        } else if (m.rrule_type === 'monthly') {
+                            const dateObj = new Date(m.date);
+                            rruleObj.bymonthday = [dateObj.getDate()];
+                        }
+
+                        if (m.exdates) {
+                            const exDateList = m.exdates.split(',').map(d => d.trim()).filter(d => d);
+                            rruleObj.exdate = exDateList.map(d => isAllDay ? d : `${d}T${m.start_time}:00`);
+                        }
+
+                        eventObj.rrule = rruleObj;
+
+                        if (isAllDay) {
+                            eventObj.duration = { days: 1 };
+                        } else {
+                            const startT = m.start_time || '00:00';
+                            const endT = m.end_time || '01:00';
+                            const [sh, sm] = startT.split(':').map(Number);
+                            const [eh, em] = endT.split(':').map(Number);
+                            let diffMin = (eh * 60 + em) - (sh * 60 + sm);
+                            if (diffMin < 0) diffMin += 24 * 60;
+                            
+                            const diffH = Math.floor(diffMin / 60);
+                            const diffM = diffMin % 60;
+                            eventObj.duration = `${String(diffH).padStart(2, '0')}:${String(diffM).padStart(2, '0')}`;
+                        }
+                    } else {
+                        let startVal = m.date;
+                        if (m.start_time) {
+                            startVal = `${m.date}T${m.start_time}:00`;
+                        }
+                        
+                        let endVal = m.end_date ? addOneDay(m.end_date) : undefined;
+                        if (m.start_time && m.end_time) {
+                            endVal = `${m.end_date || m.date}T${m.end_time}:00`;
+                        }
+                        eventObj.start = startVal;
+                        eventObj.end = endVal;
+                    }
+
+                    return eventObj;
                 }));
                 setTimeout(injectTimeGuides, 100);
                 setTimeout(injectTimeGuides, 300);
@@ -233,7 +308,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
-            showMeetingDetail(id, info.event.startStr.split('T')[0], info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time);
+            clickedInstanceDate = info.event.startStr.split('T')[0];
+            currentMeetingData = {
+                id: info.event.id,
+                title: info.event.title,
+                date: info.event.extendedProps.date,
+                end_date: info.event.extendedProps.end_date,
+                type: info.event.extendedProps.type,
+                sermon_title: info.event.extendedProps.sermon_title,
+                memo: info.event.extendedProps.memo,
+                church: info.event.extendedProps.church,
+                start_time: info.event.extendedProps.start_time,
+                end_time: info.event.extendedProps.end_time,
+                rrule_type: info.event.extendedProps.rrule_type,
+                rrule_end_date: info.event.extendedProps.rrule_end_date,
+                exdates: info.event.extendedProps.exdates
+            };
+            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time);
         }
     });
     calendar.render();
@@ -1612,13 +1703,49 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
 }
 
 document.getElementById('editMeetingDetailBtn').addEventListener('click', async () => {
-    const res = await fetch(`/api/meetings`); const ms = await res.json();
+    const res = await fetch(`/api/meetings`); const rawMs = await res.json();
+    const ms = rawMs.map(parseRecurringMetadata);
     const m = ms.find(x => x.id == currentMeetingId);
-    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time);
+    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date);
 });
 
-async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '') {
+let clickedInstanceDate = null;
+let currentMeetingData = null;
+
+async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '') {
     currentMeetingId = id; extraAttendees = [];
+    
+    // 반복 설정 UI 바인딩
+    document.getElementById('meetingRecurrence').value = rrule_type || 'none';
+    document.getElementById('meetingRecurrenceEndDate').value = rrule_end_date || '';
+    
+    const recEndDateField = document.getElementById('recurrenceEndDateField');
+    if (rrule_type && rrule_type !== 'none') {
+        recEndDateField.classList.remove('hidden');
+    } else {
+        recEndDateField.classList.add('hidden');
+    }
+    
+    if (!document.getElementById('meetingRecurrence')._listenerAdded) {
+        document.getElementById('meetingRecurrence').addEventListener('change', (e) => {
+            if (e.target.value !== 'none') {
+                recEndDateField.classList.remove('hidden');
+                if (!document.getElementById('meetingRecurrenceEndDate').value) {
+                    const startDateVal = document.getElementById('meetingDate').value;
+                    if (startDateVal) {
+                        const d = new Date(startDateVal);
+                        d.setMonth(d.getMonth() + 3);
+                        document.getElementById('meetingRecurrenceEndDate').value = d.toISOString().split('T')[0];
+                    }
+                }
+            } else {
+                recEndDateField.classList.add('hidden');
+                document.getElementById('meetingRecurrenceEndDate').value = '';
+            }
+        });
+        document.getElementById('meetingRecurrence')._listenerAdded = true;
+    }
+
     const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden');
     setTimeout(() => { c.classList.remove('translate-x-full'); c.classList.add('translate-x-0'); }, 10);
@@ -2045,6 +2172,10 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const type = document.getElementById('meetingType').value;
     const sermon = document.getElementById('meetingSermon').value.trim();
     const memo = document.getElementById('meetingMemo').value.trim();
+    
+    const rrule_type = document.getElementById('meetingRecurrence').value;
+    const rrule_end_date = document.getElementById('meetingRecurrenceEndDate').value || null;
+
     if (!title || !date) return alert('제목과 날짜를 입력하세요.');
 
     // 설교 태그 값 추출 및 결합
@@ -2066,21 +2197,110 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
         }
     }
 
-    try {
-        const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
-        const res = await fetch(url, { method: currentMeetingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, date, end_date: endDate || null, type, sermon_title: finalSermon, memo, church: selectedChurch, start_time: startTime || null, end_time: endTime || null }) });
-        const { id } = await res.json();
-        const mid = currentMeetingId || id;
+    const saveAction = async (isSingleOnly = false) => {
+        try {
+            let finalMemo = memo;
+            if (rrule_type && rrule_type !== 'none') {
+                const meta = {
+                    rrule_type,
+                    rrule_end_date,
+                    exdates: isSingleOnly ? (currentMeetingData.exdates || null) : (currentMeetingId ? (currentMeetingData.exdates || null) : null)
+                };
+                finalMemo = `__RECURRING__:${JSON.stringify(meta)}\n${memo}`;
+            }
 
-        const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
-            member_id: parseInt(row.dataset.id),
-            is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
-            testimony_snapshot: row.querySelector('.testimony-input').value.trim()
-        }));
+            if (isSingleOnly) {
+                // 1. 이 일정만 수정: 부모 일정에 예외 날짜(현재 클릭일) 추가
+                let newExdates = currentMeetingData.exdates ? `${currentMeetingData.exdates},${clickedInstanceDate}` : clickedInstanceDate;
+                
+                const parentMeta = {
+                    rrule_type: currentMeetingData.rrule_type,
+                    rrule_end_date: currentMeetingData.rrule_end_date,
+                    exdates: newExdates
+                };
+                const parentMemo = `__RECURRING__:${JSON.stringify(parentMeta)}\n${currentMeetingData.memo}`;
 
-        await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
-        location.reload();
-    } catch (e) { console.error(e); }
+                // 부모 일정 업데이트
+                await fetch(`/api/meetings/${currentMeetingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: currentMeetingData.title,
+                        date: currentMeetingData.date,
+                        end_date: currentMeetingData.end_date,
+                        type: currentMeetingData.type,
+                        sermon_title: currentMeetingData.sermon_title,
+                        memo: parentMemo,
+                        church: currentMeetingData.church,
+                        start_time: currentMeetingData.start_time,
+                        end_time: currentMeetingData.end_time
+                    })
+                });
+
+                // 2. 새로운 단일 일정 등록
+                const newRes = await fetch('/api/meetings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        date: clickedInstanceDate,
+                        end_date: endDate || null,
+                        type,
+                        sermon_title: finalSermon,
+                        memo, // 메타데이터 없는 순수 메모
+                        church: selectedChurch,
+                        start_time: startTime || null,
+                        end_time: endTime || null
+                    })
+                });
+                const { id } = await newRes.json();
+
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                    member_id: parseInt(row.dataset.id),
+                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    testimony_snapshot: row.querySelector('.testimony-input').value.trim()
+                }));
+                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
+            } else {
+                // 전체 일정 수정 / 등록
+                const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
+                const res = await fetch(url, {
+                    method: currentMeetingId ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        date,
+                        end_date: endDate || null,
+                        type,
+                        sermon_title: finalSermon,
+                        memo: finalMemo,
+                        church: selectedChurch,
+                        start_time: startTime || null,
+                        end_time: endTime || null
+                    })
+                });
+                const { id } = await res.json();
+                const mid = currentMeetingId || id;
+
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                    member_id: parseInt(row.dataset.id),
+                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    testimony_snapshot: row.querySelector('.testimony-input').value.trim()
+                }));
+                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
+            }
+            location.reload();
+        } catch (e) { console.error(e); }
+    };
+
+    if (currentMeetingId && currentMeetingData && currentMeetingData.rrule_type && currentMeetingData.rrule_type !== 'none') {
+        openRecurrenceConfirmModal('반복 일정 수정', '이 일정은 반복되는 모임의 일부입니다.<br>어떤 일정을 변경하시겠습니까?', 
+            () => saveAction(true),
+            () => saveAction(false)
+        );
+    } else {
+        saveAction(false);
+    }
 });
 
 function closeMeetingPanels() {
@@ -2093,7 +2313,89 @@ function closeMeetingPanels() {
 document.getElementById('cancelMeeting').addEventListener('click', closeMeetingPanels);
 document.getElementById('closeModal').addEventListener('click', closeMeetingPanels);
 document.getElementById('closeDetailPanel').addEventListener('click', closeMeetingPanels);
-document.getElementById('deleteMeeting').addEventListener('click', async () => { if (confirm('삭제할까요?')) { await fetch(`/api/meetings/${currentMeetingId}`, { method: 'DELETE' }); location.reload(); } });
+
+document.getElementById('deleteMeeting').addEventListener('click', async () => {
+    const deleteAction = async (isSingleOnly = false) => {
+        try {
+            if (isSingleOnly) {
+                // 이 일정만 삭제: 부모 일정에 예외 날짜 추가
+                let newExdates = currentMeetingData.exdates ? `${currentMeetingData.exdates},${clickedInstanceDate}` : clickedInstanceDate;
+                
+                const parentMeta = {
+                    rrule_type: currentMeetingData.rrule_type,
+                    rrule_end_date: currentMeetingData.rrule_end_date,
+                    exdates: newExdates
+                };
+                const parentMemo = `__RECURRING__:${JSON.stringify(parentMeta)}\n${currentMeetingData.memo}`;
+
+                await fetch(`/api/meetings/${currentMeetingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: currentMeetingData.title,
+                        date: currentMeetingData.date,
+                        end_date: currentMeetingData.end_date,
+                        type: currentMeetingData.type,
+                        sermon_title: currentMeetingData.sermon_title,
+                        memo: parentMemo,
+                        church: currentMeetingData.church,
+                        start_time: currentMeetingData.start_time,
+                        end_time: currentMeetingData.end_time
+                    })
+                });
+            } else {
+                // 전체 삭제
+                await fetch(`/api/meetings/${currentMeetingId}`, { method: 'DELETE' });
+            }
+            location.reload();
+        } catch (e) { console.error(e); }
+    };
+
+    if (currentMeetingId && currentMeetingData && currentMeetingData.rrule_type && currentMeetingData.rrule_type !== 'none') {
+        openRecurrenceConfirmModal('반복 일정 삭제', '이 일정은 반복되는 모임의 일부입니다.<br>어떤 일정을 삭제하시겠습니까?', 
+            () => deleteAction(true),
+            () => deleteAction(false)
+        );
+    } else {
+        if (confirm('정말로 삭제하시겠습니까?')) {
+            deleteAction(false);
+        }
+    }
+});
+
+function openRecurrenceConfirmModal(title, desc, onSingle, onAll) {
+    const modal = document.getElementById('recurrenceConfirmModal');
+    const titleEl = document.getElementById('recurrenceModalTitle');
+    const descEl = document.getElementById('recurrenceModalDesc');
+    const btnSingle = document.getElementById('recurrenceActionSingle');
+    const btnAll = document.getElementById('recurrenceActionAll');
+    const btnCancel = document.getElementById('recurrenceActionCancel');
+    
+    titleEl.textContent = title;
+    descEl.innerHTML = desc;
+    
+    if (title.includes('삭제')) {
+        btnSingle.textContent = '이 일정만 삭제';
+        btnAll.textContent = '전체 일정 삭제';
+    } else {
+        btnSingle.textContent = '이 일정만 적용';
+        btnAll.textContent = '전체 일정 적용';
+    }
+
+    modal.classList.remove('hidden');
+    
+    btnSingle.onclick = () => {
+        modal.classList.add('hidden');
+        onSingle();
+    };
+    btnAll.onclick = () => {
+        modal.classList.add('hidden');
+        onAll();
+    };
+    btnCancel.onclick = () => {
+        modal.classList.add('hidden');
+    };
+}
 
 // Extra member search logic
 document.getElementById('openExtraMemberSearch').addEventListener('click', () => document.getElementById('extraMemberSearchModal').classList.remove('hidden'));

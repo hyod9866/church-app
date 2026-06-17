@@ -9,7 +9,9 @@
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- FullCalendar CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/rrule@2.8.1/dist/es5/rrule.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/rrule@6.1.10/index.global.min.js"></script>
     <style>
         /* 커스텀 스크롤바 스타일링 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -441,6 +443,21 @@
                                 </div>
                                 <input type="date" id="meetingEndDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
                             </div>
+                            <div class="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">반복 설정</label>
+                                    <select id="meetingRecurrence" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150">
+                                        <option value="none">반복 안함</option>
+                                        <option value="weekly">매주 반복</option>
+                                        <option value="monthly">매월 반복</option>
+                                        <option value="yearly">매년 반복</option>
+                                    </select>
+                                </div>
+                                <div id="recurrenceEndDateField" class="hidden">
+                                    <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">반복 종료일</label>
+                                    <input type="date" id="meetingRecurrenceEndDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                </div>
+                            </div>
                         </div>
                         <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label><input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 shadow-sm outline-none transition duration-150" autocomplete="off"></div>
                         <div id="directSermonTagField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 태그 (직접 입력)</label><input type="text" id="directSermonTag" placeholder="태그를 직접 입력하세요..." class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 shadow-sm outline-none transition duration-150" autocomplete="off"></div>
@@ -763,6 +780,24 @@
             <div class="p-5 bg-slate-50/50">
                 <input type="text" id="extraMemberSearchInput" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-4 py-3 font-bold text-sm shadow-sm outline-none transition duration-150" placeholder="이름 입력...">
                 <div id="extraSearchResults" class="mt-4 max-h-60 overflow-y-auto space-y-2 no-scrollbar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recurring Event Action Confirm Modal -->
+    <div id="recurrenceConfirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 transform scale-95 transition-all duration-200">
+            <div class="p-5 text-center">
+                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-arrows-spin text-xl"></i>
+                </div>
+                <h4 id="recurrenceModalTitle" class="text-base font-extrabold text-slate-800 mb-2">반복 일정 수정</h4>
+                <p id="recurrenceModalDesc" class="text-xs text-slate-500 mb-6 leading-relaxed">이 일정은 반복되는 모임의 일부입니다.<br>어떤 일정을 변경하시겠습니까?</p>
+                <div class="space-y-2.5">
+                    <button id="recurrenceActionSingle" type="button" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl text-sm transition-all duration-150 active:scale-[0.98]">이 일정만 적용</button>
+                    <button id="recurrenceActionAll" type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl text-sm transition-all duration-150 active:scale-[0.98]">전체 일정 적용</button>
+                    <button id="recurrenceActionCancel" type="button" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition-all duration-150">취소</button>
+                </div>
             </div>
         </div>
     </div>
