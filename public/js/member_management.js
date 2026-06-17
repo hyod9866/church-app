@@ -10,6 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let sortableInstance = null;
     let editingRecordId = null;
 
+    function sortFamilyRelations(relationsArray) {
+        const priority = (entry) => {
+            const match = entry.match(/\(([^)]+)\)/);
+            if (!match) return 999;
+            const rel = match[1].trim();
+            if (rel.includes('아내') || rel.includes('남편') || rel.includes('배우자') || rel.includes('부부')) return 1;
+            if (rel.includes('자녀') || rel.includes('아들') || rel.includes('딸')) return 2;
+            if (rel.includes('부모') || rel.includes('아버지') || rel.includes('어머니') || rel.includes('아빠') || rel.includes('엄마')) return 3;
+            if (rel.includes('기타')) return 4;
+            return 5;
+        };
+        return [...relationsArray].sort((a, b) => priority(a) - priority(b));
+    }
+
     const tableBody = document.getElementById('tableBody');
     const exportBtn = document.getElementById('exportExcelBtn');
     const totalCountEl = document.getElementById('totalCount');
@@ -565,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const fidN = {}; allMembersData.forEach(m => { if (m.family_id !== null) { if (!fidN[m.family_id]) fidN[m.family_id] = []; fidN[m.family_id].push(m.name.trim()); } });
         tableBody.innerHTML = filteredMembersData.map((m, index) => {
-            const fEnt = (m.family_relation || '').split(',').map(s => s.trim()).filter(s => s);
+            const fEnt = sortFamilyRelations((m.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
             const lNames = (m.family_id !== null && fidN[m.family_id]) ? fidN[m.family_id] : [];
             const fHtml = fEnt.map(e => { const match = e.match(/^(.+?)\(/); const name = match ? match[1].trim() : e.trim(); const isL = lNames.includes(name) && name !== m.name.trim(); return `<span class="${isL ? 'text-blue-700 font-black' : 'text-gray-600 font-medium'}">${e}</span>`; }).join(', ') || '-';
             
@@ -1088,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const finalCalculatedSvc = calculatedSvcArray.length ? calculatedSvcArray.join(', ') : '없음';
 
-            const fEnt = (member.family_relation || '').split(',').map(s => s.trim()).filter(s => s);
+            const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
             
             // 가족관계 대화형 카드 생성 (클릭 시 순간이동)
             const fDispHTML = fEnt.map(e => {

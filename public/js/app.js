@@ -31,6 +31,20 @@ window.onerror = function(message, source, lineno, colno, error) {
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
 
+    function sortFamilyRelations(relationsArray) {
+        const priority = (entry) => {
+            const match = entry.match(/\(([^)]+)\)/);
+            if (!match) return 999;
+            const rel = match[1].trim();
+            if (rel.includes('아내') || rel.includes('남편') || rel.includes('배우자') || rel.includes('부부')) return 1;
+            if (rel.includes('자녀') || rel.includes('아들') || rel.includes('딸')) return 2;
+            if (rel.includes('부모') || rel.includes('아버지') || rel.includes('어머니') || rel.includes('아빠') || rel.includes('엄마')) return 3;
+            if (rel.includes('기타')) return 4;
+            return 5;
+        };
+        return [...relationsArray].sort((a, b) => priority(a) - priority(b));
+    }
+
     function injectTimeGuides() {
         const cols = document.querySelectorAll('.fc-timegrid-col');
         if (cols.length === 0) return;
@@ -490,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const finalCalculatedSvc = calculatedSvcArray.length ? calculatedSvcArray.join(', ') : '없음';
 
-            const fEnt = (member.family_relation || '').split(',').map(s => s.trim()).filter(s => s);
+            const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
             
             // 가족관계 대화형 카드 생성 (클릭 시 순간이동)
             const fDispHTML = fEnt.map(e => {
