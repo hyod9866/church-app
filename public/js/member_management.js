@@ -419,12 +419,117 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentSort.column === 'sort_order') {
             filteredMembersData.sort((a, b) => (a.sort_order || 999999) - (b.sort_order || 999999));
         } else if (currentSort.column === 'district' && currentSort.direction === 'asc') {
+            const ROLE_SCORES = {
+                '교구장': 0,
+                '구역장': 1,
+                '조장': 2,
+                '구역총무': 3,
+                '조총무': 4,
+                '집사': 5
+            };
+
+            const getMemberRoleScore = (m) => {
+                if (!m.position) return 6;
+                const posList = m.position.split(',').map(p => p.trim());
+                let minScore = 6;
+                posList.forEach(p => {
+                    if (ROLE_SCORES[p] !== undefined && ROLE_SCORES[p] < minScore) {
+                        minScore = ROLE_SCORES[p];
+                    }
+                });
+                return minScore;
+            };
+
+            const getMemberAttendanceRate = (mId) => {
+                const rateInfo = attendanceRates[mId];
+                return rateInfo ? rateInfo.ratePercent : 0;
+            };
+
+            const familyGroups = {};
+            filteredMembersData.forEach(m => {
+                if (m.family_id) {
+                    if (!familyGroups[m.family_id]) familyGroups[m.family_id] = [];
+                    familyGroups[m.family_id].push(m);
+                }
+            });
+
+            const memberSortMeta = {};
+            filteredMembersData.forEach(m => {
+                const familyId = m.family_id;
+                const familyList = familyId ? familyGroups[familyId] : null;
+                
+                let spouse = null;
+                if (familyList && familyList.length > 1) {
+                    const isMeCouple = m.family_relation && (m.family_relation.includes('남편') || m.family_relation.includes('아내'));
+                    if (isMeCouple) {
+                        spouse = familyList.find(o => o.id !== m.id && o.family_relation && (o.family_relation.includes('남편') || o.family_relation.includes('아내')));
+                    }
+                }
+
+                if (spouse) {
+                    const myScore = getMemberRoleScore(m);
+                    const spouseScore = getMemberRoleScore(spouse);
+                    const coupleScore = Math.min(myScore, spouseScore);
+                    
+                    const myRate = getMemberAttendanceRate(m.id);
+                    const spouseRate = getMemberAttendanceRate(spouse.id);
+                    const coupleRate = (myRate + spouseRate) / 2;
+
+                    const isGlobalTop = (myScore === 0 || spouseScore === 0);
+
+                    memberSortMeta[m.id] = {
+                        groupKey: `couple_${familyId}`,
+                        priority: isGlobalTop ? -1 : coupleScore,
+                        rate: coupleRate,
+                        isCouple: true,
+                        spouseId: spouse.id,
+                        relation: m.family_relation
+                    };
+                } else {
+                    const myScore = getMemberRoleScore(m);
+                    const isGlobalTop = (myScore === 0);
+                    const myRate = getMemberAttendanceRate(m.id);
+
+                    memberSortMeta[m.id] = {
+                        groupKey: `indiv_${m.id}`,
+                        priority: isGlobalTop ? -1 : myScore,
+                        rate: myRate,
+                        isCouple: false,
+                        spouseId: null,
+                        relation: m.family_relation
+                    };
+                }
+            });
+
             filteredMembersData.sort((a, b) => {
-                if (a.district !== b.district) return a.district.localeCompare(b.district);
-                const orderA = (a.sort_order === null || isNaN(a.sort_order)) ? 999999 : a.sort_order;
-                const orderB = (b.sort_order === null || isNaN(b.sort_order)) ? 999999 : b.sort_order;
-                if (orderA !== orderB) return orderA - orderB;
-                return a.name.localeCompare(b.name);
+                const gA = memberSortMeta[a.id];
+                const gB = memberSortMeta[b.id];
+
+                if (gA.priority === -1 && gB.priority !== -1) return -1;
+                if (gA.priority !== -1 && gB.priority === -1) return 1;
+                if (gA.priority === -1 && gB.priority === -1) {
+                    return a.name.localeCompare(b.name);
+                }
+
+                const distA = a.district || '';
+                const distB = b.district || '';
+                if (distA !== distB) {
+                    return distA.localeCompare(distB);
+                }
+
+                if (gA.priority !== gB.priority) {
+                    return gA.priority - gB.priority;
+                }
+
+                if (gA.groupKey !== gB.groupKey) {
+                    return gB.rate - gA.rate;
+                } else {
+                    const relA = gA.relation || '';
+                    const relB = gB.relation || '';
+                    if (relA.includes('남편') && !relB.includes('남편')) return -1;
+                    if (!relA.includes('남편') && relB.includes('남편')) return 1;
+                    return a.name.localeCompare(b.name);
+                }
             });
         } else if (currentSort.column === 'attendance_rate') {
             filteredMembersData.sort((a, b) => {
