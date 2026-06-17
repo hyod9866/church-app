@@ -33,8 +33,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'church1234!';
 
 import crypto from 'crypto';
 
-function generateToken(payload) {
-  const data = JSON.stringify({ ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 }); // 1일 만료
+function generateToken(payload, expiryMs = 24 * 60 * 60 * 1000) {
+  const data = JSON.stringify({ ...payload, exp: Date.now() + expiryMs }); // 기본 1일 만료
   const hmac = crypto.createHmac('sha256', COOKIE_SECRET).update(data).digest('hex');
   return Buffer.from(data).toString('base64') + '.' + hmac;
 }
@@ -83,6 +83,7 @@ function checkAuth(req, res, next) {
   if (
     url === '/login.html' || 
     url === '/api/login' || 
+    url === '/api/login-biometric' || 
     url === '/api/run-migration-temp' || 
     isStaticAsset
   ) {
@@ -357,8 +358,12 @@ async function syncAllMembersProfilePromise() {
     if (error) throw error;
     if (!rows || rows.length === 0) return;
     
-    // Sync all members' profile records in parallel
-    await Promise.all(rows.map(row => syncMemberProfileFromRecords(row.id)));
+    // Supabase 커넥션 과부하 방지를 위한 20개씩 분할(Batching) 처리
+    const batchSize = 20;
+    for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        await Promise.all(batch.map(row => syncMemberProfileFromRecords(row.id)));
+    }
 }
 
 // Keep a wrapper for compatibility with any legacy code calling callback style
@@ -380,6 +385,33 @@ app.post('/api/login', (req, res) => {
     return res.json({ success: true });
   }
   res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+});
+
+app.post('/api/register-biometric', (req, res) => {
+  if (!req.user || !req.user.email) {
+    return res.status(401).json({ error: '인증되지 않은 사용자입니다.' });
+  }
+  const { email } = req.body;
+  if (email !== req.user.email) {
+    return res.status(400).json({ error: '이메일 정보가 일치하지 않습니다.' });
+  }
+  // 30일 유효한 생체인식 전용 서명 토큰 발급
+  const token = generateToken({ email, biometric: true }, 30 * 24 * 60 * 60 * 1000);
+  return res.json({ success: true, token });
+});
+
+app.post('/api/login-biometric', (req, res) => {
+  const { email, token } = req.body;
+  if (!email || !token) {
+    return res.status(400).json({ error: '이메일 또는 생체인식 토큰이 없습니다.' });
+  }
+  const payload = verifyToken(token);
+  if (payload && payload.email === email && payload.biometric === true) {
+    const loginToken = generateToken({ email });
+    res.setHeader('Set-Cookie', `auth_token=${loginToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+    return res.json({ success: true });
+  }
+  res.status(401).json({ error: '생체인식 정보가 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.' });
 });
 
 app.post('/api/logout', (req, res) => {

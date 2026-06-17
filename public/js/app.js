@@ -691,15 +691,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (recs.length > 0) {
                         timelineContainer.classList.remove('hidden');
                         timelineContainer.innerHTML = `
-                            <div class="relative border-l-2 border-blue-100 ml-4 my-2 space-y-6">
-                                ${recs.map(r => `
-                                    <div class="relative pl-6">
-                                        <div class="absolute -left-[7px] top-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-white shadow-sm"></div>
-                                        <div class="text-[10px] font-black text-slate-400 mb-0.5">${r.date}</div>
-                                        <div class="text-xs font-black text-slate-800 mb-1">${RECORD_STATUS_MAP[r.status] || r.status}</div>
-                                        <div class="text-xs font-bold text-blue-700 bg-blue-50/50 px-2 py-1.5 rounded-lg border border-blue-100/30 inline-block">${r.remark || '-'}</div>
-                                    </div>
-                                `).join('')}
+                            <div class="relative border-l-2 border-slate-100 ml-4 my-2 space-y-6">
+                                ${recs.map(r => {
+                                    let colorClass = 'bg-blue-500';
+                                    let iconClass = 'fa-info-circle';
+                                    let textBg = 'bg-blue-50 text-blue-800 border-blue-100/50';
+                                    
+                                    const status = r.status || '';
+                                    if (status === 'POSITION') {
+                                        colorClass = 'bg-emerald-500';
+                                        iconClass = 'fa-award';
+                                        textBg = 'bg-emerald-50 text-emerald-805 border-emerald-100/50';
+                                    } else if (status === 'POSITION_DISMISS') {
+                                        colorClass = 'bg-rose-500';
+                                        iconClass = 'fa-user-slash';
+                                        textBg = 'bg-rose-50 text-rose-805 border-rose-100/50';
+                                    } else if (status === 'SERVICE') {
+                                        colorClass = 'bg-teal-500';
+                                        iconClass = 'fa-hand-holding-heart';
+                                        textBg = 'bg-teal-50 text-teal-805 border-teal-100/50';
+                                    } else if (status === 'SERVICE_DISMISS') {
+                                        colorClass = 'bg-orange-500';
+                                        iconClass = 'fa-times-circle';
+                                        textBg = 'bg-orange-50/70 text-orange-850 border-orange-100/50';
+                                    } else if (status.includes('MOVE') || status.includes('IN') || status === 'TRANSFER') {
+                                        colorClass = 'bg-blue-500';
+                                        iconClass = 'fa-route';
+                                        textBg = 'bg-blue-50 text-blue-805 border-blue-100/50';
+                                    } else if (status === 'FELLOWSHIP') {
+                                        colorClass = 'bg-amber-500';
+                                        iconClass = 'fa-users';
+                                        textBg = 'bg-amber-50 text-amber-805 border-amber-100/50';
+                                    }
+
+                                    return `
+                                        <div class="relative pl-8">
+                                            <div class="absolute -left-[11px] top-1 w-5 h-5 ${colorClass} rounded-full border-2 border-white shadow flex items-center justify-center text-white text-[9px]"><i class="fa-solid ${iconClass}"></i></div>
+                                            <div class="text-[10px] font-black text-slate-400 mb-0.5">${r.date}</div>
+                                            <div class="text-xs font-black text-slate-800 mb-1">${RECORD_STATUS_MAP[r.status] || r.status}</div>
+                                            <div class="text-xs font-bold ${textBg} px-2.5 py-1.5 rounded-xl border inline-block max-w-full break-all shadow-sm">${r.remark || '-'}</div>
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         `;
                     } else {
