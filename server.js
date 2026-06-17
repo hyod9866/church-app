@@ -775,6 +775,7 @@ app.get('/api/members/:id/history', async (req, res) => {
     const { data: attendanceData, error: attError } = await supabase
       .from('attendance')
       .select(`
+        meeting_id,
         is_present,
         testimony_snapshot,
         meetings (
@@ -789,6 +790,7 @@ app.get('/api/members/:id/history', async (req, res) => {
     if (attError) throw attError;
     
     const history = attendanceData.map(a => ({
+      meeting_id: a.meeting_id,
       title: a.meetings?.title || '',
       date: a.meetings?.date || '',
       type: a.meetings?.type || '',
@@ -1598,6 +1600,52 @@ app.post('/api/attendance', async (req, res) => {
     res.json({ status: 'success' });
   } catch (err) {
     console.error('Attendance save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/attendance/toggle', async (req, res) => {
+  const { member_id, meeting_id, is_present } = req.body;
+  try {
+    const { data: existing, error: selectErr } = await supabase
+      .from('attendance')
+      .select('id')
+      .eq('meeting_id', meeting_id)
+      .eq('member_id', member_id)
+      .maybeSingle();
+
+    if (selectErr) throw selectErr;
+
+    if (existing) {
+      const { error: updateErr } = await supabase
+        .from('attendance')
+        .update({ is_present: is_present ? 1 : 0 })
+        .eq('id', existing.id);
+      if (updateErr) throw updateErr;
+    } else {
+      const { data: member, error: memErr } = await supabase
+        .from('members')
+        .select('district, category')
+        .eq('id', member_id)
+        .single();
+        
+      if (memErr) throw memErr;
+
+      const { error: insertErr } = await supabase
+        .from('attendance')
+        .insert({
+          meeting_id,
+          member_id,
+          is_present: is_present ? 1 : 0,
+          district_snapshot: member?.district || null,
+          category_snapshot: member?.category || null
+        });
+      if (insertErr) throw insertErr;
+    }
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    console.error('Toggle attendance error:', err);
     res.status(500).json({ error: err.message });
   }
 });

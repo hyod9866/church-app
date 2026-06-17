@@ -590,9 +590,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         : filteredHistory.filter(h => getMeetingCategory(h.type) === filterType);
 
                     historyTableBody.innerHTML = displayHistory.map(h => {
-                        const statusBadge = h.is_present 
-                            ? `<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">출석</span>`
-                            : `<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">결석</span>`;
+                        const statusBadge = `
+                            <button type="button" class="toggle-attendance-btn inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold border transition duration-150 active:scale-95 cursor-pointer ${h.is_present ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-present="${h.is_present ? 1 : 0}">
+                                ${h.is_present ? '출석' : '결석'}
+                            </button>
+                        `;
 
                         return `
                             <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
@@ -603,6 +605,41 @@ document.addEventListener('DOMContentLoaded', function() {
                             </tr>
                         `;
                     }).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
+
+                    // 출석 토글 이벤트 바인딩
+                    historyTableBody.querySelectorAll('.toggle-attendance-btn').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            const meetingId = btn.dataset.meetingId;
+                            const memberId = btn.dataset.memberId;
+                            const currentPresent = parseInt(btn.dataset.present);
+                            const newPresent = currentPresent === 1 ? 0 : 1;
+
+                            btn.disabled = true;
+                            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-1"></i> 저장`;
+
+                            try {
+                                const response = await fetch('/api/attendance/toggle', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, is_present: newPresent })
+                                });
+
+                                if (response.ok) {
+                                    openMemberHistoryModal(memberId);
+                                } else {
+                                    alert('출석 상태 변경에 실패했습니다.');
+                                    btn.disabled = false;
+                                    btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
+                                }
+                            } catch (err) {
+                                console.error('Toggle error:', err);
+                                alert('서버 오류로 인해 실패했습니다.');
+                                btn.disabled = false;
+                                btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
+                            }
+                        });
+                    });
                 };
 
                 renderAttendanceRows('all');
