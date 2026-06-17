@@ -983,6 +983,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteRecord = async (id) => { if (confirm('삭제할까요?')) { try { await fetch(`/api/members/records/${id}`, { method: 'DELETE' }); openMemberHistoryModal(currentMemberData.id); } catch (e) { console.error(e); } } };
 
+    window.toggleTestimonyEdit = function(isEdit) {
+        const viewMode = document.getElementById('testimonyViewMode');
+        const editMode = document.getElementById('testimonyEditMode');
+        const editBtn = document.getElementById('testimonyEditBtn');
+        if (isEdit) {
+            viewMode.classList.add('hidden');
+            editMode.classList.remove('hidden');
+            editBtn.classList.add('hidden');
+            const textarea = document.getElementById('testimonyTextarea');
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        } else {
+            viewMode.classList.remove('hidden');
+            editMode.classList.add('hidden');
+            editBtn.classList.remove('hidden');
+            document.getElementById('testimonyTextarea').value = currentMemberData.testimony || '';
+        }
+    };
+
+    window.saveTestimonyDirect = async function(id) {
+        try {
+            const text = document.getElementById('testimonyTextarea').value;
+            const updatedData = { ...currentMemberData, testimony: text };
+            
+            const response = await fetch(`/api/members/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedData)
+            });
+            
+            if (response.ok) {
+                currentMemberData = updatedData;
+                document.getElementById('testimonyViewMode').textContent = text || '내용 없음';
+                window.toggleTestimonyEdit(false);
+                if (typeof loadData === 'function') {
+                    loadData();
+                }
+            } else {
+                alert('저장에 실패했습니다.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('에러가 발생했습니다.');
+        }
+    };
+
     // 탭 클릭 바인딩 (최초 1회만 등록되도록 member_management.js 로드 시점이나 혹은 여기에 바인딩함)
     if (!window._tabsBound) {
         window._tabsBound = true;
@@ -1115,9 +1163,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="text-blue-700 text-[10px] font-black uppercase tracking-wider">교회 봉사 내역</span>
                 <span class="font-extrabold text-blue-900 text-sm">${finalCalculatedSvc}</span>
             </div>
-            <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1">
-                <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">기타 메모</span>
-                <span class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed">${member.testimony || '내용 없음'}</span>
+            <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
+                <div class="flex items-center justify-between">
+                    <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">간증 및 기타 메모</span>
+                    <button type="button" id="testimonyEditBtn" onclick="toggleTestimonyEdit(true)" class="text-yellow-700 hover:text-yellow-900 text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-regular fa-pen-to-square"></i> 수정
+                    </button>
+                </div>
+                <div id="testimonyViewMode" class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">
+                    ${member.testimony || '내용 없음'}
+                </div>
+                <div id="testimonyEditMode" class="hidden flex flex-col gap-2 mt-1">
+                    <textarea id="testimonyTextarea" class="w-full border border-slate-200 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 rounded-xl px-3 py-2 h-24 outline-none text-xs leading-relaxed text-slate-700 transition duration-150 resize-y" placeholder="간증 및 기타 메모 내용을 입력하세요...">${member.testimony || ''}</textarea>
+                    <div class="flex justify-end gap-1.5">
+                        <button type="button" onclick="toggleTestimonyEdit(false)" class="px-2.5 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition active:scale-[0.97]">
+                            취소
+                        </button>
+                        <button type="button" onclick="saveTestimonyDirect(${member.id})" class="px-2.5 py-1.5 text-[11px] font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition active:scale-[0.97] shadow-sm">
+                            저장
+                        </button>
+                    </div>
+                </div>
             </div>`;
 
             // Attendance History
