@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const startTime = arg.event.extendedProps.start_time || '';
             const endTime = arg.event.extendedProps.end_time || '';
             let subtext = '';
-            if (sermon && type !== '설교') {
+            if (sermon) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${sermon}</div>`;
             } else if (type === '교회행사' && memo) {
                 subtext = `<div class="text-gray-700 truncate text-[12px]">ㆍ${memo}</div>`;
@@ -1764,7 +1764,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <span class="text-2xl font-black text-blue-600">${p.length}명</span>
             </div>
             ${church ? `<div class="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-200"><h4 class="text-[10px] font-black text-blue-700">외부 교회</h4><p class="font-bold">${church}</p></div>` : ''}
-            ${(sermon && type !== '설교') ? `<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h4 class="text-[10px] font-black text-yellow-700">설교</h4><p class="font-bold">${sermon}</p></div>` : ''}
+            ${sermon ? `<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h4 class="text-[10px] font-black text-yellow-700">설교</h4><p class="font-bold">${sermon}</p></div>` : ''}
             ${memo ? `<div class="mb-4 bg-slate-50 p-4.5 rounded-xl border border-slate-200"><h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">${memo}</p></div>` : ''}
             
             <div class="mb-4">
