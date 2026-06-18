@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const updatedData = {
-                    title: meeting.type === '설교' ? newSermonTitle : meeting.title,
+                    title: meeting.title,
                     date: meeting.date,
                     end_date: meeting.end_date,
                     type: meeting.type,
