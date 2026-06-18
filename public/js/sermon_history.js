@@ -343,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 desktopDetailAnchor.innerHTML = `
                     <div id="desktopDetailPanel" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-h-[450px]">
                         <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md">
-                            <h3 id="detailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight">${meeting.sermon_title || meeting.title}</h3>
+                            <h3 id="detailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight">${meeting.title}</h3>
                             <p id="detailDate" class="text-blue-200/95 font-bold text-[10px] mt-1.5"></p>
                         </div>
                         <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent">
@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fetch targets based on viewport
         const elements = getDetailElements();
 
-        elements.title.textContent = meeting.sermon_title || meeting.title;
+        elements.title.textContent = meeting.title;
         let timeStr = meeting.start_time || '';
         if (meeting.start_time && meeting.end_time) {
             timeStr = `${meeting.start_time}~${meeting.end_time}`;
@@ -469,12 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 
-                ${(meeting.sermon_title && meeting.type !== '설교') ? `
-                    <div class="mb-4 bg-amber-50/30 p-3.5 rounded-xl border border-amber-100/50 shadow-sm">
-                        <h4 class="text-[9px] font-black text-amber-700 uppercase tracking-wider mb-1">설교 주제</h4>
-                        <p class="font-bold text-xs text-slate-800">${meeting.sermon_title}</p>
+                <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 p-3.5 rounded-xl border border-amber-100/50 shadow-sm">
+                    <h4 class="text-[9px] font-black text-amber-700 uppercase tracking-wider mb-1">설교 주제</h4>
+                    <div id="sermonTitleArea">
+                        ${meeting.sermon_title ? `<p class="font-bold text-xs text-slate-800">${meeting.sermon_title}</p>` : `<p class="text-[11px] text-slate-400 italic">등록된 설교 주제가 없습니다.</p>`}
                     </div>
-                ` : ''}
+                </div>
 
                 <div id="memoContainer" class="mb-4 bg-slate-50/40 p-4 rounded-xl border border-slate-200/50">
                     <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
@@ -576,10 +576,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     activeElements.editBtn.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
                     if (activeElements.cancelBtn) activeElements.cancelBtn.classList.remove('hidden');
 
-                    // Convert Title to Input
-                    activeElements.title.innerHTML = `
-                        <input type="text" id="editSermonTitle" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs font-bold outline-none focus:bg-white/20 transition" value="${meeting.sermon_title || meeting.title}">
-                    `;
+                    // Convert Sermon Title to Input in the body area
+                    const sermonTitleArea = document.getElementById('sermonTitleArea');
+                    if (sermonTitleArea) {
+                        sermonTitleArea.innerHTML = `
+                            <input type="text" id="editSermonTitle" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
+                        `;
+                    }
 
                     // Convert Church name to Input (if type is 외부설교)
                     if (meeting.type === '외부설교') {
@@ -610,8 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newMemo = editMemo ? editMemo.value.trim() : '';
                     const newChurch = editChurch ? editChurch.value.trim() : '';
 
-                    if (!newSermonTitle) {
-                        alert('제목을 입력해 주세요.');
+                    if ((meeting.type === '설교' || meeting.type === '외부설교') && !newSermonTitle) {
+                        alert('설교 주제를 입력해 주세요.');
                         return;
                     }
 
