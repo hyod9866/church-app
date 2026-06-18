@@ -4,8 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterChipsContainer = document.getElementById('filterChipsContainer');
     const panelsContainer = document.getElementById('meetingPanelsContainer');
     const closeDetailPanel = document.getElementById('closeDetailPanel');
-    const editMeetingDetailBtn = document.getElementById('editMeetingDetailBtn');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
     const desktopPlaceholder = document.getElementById('desktopPlaceholder');
     const desktopDetailAnchor = document.getElementById('desktopDetailAnchor');
     const statsDashboard = document.getElementById('sermonStatsDashboard');
@@ -37,28 +35,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isLargeScreen = () => window.innerWidth >= 1024;
 
+    // Helper to resolve active panel elements dynamically based on viewport size
+    const getDetailElements = () => {
+        const isLg = isLargeScreen();
+        return {
+            title: document.getElementById(isLg ? 'detailTitle' : 'mobileDetailTitle'),
+            date: document.getElementById(isLg ? 'detailDate' : 'mobileDetailDate'),
+            content: document.getElementById(isLg ? 'detailContent' : 'mobileDetailContent'),
+            editBtn: document.getElementById(isLg ? 'editMeetingDetailBtn' : 'mobileEditBtn'),
+            cancelBtn: document.getElementById(isLg ? 'cancelEditBtn' : 'mobileCancelBtn')
+        };
+    };
+
     // --- 1. Dashboard Statistics Calculation ---
     function renderDashboardStats() {
         if (!statsDashboard) return;
 
         const today = new Date();
         const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth(); // 0-indexed
+        const currentMonth = today.getMonth();
 
-        // 1) 이번 달 설교 수 (완료된 것 중 sermon_title이 있는 것)
         const thisMonthSermons = allSermons.filter(m => {
             if (isUpcoming(m.date)) return false;
             const mDate = new Date(m.date);
             return mDate.getFullYear() === currentYear && mDate.getMonth() === currentMonth;
         }).length;
 
-        // 2) 다가오는 예정 설교
         const upcomingCount = allSermons.filter(m => isUpcoming(m.date)).length;
-
-        // 3) 누적 기록
         const totalCount = allSermons.length;
 
-        // 4) 최빈 설교 모임 타입 구하기
         const typeCounts = allSermons.reduce((acc, m) => {
             let type = m.type === '설교' ? '내부설교' : m.type;
             if (type.includes('구역모임')) type = '구역모임';
@@ -135,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
-        // Add Event Listeners to Chips
         document.querySelectorAll('.filter-chip').forEach(btn => {
             btn.addEventListener('click', () => {
                 selectedType = btn.dataset.value;
@@ -237,7 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Group by type
             const groups = completed.reduce((acc, s) => {
                 let type = s.type === '설교' ? '내부설교' : s.type;
                 if (!acc[type]) acc[type] = [];
@@ -267,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sermonList.innerHTML = html;
 
-        // Restore active card selection outline if currentMeetingId is set
         if (currentMeetingId) {
             const activeCard = document.querySelector(`.sermon-card[data-id="${currentMeetingId}"]`);
             if (activeCard) {
@@ -319,7 +321,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         currentMeetingId = id;
         
-        // Highlight active card
         document.querySelectorAll('.sermon-card').forEach(card => {
             card.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500/10', 'bg-blue-50/10');
             card.classList.add('border-slate-100');
@@ -336,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const largeScreen = isLargeScreen();
 
         if (largeScreen) {
-            // Desktop View: Mount into right split view
             if (desktopPlaceholder) desktopPlaceholder.classList.add('hidden');
             if (desktopDetailAnchor) {
                 desktopDetailAnchor.classList.remove('hidden');
@@ -359,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
         } else {
-            // Mobile View: Mount into bottom sheet
             if (desktopDetailAnchor) desktopDetailAnchor.classList.add('hidden');
             if (desktopPlaceholder) desktopPlaceholder.classList.remove('hidden');
             
@@ -370,14 +369,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     panelsContainer.classList.add('translate-y-0');
                 }, 10);
             }
-            document.getElementById('detailTitle').textContent = meeting.sermon_title || meeting.title;
         }
 
+        // Fetch targets based on viewport
+        const elements = getDetailElements();
+
+        elements.title.textContent = meeting.sermon_title || meeting.title;
         let timeStr = meeting.start_time || '';
         if (meeting.start_time && meeting.end_time) {
             timeStr = `${meeting.start_time}~${meeting.end_time}`;
         }
-        document.getElementById('detailDate').textContent = `${meeting.date}${timeStr ? ' ' + timeStr : ''} | ${meeting.type}`;
+        elements.date.textContent = `${meeting.date}${timeStr ? ' ' + timeStr : ''} | ${meeting.type}`;
 
         // Bind Edit/Cancel buttons in the newly created DOM context
         bindEditButtons();
@@ -492,11 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${testimonyHtml}
             `;
 
-            document.getElementById('detailContent').innerHTML = detailHTML;
+            elements.content.innerHTML = detailHTML;
 
         } catch (error) {
             console.error('Error loading attendance details:', error);
-            document.getElementById('detailContent').innerHTML = '<p class="text-red-500 text-center py-10 font-bold">참석 정보를 불러오지 못했습니다.</p>';
+            elements.content.innerHTML = '<p class="text-red-500 text-center py-10 font-bold">참석 정보를 불러오지 못했습니다.</p>';
         }
     }
 
@@ -508,7 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isEditing) {
                 exitEditMode();
             }
-            // Remove selection highlight
             document.querySelectorAll('.sermon-card').forEach(card => {
                 card.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500/10', 'bg-blue-50/10');
                 card.classList.add('border-slate-100');
@@ -535,23 +536,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. Inline Editing & Saving Logic ---
     function exitEditMode() {
         isEditing = false;
-        const editBtn = document.getElementById('editMeetingDetailBtn');
-        const cancelBtn = document.getElementById('cancelEditBtn');
-        if (editBtn) {
-            editBtn.textContent = '기록 수정';
-            editBtn.className = 'flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
+        const elements = getDetailElements();
+        if (elements.editBtn) {
+            elements.editBtn.textContent = '기록 수정';
+            elements.editBtn.className = 'flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
         }
-        if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (elements.cancelBtn) elements.cancelBtn.classList.add('hidden');
     }
 
     function bindEditButtons() {
-        const editBtn = document.getElementById('editMeetingDetailBtn');
-        const cancelBtn = document.getElementById('cancelEditBtn');
+        const elements = getDetailElements();
 
-        if (cancelBtn) {
-            // Unbind old listeners
-            const newCancelBtn = cancelBtn.cloneNode(true);
-            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        if (elements.cancelBtn) {
+            const newCancelBtn = elements.cancelBtn.cloneNode(true);
+            elements.cancelBtn.parentNode.replaceChild(newCancelBtn, elements.cancelBtn);
             
             newCancelBtn.addEventListener('click', () => {
                 if (currentMeetingId) {
@@ -561,27 +559,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        if (editBtn) {
-            // Unbind old listeners
-            const newEditBtn = editBtn.cloneNode(true);
-            editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        if (elements.editBtn) {
+            const newEditBtn = elements.editBtn.cloneNode(true);
+            elements.editBtn.parentNode.replaceChild(newEditBtn, elements.editBtn);
 
             newEditBtn.addEventListener('click', async () => {
                 if (!currentMeetingId) return;
                 const meeting = allSermons.find(m => m.id == currentMeetingId);
                 if (!meeting) return;
 
-                const editBtnRef = document.getElementById('editMeetingDetailBtn');
-                const cancelBtnRef = document.getElementById('cancelEditBtn');
+                const activeElements = getDetailElements();
 
                 if (!isEditing) {
                     isEditing = true;
-                    editBtnRef.textContent = '저장';
-                    editBtnRef.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
-                    if (cancelBtnRef) cancelBtnRef.classList.remove('hidden');
+                    activeElements.editBtn.textContent = '저장';
+                    activeElements.editBtn.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
+                    if (activeElements.cancelBtn) activeElements.cancelBtn.classList.remove('hidden');
 
                     // Convert Title to Input
-                    document.getElementById('detailTitle').innerHTML = `
+                    activeElements.title.innerHTML = `
                         <input type="text" id="editSermonTitle" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs font-bold outline-none focus:bg-white/20 transition" value="${meeting.sermon_title || meeting.title}">
                     `;
 
@@ -631,8 +627,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         end_time: meeting.end_time
                     };
 
-                    editBtnRef.disabled = true;
-                    editBtnRef.textContent = '저장 중...';
+                    activeElements.editBtn.disabled = true;
+                    activeElements.editBtn.textContent = '저장 중...';
 
                     try {
                         const response = await fetch(`/api/meetings/${currentMeetingId}`, {
@@ -652,14 +648,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         exitEditMode();
                         showMeetingDetail(currentMeetingId);
-                        applyFilters(); // refresh left list
+                        applyFilters();
 
                     } catch (error) {
                         console.error('Error updating meeting:', error);
                         alert('기록을 저장하는 중 오류가 발생했습니다.');
-                        editBtnRef.textContent = '저장';
+                        activeElements.editBtn.textContent = '저장';
                     } finally {
-                        editBtnRef.disabled = false;
+                        activeElements.editBtn.disabled = false;
                     }
                 }
             });
@@ -692,10 +688,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Window Resize/Orientation Change Handler (Optimal Pad Experience)
     window.addEventListener('resize', () => {
         if (currentMeetingId) {
-            // Remount detailed panel to match screen structure immediately
             showMeetingDetail(currentMeetingId);
         }
     });

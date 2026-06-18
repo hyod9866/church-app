@@ -95,14 +95,17 @@
                 </div>
             </div>
 
-            <!-- Right Fixed Panel (Desktop view anchor) (col-span-5) -->
-            <div class="hidden lg:block lg:col-span-5 sticky top-24 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center text-slate-400 min-h-[450px] flex flex-col justify-center items-center" id="desktopPlaceholder">
-                <svg class="w-12 h-12 text-slate-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                <p class="text-xs font-bold">목록에서 설교 기록을 선택하시면<br>여기에 상세 내용과 수정 창이 표시됩니다.</p>
-            </div>
-
-            <div class="hidden lg:block lg:col-span-5 sticky top-24 min-h-[450px]" id="desktopDetailAnchor">
-                <!-- Desktop inline detail panel will mount here -->
+            <!-- Right Fixed Panel Container (Desktop view anchor) (col-span-5) -->
+            <div class="hidden lg:block lg:col-span-5 sticky top-24 min-h-[450px]">
+                <!-- Placeholder -->
+                <div id="desktopPlaceholder" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center text-slate-400 h-full min-h-[450px] flex flex-col justify-center items-center">
+                    <svg class="w-12 h-12 text-slate-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <p class="text-xs font-bold">목록에서 설교 기록을 선택하시면<br>여기에 상세 내용과 수정 창이 표시됩니다.</p>
+                </div>
+                <!-- Desktop detail panel anchor -->
+                <div id="desktopDetailAnchor" class="hidden">
+                    <!-- Desktop inline detail panel will mount here -->
+                </div>
             </div>
         </div>
     </main>
@@ -119,17 +122,17 @@
         <div id="meetingDetailPanel" class="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md flex-shrink-0 relative">
                 <div class="flex justify-between items-start">
-                    <h3 id="detailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight pr-4">모임 제목</h3>
+                    <h3 id="mobileDetailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight pr-4">모임 제목</h3>
                     <button id="closeDetailPanel" class="text-white/80 hover:text-white transition-colors duration-150 absolute right-4 top-4">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
-                <p id="detailDate" class="text-blue-200/95 font-bold text-[10px] mt-1.5"></p>
+                <p id="mobileDetailDate" class="text-blue-200/95 font-bold text-[10px] mt-1.5"></p>
             </div>
-            <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent"></div>
+            <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="mobileDetailContent"></div>
             <div class="p-4 pb-6 md:p-5 bg-slate-50 border-t border-slate-100 flex gap-2 flex-shrink-0">
-                <button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button>
-                <button id="cancelEditBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] transition-all text-gray-700 py-3 rounded-xl font-bold text-sm shadow-md hidden">취소</button>
+                <button id="mobileEditBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button>
+                <button id="mobileCancelBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] transition-all text-gray-700 py-3 rounded-xl font-bold text-sm shadow-md hidden">취소</button>
             </div>
         </div>
     </div>
