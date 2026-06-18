@@ -50,64 +50,78 @@
             </a>
             <!-- 설교 현황 (Active) -->
             <a href="/sermon_history.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                설교 현황
-            </a>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+        <!-- Dashboard Statistics Section (Glassmorphism & Gradients) -->
+        <div id="sermonStatsDashboard" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Stat Cards will be dynamically injected by JS -->
         </div>
-    </header>
 
-    <main class="max-w-4xl mx-auto p-4 md:p-6">
-        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1 mr-4">
-                <h2 class="text-xl font-bold flex items-center min-w-max mr-4">설교 현황 기록</h2>
-                <div class="relative w-full md:w-64">
-                    <input type="text" id="sermonSearch" placeholder="제목/날짜 검색..." 
-                           class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <!-- Search, Filter & Main layout wrapper -->
+        <div class="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+            <!-- Left Panel: Lists & Filters (col-span-7) -->
+            <div class="lg:col-span-7 space-y-4">
+                <!-- Search & Filters Container -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                    <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
+                        <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                            설교 역사 피드
+                        </h2>
+                        <div class="relative w-full md:w-64">
+                            <input type="text" id="sermonSearch" placeholder="제목/본문/날짜 검색..." 
+                                   class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition duration-150 bg-slate-50/50">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Horizontal Scrolling Filter Chips -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 border-t border-slate-100 pt-3" id="filterChipsContainer">
+                        <!-- Chips will be dynamically injected by JS -->
+                    </div>
                 </div>
-                <select id="typeFilter" class="w-full md:w-48 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-gray-700">
-                    <option value="전체">모든 모임</option>
-                    <option value="구역모임">구역모임</option>
-                    <option value="조모임">조모임</option>
-                    <option value="형제모임">형제모임</option>
-                    <option value="임원모임">임원모임</option>
-                    <option value="청년모임">청년모임</option>
-                    <option value="설교">외부/개인 설교</option>
-                    <option value="기타">기타</option>
-                </select>
-            </div>
-            <div id="sermonCount" class="text-gray-500 font-medium shrink-0">
-                총 0개의 설교 기록
-            </div>
-        </div>
 
-        <!-- Vertical Sermon List -->
-        <div id="sermonList" class="space-y-6">
-            <div class="flex justify-center py-20">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <!-- Vertical Sermon List -->
+                <div id="sermonList" class="space-y-3">
+                    <div class="flex justify-center py-20">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Fixed Panel (Desktop view anchor) (col-span-5) -->
+            <div class="hidden lg:block lg:col-span-5 sticky top-24 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center text-slate-400 min-h-[450px] flex flex-col justify-center items-center" id="desktopPlaceholder">
+                <svg class="w-12 h-12 text-slate-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <p class="text-xs font-bold">목록에서 설교 기록을 선택하시면<br>여기에 상세 내용과 수정 창이 표시됩니다.</p>
+            </div>
+
+            <div class="hidden lg:block lg:col-span-5 sticky top-24 min-h-[450px]" id="desktopDetailAnchor">
+                <!-- Desktop inline detail panel will mount here -->
             </div>
         </div>
     </main>
 
-    <!-- Floating Action Button for Home -->
-    <a href="/" class="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition lg:hidden">
+    <!-- Floating Action Button for Home (mobile only) -->
+    <a href="/" class="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-full shadow-lg hover:from-blue-700 hover:to-indigo-700 transition active:scale-95 lg:hidden z-40">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
     </a>
 
-    <!-- Right Detail Panel -->
-    <div id="meetingPanelsContainer" class="fixed inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-slate-200/80 hidden">
-        <div id="meetingDetailPanel" class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
-            <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md flex-shrink-0">
+    <!-- Overlay Panel for Mobile (as Bottom Sheet) / Desktop helper fallback -->
+    <div id="meetingPanelsContainer" class="fixed inset-x-0 bottom-0 top-auto h-[80vh] w-full rounded-t-[32px] md:rounded-t-[32px] lg:hidden bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.15)] z-50 transform translate-y-full transition-transform duration-300 flex flex-col border-t border-slate-200/80 overflow-hidden">
+        <!-- Drag Handle for Mobile Bottom Sheet -->
+        <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0"></div>
+        <div id="meetingDetailPanel" class="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md flex-shrink-0 relative">
                 <div class="flex justify-between items-start">
-                    <h3 id="detailTitle" class="text-lg md:text-xl font-black tracking-tight">모임 제목</h3>
-                    <button id="closeDetailPanel" class="text-white/80 hover:text-white transition-colors duration-150">
+                    <h3 id="detailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight pr-4">모임 제목</h3>
+                    <button id="closeDetailPanel" class="text-white/80 hover:text-white transition-colors duration-150 absolute right-4 top-4">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
-                <p id="detailDate" class="text-blue-200/90 font-bold text-xs mt-1"></p>
+                <p id="detailDate" class="text-blue-200/95 font-bold text-[10px] mt-1.5"></p>
             </div>
             <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent"></div>
-            <div class="p-4 pb-6 md:pb-4 bg-slate-50 border-t border-slate-100 flex gap-2 flex-shrink-0">
+            <div class="p-4 pb-6 md:p-5 bg-slate-50 border-t border-slate-100 flex gap-2 flex-shrink-0">
                 <button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button>
                 <button id="cancelEditBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] transition-all text-gray-700 py-3 rounded-xl font-bold text-sm shadow-md hidden">취소</button>
             </div>
