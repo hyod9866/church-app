@@ -83,32 +83,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         statsDashboard.innerHTML = `
             <!-- Card 1 -->
-            <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-4 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[100px] border border-blue-400/20">
+            <div class="bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600/10 dark:to-indigo-600/15 text-white p-4 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[100px] border border-blue-400/20 dark:border-blue-500/20">
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-                <span class="text-[10px] font-black text-blue-100 uppercase tracking-widest leading-none">이번 달 설교</span>
-                <span class="text-3xl font-black tracking-tight leading-none mt-2">${thisMonthSermons}<span class="text-xs font-bold ml-1">회</span></span>
-                <span class="text-[9px] text-blue-200 mt-2 font-medium">당월 완결된 설교 집계</span>
+                <span class="text-[10px] font-black text-blue-100 dark:text-blue-400/90 uppercase tracking-widest leading-none">이번 달 설교</span>
+                <span class="text-3xl font-black tracking-tight leading-none mt-2 dark:text-blue-450">${thisMonthSermons}<span class="text-xs font-bold ml-1">회</span></span>
+                <span class="text-[9px] text-blue-200 dark:text-blue-500 mt-2 font-medium">당월 완결된 설교 집계</span>
             </div>
             <!-- Card 2 -->
-            <div class="bg-gradient-to-br from-pink-500 to-rose-600 text-white p-4 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[100px] border border-rose-400/20">
+            <div class="bg-gradient-to-br from-pink-500 to-rose-600 dark:from-pink-600/10 dark:to-rose-600/15 text-white p-4 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[100px] border border-rose-400/20 dark:border-rose-500/20">
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-                <span class="text-[10px] font-black text-rose-100 uppercase tracking-widest leading-none">예정된 설교</span>
-                <span class="text-3xl font-black tracking-tight leading-none mt-2 animate-pulse">${upcomingCount}<span class="text-xs font-bold ml-1">회</span></span>
-                <span class="text-[9px] text-rose-250 mt-2 font-medium">오늘 이후 일정 잡힌 모임</span>
+                <span class="text-[10px] font-black text-rose-100 dark:text-rose-450 uppercase tracking-widest leading-none">예정된 설교</span>
+                <span class="text-3xl font-black tracking-tight leading-none mt-2 animate-pulse dark:text-rose-450">${upcomingCount}<span class="text-xs font-bold ml-1">회</span></span>
+                <span class="text-[9px] text-rose-250 dark:text-rose-500 mt-2 font-medium">오늘 이후 일정 잡힌 모임</span>
             </div>
             <!-- Card 3 -->
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[100px] relative overflow-hidden">
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">주요 설교 대상</span>
-                <span class="text-base font-black text-slate-800 tracking-tight leading-tight mt-2 truncate">${favoriteType}</span>
-                <span class="text-[9px] text-slate-400 mt-2 font-bold flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 누적 ${maxCount}회 진행됨
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 flex flex-col justify-between min-h-[100px] relative overflow-hidden transition-colors">
+                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">주요 설교 대상</span>
+                <span class="text-base font-black text-slate-800 dark:text-slate-200 tracking-tight leading-tight mt-2 truncate">${favoriteType}</span>
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-600"></span> 누적 ${maxCount}회 진행됨
                 </span>
             </div>
             <!-- Card 4 -->
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[100px]">
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">총 누적 기록</span>
-                <span class="text-3xl font-black text-slate-800 tracking-tight leading-none mt-2">${totalCount}<span class="text-xs font-bold text-slate-400 ml-1">건</span></span>
-                <span class="text-[9px] text-slate-400 mt-2 font-medium">모임/설교 기록 전체 누적</span>
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 flex flex-col justify-between min-h-[100px] transition-colors">
+                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">총 누적 기록</span>
+                <span class="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none mt-2">${totalCount}<span class="text-xs font-bold text-slate-400 dark:text-slate-500 ml-1">건</span></span>
+                <span class="text-[9px] text-slate-400 dark:text-slate-550 mt-2 font-medium">모임/설교 기록 전체 누적</span>
             </div>
         `;
     }
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isActive = selectedType === cat.value;
             const activeClass = isActive 
                 ? 'bg-blue-600 text-white shadow-sm border-blue-600 font-extrabold' 
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-650 border-slate-200/60 font-bold';
+                : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#131B2E] dark:hover:bg-[#1E293B] text-slate-650 dark:text-slate-350 border-slate-200/60 dark:border-slate-800/85 font-bold transition-colors';
             return `
                 <button type="button" class="filter-chip px-3.5 py-1.5 rounded-full text-xs border transition duration-150 whitespace-nowrap cursor-pointer ${activeClass}" data-value="${cat.value}">
                     ${cat.label}
@@ -288,25 +288,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSelected = currentMeetingId == sermon.id;
         
         const borderSelectClass = isSelected 
-            ? 'border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10' 
-            : 'border-slate-100 hover:border-blue-200 bg-white';
+            ? 'border-blue-500 ring-2 ring-blue-500/10 dark:ring-blue-500/25 bg-blue-50/10 dark:bg-blue-950/30' 
+            : 'border-slate-100 dark:border-slate-850/50 hover:border-blue-250 dark:hover:border-blue-900 bg-white dark:bg-[#131B2E] transition-colors duration-150';
 
         return `
             <div class="sermon-card cursor-pointer rounded-xl border p-0 flex items-stretch transition duration-150 sermon-card ${borderSelectClass}" data-id="${sermon.id}">
-                <div class="${isUpcomingVal ? 'bg-blue-500/5 text-blue-700' : 'bg-slate-50 text-slate-650'} w-20 p-2 flex flex-col justify-center items-center border-r border-slate-100 shrink-0">
+                <div class="${isUpcomingVal ? 'bg-blue-500/5 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400' : 'bg-slate-50 text-slate-650 dark:bg-[#0B0F19] dark:text-slate-400'} w-20 p-2 flex flex-col justify-center items-center border-r border-slate-100 dark:border-slate-850/50 shrink-0">
                     <span class="text-[9px] font-bold opacity-60 leading-none mb-0.5">${date.getFullYear()}</span>
                     <span class="text-sm font-black leading-none">${date.getMonth() + 1}/${date.getDate()}</span>
                     <span class="text-[9px] font-bold opacity-60 mt-1">${dayOfWeek}</span>
                 </div>
                 <div class="p-3.5 flex-1 flex items-center justify-between min-w-0">
                     <div class="flex-1 min-w-0 pr-3">
-                        <h3 class="text-xs font-black text-slate-800 truncate leading-snug">
+                        <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-snug">
                             ${sermon.sermon_title || sermon.title}
                         </h3>
-                        ${sermon.title && sermon.sermon_title && sermon.title !== sermon.sermon_title ? `<p class="text-[10px] text-slate-400 font-bold truncate mt-0.5">${sermon.title}</p>` : ''}
+                        ${sermon.title && sermon.sermon_title && sermon.title !== sermon.sermon_title ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate mt-0.5">${sermon.title}</p>` : ''}
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
-                        <span class="${badgeClass} px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap">${displayType}</span>
+                        <span class="${badgeClass} px-2 py-0.5 rounded-full text-[9px] font-black border dark:border-none whitespace-nowrap">${displayType}</span>
                         ${isUpcomingVal ? `<span class="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[9px] font-black shadow-sm whitespace-nowrap animate-pulse">예정</span>` : ''}
                     </div>
                 </div>
@@ -341,19 +341,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (desktopDetailAnchor) {
                 desktopDetailAnchor.classList.remove('hidden');
                 desktopDetailAnchor.innerHTML = `
-                    <div id="desktopDetailPanel" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-h-[450px]">
-                        <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md">
+                    <div id="desktopDetailPanel" class="bg-white dark:bg-[#131B2E] rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden flex flex-col h-full min-h-[450px] transition-colors">
+                        <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 dark:from-blue-900/40 dark:via-blue-900/40 dark:to-indigo-950/40 text-white shadow-md border-b dark:border-slate-800/60">
                             <h3 id="detailTitle" class="text-base md:text-lg font-black tracking-tight leading-tight">${meeting.title}</h3>
                             <p id="detailDate" class="text-blue-200/95 font-bold text-[10px] mt-1.5"></p>
                         </div>
-                        <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent">
+                        <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30 dark:bg-[#0B0F19]/40" id="detailContent">
                             <div class="flex justify-center py-20">
                                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                             </div>
                         </div>
-                        <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+                        <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 flex gap-2">
                             <button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md">기록 수정</button>
-                            <button id="cancelEditBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] transition-all text-gray-700 py-2.5 rounded-xl font-bold text-xs shadow-md hidden">취소</button>
+                            <button id="cancelEditBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all text-gray-700 py-2.5 rounded-xl font-bold text-xs shadow-md hidden">취소</button>
                         </div>
                     </div>
                 `;
@@ -395,13 +395,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let testimonyHtml = '';
             if (pWithTestimony.length > 0) {
                 testimonyHtml = `
-                    <div class="mt-5 pt-4 border-t border-dashed border-slate-200">
-                        <h4 class="text-[9px] font-black text-blue-600 mb-2.5 uppercase tracking-wider">교인 간증 / 특이사항 (${pWithTestimony.length}명)</h4>
+                    <div class="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-slate-850/60">
+                        <h4 class="text-[9px] font-black text-blue-600 dark:text-blue-400 mb-2.5 uppercase tracking-wider">교인 간증 / 특이사항 (${pWithTestimony.length}명)</h4>
                         <div class="space-y-2">
                             ${pWithTestimony.map(a => `
-                                <div class="p-3 bg-blue-50/40 rounded-xl border border-blue-100/50">
-                                    <div class="font-extrabold text-blue-800 text-xs">${a.name}</div>
-                                    <p class="text-xs text-slate-700 mt-1 pl-2 border-l-2 border-blue-250 whitespace-pre-wrap leading-relaxed font-medium">${a.testimony_snapshot}</p>
+                                <div class="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-100/50 dark:border-blue-900/25">
+                                    <div class="font-extrabold text-blue-800 dark:text-blue-400 text-xs">${a.name}</div>
+                                    <p class="text-xs text-slate-700 dark:text-slate-350 mt-1 pl-2 border-l-2 border-blue-250 dark:border-blue-800 whitespace-pre-wrap leading-relaxed font-medium">${a.testimony_snapshot}</p>
                                 </div>
                             `).join('')}
                         </div>
@@ -446,10 +446,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (absentees.length > 0) {
                     absentHtml = `
-                        <div class="mt-5 pt-4 border-t border-dashed border-slate-200">
-                            <h4 class="text-[9px] font-black text-slate-400 mb-2.5 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
+                        <div class="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-slate-850/60">
+                            <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-500 mb-2.5 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
                             <div class="flex flex-wrap gap-1">
-                                ${absentees.map(m => `<span class="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold border border-slate-200/40">${m.name}</span>`).join('')}
+                                ${absentees.map(m => `<span class="px-2 py-1 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 rounded-lg text-[10px] font-bold border border-slate-200/40 dark:border-slate-800/60">${m.name}</span>`).join('')}
                             </div>
                         </div>
                     `;
@@ -457,36 +457,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let detailHTML = `
-                <div class="mb-4 bg-white p-3.5 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm">
-                    <span class="font-extrabold text-xs text-slate-500">참석 교인</span>
-                    <span class="text-xl font-black text-blue-600">${p.length}명</span>
+                <div class="mb-4 bg-white dark:bg-[#131B2E] p-3.5 rounded-xl border border-slate-100 dark:border-slate-850/50 flex justify-between items-center shadow-sm transition-colors">
+                    <span class="font-extrabold text-xs text-slate-500 dark:text-slate-400">참석 교인</span>
+                    <span class="text-xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
                 </div>
                 
-                <div id="churchContainer" class="mb-4 bg-blue-50/30 p-3.5 rounded-xl border border-blue-100/50 shadow-sm ${meeting.church ? '' : 'hidden'}">
-                    <h4 class="text-[9px] font-black text-blue-700 uppercase tracking-wider mb-1">외부 교회</h4>
+                <div id="churchContainer" class="mb-4 bg-blue-50/30 dark:bg-[#172237]/50 p-3.5 rounded-xl border border-blue-100/50 dark:border-blue-900/30 shadow-sm ${meeting.church ? '' : 'hidden'}">
+                    <h4 class="text-[9px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1">외부 교회</h4>
                     <div id="churchViewArea">
-                        <p class="font-bold text-xs text-slate-800">${meeting.church || ''}</p>
+                        <p class="font-bold text-xs text-slate-800 dark:text-slate-350">${meeting.church || ''}</p>
                     </div>
                 </div>
                 
-                <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 p-3.5 rounded-xl border border-amber-100/50 shadow-sm">
-                    <h4 class="text-[9px] font-black text-amber-700 uppercase tracking-wider mb-1">설교 주제</h4>
+                <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-100/50 dark:border-amber-900/25 shadow-sm">
+                    <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider mb-1">설교 주제</h4>
                     <div id="sermonTitleArea">
-                        ${meeting.sermon_title ? `<p class="font-bold text-xs text-slate-800">${meeting.sermon_title}</p>` : `<p class="text-[11px] text-slate-400 italic">등록된 설교 주제가 없습니다.</p>`}
+                        ${meeting.sermon_title ? `<p class="font-bold text-xs text-slate-800 dark:text-slate-200">${meeting.sermon_title}</p>` : `<p class="text-[11px] text-slate-400 dark:text-slate-500 italic">등록된 설교 주제가 없습니다.</p>`}
                     </div>
                 </div>
 
-                <div id="memoContainer" class="mb-4 bg-slate-50/40 p-4 rounded-xl border border-slate-200/50">
-                    <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
+                <div id="memoContainer" class="mb-4 bg-slate-50/40 dark:bg-[#0B0F19]/60 p-4 rounded-xl border border-slate-200/50 dark:border-slate-850/65">
+                    <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
                     <div id="memoViewArea">
-                        ${meeting.memo ? `<p class="text-xs font-semibold text-slate-700 whitespace-pre-wrap leading-relaxed">${meeting.memo}</p>` : '<p class="text-[11px] text-slate-400 italic">등록된 메모가 없습니다.</p>'}
+                        ${meeting.memo ? `<p class="text-xs font-semibold text-slate-700 dark:text-slate-350 whitespace-pre-wrap leading-relaxed">${meeting.memo}</p>` : '<p class="text-[11px] text-slate-400 dark:text-slate-550 italic">등록된 메모가 없습니다.</p>'}
                     </div>
                 </div>
                 
                 <div class="mb-4">
-                    <h4 class="text-[9px] font-black text-blue-600 mb-2 uppercase tracking-wider">참석자 명단</h4>
+                    <h4 class="text-[9px] font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자 명단</h4>
                     <div class="flex flex-wrap gap-1">
-                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1 bg-blue-50/50 text-blue-700 rounded-lg text-[10px] font-bold border border-blue-100/30">${a.name}</span>`).join('') : '<span class="text-xs text-gray-400 italic">참석자 없음</span>'}
+                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg text-[10px] font-bold border border-blue-100/30 dark:border-blue-900/20">${a.name}</span>`).join('') : '<span class="text-xs text-gray-400 italic">참석자 없음</span>'}
                     </div>
                 </div>
 
@@ -696,6 +696,95 @@ document.addEventListener('DOMContentLoaded', () => {
             showMeetingDetail(currentMeetingId);
         }
     });
+
+    // --- 7. Theme Settings & Modal Controller ---
+    function updateThemeButtons(currentTheme) {
+        const lightBtn = document.getElementById('themeLightBtn');
+        const darkBtn = document.getElementById('themeDarkBtn');
+        const systemBtn = document.getElementById('themeSystemBtn');
+        if (!lightBtn || !darkBtn || !systemBtn) return;
+
+        [lightBtn, darkBtn, systemBtn].forEach(btn => {
+            btn.classList.remove('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/20', 'dark:border-blue-500/50', 'text-blue-600', 'dark:text-blue-400');
+            btn.classList.add('border-slate-200', 'dark:border-slate-800', 'bg-slate-50', 'dark:bg-[#0B0F19]');
+        });
+
+        let activeBtn;
+        if (currentTheme === 'light') activeBtn = lightBtn;
+        else if (currentTheme === 'dark') activeBtn = darkBtn;
+        else activeBtn = systemBtn;
+
+        if (activeBtn) {
+            activeBtn.classList.remove('border-slate-200', 'dark:border-slate-800', 'bg-slate-50', 'dark:bg-[#0B0F19]');
+            activeBtn.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/20', 'dark:border-blue-500/50', 'text-blue-600', 'dark:text-blue-400');
+        }
+    }
+
+    function applyTheme() {
+        const theme = localStorage.getItem('theme') || 'system';
+        const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        updateThemeButtons(theme);
+    }
+
+    // Settings Modal Controls
+    const settingsModal = document.getElementById('settingsModal');
+    const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const closeSettingsModal = document.getElementById('closeSettingsModal');
+    const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
+    
+    if (openSettingsBtn && settingsModal) {
+        openSettingsBtn.addEventListener('click', () => {
+            applyTheme();
+            settingsModal.classList.remove('hidden');
+            setTimeout(() => {
+                const content = settingsModal.querySelector('.transform');
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        });
+    }
+    
+    function hideSettingsModal() {
+        if (settingsModal) {
+            const content = settingsModal.querySelector('.transform');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                settingsModal.classList.add('hidden');
+            }, 200);
+        }
+    }
+    
+    if (closeSettingsModal) closeSettingsModal.addEventListener('click', hideSettingsModal);
+    if (settingsModalBackdrop) settingsModalBackdrop.addEventListener('click', hideSettingsModal);
+    
+    ['themeLightBtn', 'themeDarkBtn', 'themeSystemBtn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                let mode = 'system';
+                if (id === 'themeLightBtn') mode = 'light';
+                else if (id === 'themeDarkBtn') mode = 'dark';
+                
+                localStorage.setItem('theme', mode);
+                applyTheme();
+            });
+        }
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        const theme = localStorage.getItem('theme') || 'system';
+        if (theme === 'system') applyTheme();
+    });
+
+    // Run theme logic on load
+    applyTheme();
 
     loadSermons();
 });
