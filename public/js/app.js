@@ -796,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Visitation Memos
-            const visMemos = history.filter(h => h.type === '심방');
+            const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
             const visSec = document.getElementById('visitationHistorySection'), visList = document.getElementById('visitationMemoList');
             if (visMemos.length) {
                 if (visSec) visSec.classList.remove('hidden');
@@ -804,21 +804,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     visList.innerHTML = visMemos.map(h => {
                         const memoVal = h.memo ? h.memo.trim() : '';
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
+                        const isCounseling = h.type === '상담';
                         
                         let contentHTML = '';
                         if (memoVal) {
                             contentHTML += `
                                 <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">✍️ 메모</span>
+                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
                                     <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
                                 </div>
                             `;
                         }
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="bg-blue-50/50 p-2.5 rounded-lg border border-blue-100/30">
-                                    <span class="block text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">🎙️ 심방 간증</span>
-                                    <p class="text-xs text-blue-900 whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
+                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
@@ -826,10 +827,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
+                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
+                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
+                        const titleText = isCounseling ? '상담 기록' : '심방 기록';
+
                         return `
-                            <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 shadow-sm flex flex-col gap-2">
-                                <div class="text-xs font-black text-teal-800 border-b border-teal-200/30 pb-1 flex justify-between items-center">
-                                    <span>📅 ${h.date} 심방 기록</span>
+                            <div class="${cardBg} p-4 rounded-xl border shadow-sm flex flex-col gap-2">
+                                <div class="text-xs font-black ${textCol} border-b pb-1 flex justify-between items-center">
+                                    <span>📅 ${h.date} ${titleText}</span>
                                 </div>
                                 ${contentHTML}
                             </div>
@@ -1673,7 +1678,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     // 미참석자 계산 로직
     let absentHtml = '';
     const typeStr = type || '';
-    if (!['설교', '외부설교', '심방', '교회행사', '기타'].includes(typeStr)) {
+    if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
         let targetParams = new URLSearchParams({ status: 'active' });
         if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
             const distMatch = typeStr.match(/\d+/);
@@ -2094,7 +2099,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             if (extraAttSec) extraAttSec.classList.remove('hidden');
             
             // 다른 타입의 메모 필드 조절
-            if (['심방', '외부설교', '기타'].includes(currentType)) {
+            if (['심방', '외부설교', '기타', '상담'].includes(currentType)) {
                 if (memoField) memoField.classList.remove('hidden');
             } else {
                 if (memoField) memoField.classList.add('hidden');
@@ -2123,7 +2128,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             targetParams.append('category', '봉사회');
         } else if (currentType.includes('청년모임')) {
             targetParams.append('category', '청년회');
-        } else if (['설교', '외부설교', '심방', '기타'].includes(currentType)) {
+        } else if (['설교', '외부설교', '심방', '기타', '상담'].includes(currentType)) {
             document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
             if (id) {
                 const aRes = await fetch(`/api/meetings/${id}/attendance`);

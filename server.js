@@ -1735,8 +1735,8 @@ app.get('/api/visitation/status', async (req, res) => {
 
         const { data: meetings, error: meetErr } = await supabase
             .from('meetings')
-            .select('id, title, date, sermon_title, memo')
-            .eq('type', '심방');
+            .select('id, title, date, sermon_title, memo, type')
+            .in('type', ['심방', '상담']);
         if (meetErr) throw meetErr;
 
         const meetingMap = {};
@@ -1782,7 +1782,8 @@ app.get('/api/visitation/status', async (req, res) => {
                 last_visitation: lastVisit ? lastVisit.date : null,
                 total_count: visits.length,
                 last_sermon: lastVisit ? lastVisit.sermon_title : null,
-                last_memo: lastVisit ? lastVisit.memo : null
+                last_memo: lastVisit ? lastVisit.memo : null,
+                last_type: lastVisit ? lastVisit.type : null
             };
         });
 

@@ -94,10 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastDate.setHours(0, 0, 0, 0);
                 daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
                 
+                const isLastCounseling = member.last_type === '상담';
+                const textColor = isLastCounseling ? 'text-indigo-600' : 'text-teal-600';
+                const bgBadge = isLastCounseling ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-teal-50 text-teal-600 border-teal-100';
+                const typeText = isLastCounseling ? '상담' : '심방';
+
                 statusHtml = `
                     <div class="flex items-center gap-2">
-                        <span class="text-teal-600 font-bold text-sm">${member.last_visitation}</span>
-                        <span class="text-[10px] bg-teal-50 text-teal-600 px-2 py-0.5 rounded border border-teal-100 font-bold">${daysDiff}일 전</span>
+                        <span class="${textColor} font-bold text-sm">${member.last_visitation}</span>
+                        <span class="text-[10px] ${bgBadge} px-2 py-0.5 rounded border font-bold">${daysDiff}일 전(${typeText})</span>
                     </div>
                 `;
 
@@ -110,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else {
-                statusHtml = `<span class="text-red-400 font-bold text-sm italic">심방 기록 없음</span>`;
+                statusHtml = `<span class="text-red-400 font-bold text-sm italic">심방/상담 기록 없음</span>`;
             }
 
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
@@ -127,12 +132,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${statusHtml}
                         ${detailHtml}
                     </div>
-                    <div class="flex flex-col items-end gap-2 shrink-0 ml-4">
+                    <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
                         <div class="text-xs font-bold text-gray-400">누적 <span class="text-blue-600">${member.total_count}</span>회</div>
-                        <button onclick="location.href='/?date=${new Date().toISOString().split('T')[0]}&type=심방&target=${member.id}'" 
-                                class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white transition-colors">
-                            심방 기록
-                        </button>
+                        <div class="flex flex-col gap-1">
+                            <button onclick="location.href='/?date=${new Date().toISOString().split('T')[0]}&type=심방&target=${member.id}'" 
+                                    class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white transition-colors whitespace-nowrap">
+                                심방 기록
+                            </button>
+                            <button onclick="location.href='/?date=${new Date().toISOString().split('T')[0]}&type=상담&target=${member.id}'" 
+                                    class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white transition-colors whitespace-nowrap">
+                                상담 기록
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -529,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Visitation Memos
-            const visMemos = history.filter(h => h.type === '심방');
+            const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
             const visSec = document.getElementById('visitationHistorySection'), visList = document.getElementById('visitationMemoList');
             if (visMemos.length) { 
                 if (visSec) visSec.classList.remove('hidden'); 
@@ -537,21 +548,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     visList.innerHTML = visMemos.map(h => {
                         const memoVal = h.memo ? h.memo.trim() : '';
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
+                        const isCounseling = h.type === '상담';
                         
                         let contentHTML = '';
                         if (memoVal) {
                             contentHTML += `
                                 <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">✍️ 메모</span>
+                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
                                     <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
                                 </div>
                             `;
                         }
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="bg-blue-50/50 p-2.5 rounded-lg border border-blue-100/30">
-                                    <span class="block text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">🎙️ 심방 간증</span>
-                                    <p class="text-xs text-blue-900 whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
+                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
@@ -559,10 +571,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
+                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
+                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
+                        const titleText = isCounseling ? '상담 기록' : '심방 기록';
+
                         return `
-                            <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 shadow-sm flex flex-col gap-2">
-                                <div class="text-xs font-black text-teal-800 border-b border-teal-200/30 pb-1 flex justify-between items-center">
-                                    <span>📅 ${h.date} 심방 기록</span>
+                            <div class="${cardBg} p-4 rounded-xl border shadow-sm flex flex-col gap-2">
+                                <div class="text-xs font-black ${textCol} border-b pb-1 flex justify-between items-center">
+                                    <span>📅 ${h.date} ${titleText}</span>
                                 </div>
                                 ${contentHTML}
                             </div>

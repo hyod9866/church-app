@@ -1432,7 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Visitation Memos
-            const visMemos = history.filter(h => h.type === '심방');
+            const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
             const visSec = document.getElementById('visitationHistorySection'), visList = document.getElementById('visitationMemoList');
             if (visMemos.length) { 
                 if (visSec) visSec.classList.remove('hidden'); 
@@ -1440,21 +1440,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     visList.innerHTML = visMemos.map(h => {
                         const memoVal = h.memo ? h.memo.trim() : '';
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
+                        const isCounseling = h.type === '상담';
                         
                         let contentHTML = '';
                         if (memoVal) {
                             contentHTML += `
                                 <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">✍️ 메모</span>
+                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
                                     <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
                                 </div>
                             `;
                         }
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="bg-blue-50/50 p-2.5 rounded-lg border border-blue-100/30">
-                                    <span class="block text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">🎙️ 심방 간증</span>
-                                    <p class="text-xs text-blue-900 whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
+                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
@@ -1462,10 +1463,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
+                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
+                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
+                        const titleText = isCounseling ? '상담 기록' : '심방 기록';
+
                         return `
-                            <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 shadow-sm flex flex-col gap-2">
-                                <div class="text-xs font-black text-teal-800 border-b border-teal-200/30 pb-1 flex justify-between items-center">
-                                    <span>📅 ${h.date} 심방 기록</span>
+                            <div class="${cardBg} p-4 rounded-xl border shadow-sm flex flex-col gap-2">
+                                <div class="text-xs font-black ${textCol} border-b pb-1 flex justify-between items-center">
+                                    <span>📅 ${h.date} ${titleText}</span>
                                 </div>
                                 ${contentHTML}
                             </div>
