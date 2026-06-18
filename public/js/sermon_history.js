@@ -6,9 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const panelsContainer = document.getElementById('meetingPanelsContainer');
     const closeDetailPanel = document.getElementById('closeDetailPanel');
     const editMeetingDetailBtn = document.getElementById('editMeetingDetailBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
 
     let allSermons = [];
     let currentMeetingId = null;
+    let isEditing = false;
 
     const getBadgeStyles = (type) => {
         if (type === '설교') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -211,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function showMeetingDetail(id) {
+        if (isEditing) {
+            exitEditMode();
+        }
         currentMeetingId = id;
         const meeting = allSermons.find(m => m.id == id);
         if (!meeting) return;
@@ -312,24 +317,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="font-bold text-sm text-gray-600">총 참석</span>
                     <span class="text-2xl font-black text-blue-600">${p.length}명</span>
                 </div>
-                ${meeting.church ? `
-                    <div class="mb-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100/70 shadow-sm">
-                        <h4 class="text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">외부 교회</h4>
-                        <p class="font-bold text-slate-800">${meeting.church}</p>
+                <div id="churchContainer" class="mb-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100/70 shadow-sm ${meeting.church ? '' : 'hidden'}">
+                    <h4 class="text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">외부 교회</h4>
+                    <div id="churchViewArea">
+                        <p class="font-bold text-slate-800">${meeting.church || ''}</p>
                     </div>
-                ` : ''}
+                </div>
                 ${(meeting.sermon_title && meeting.type !== '설교') ? `
                     <div class="mb-4 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100/70 shadow-sm">
                         <h4 class="text-[10px] font-black text-yellow-700 uppercase tracking-wider mb-1">설교</h4>
                         <p class="font-bold text-slate-800">${meeting.sermon_title}</p>
                     </div>
                 ` : ''}
-                ${meeting.memo ? `
-                    <div class="mb-4 bg-slate-50/50 p-4.5 rounded-xl border border-slate-200/65">
-                        <h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
-                        <p class="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">${meeting.memo}</p>
+                <div id="memoContainer" class="mb-4 bg-slate-50/50 p-4.5 rounded-xl border border-slate-200/65">
+                    <h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
+                    <div id="memoViewArea">
+                        ${meeting.memo ? `<p class="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">${meeting.memo}</p>` : '<p class="text-xs text-gray-400 italic">등록된 메모가 없습니다.</p>'}
                     </div>
-                ` : ''}
+                </div>
                 
                 <div class="mb-4">
                     <h4 class="text-[10px] font-black text-blue-600 mb-2.5 uppercase tracking-wider">참석자 명단</h4>
@@ -358,6 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 panelsContainer.classList.add('hidden');
             }, 300);
             currentMeetingId = null;
+            if (isEditing) {
+                exitEditMode();
+            }
         }
     }
 
@@ -379,10 +387,111 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDetailPanel.addEventListener('click', closePanel);
     }
 
-    if (editMeetingDetailBtn) {
-        editMeetingDetailBtn.addEventListener('click', () => {
+    function exitEditMode() {
+        isEditing = false;
+        editMeetingDetailBtn.textContent = '기록 수정';
+        editMeetingDetailBtn.className = 'flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md';
+        if (cancelEditBtn) cancelEditBtn.classList.add('hidden');
+    }
+
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', () => {
             if (currentMeetingId) {
-                window.location.href = `/?editMeetingId=${currentMeetingId}`;
+                exitEditMode();
+                showMeetingDetail(currentMeetingId);
+            }
+        });
+    }
+
+    if (editMeetingDetailBtn) {
+        editMeetingDetailBtn.addEventListener('click', async () => {
+            if (!currentMeetingId) return;
+            const meeting = allSermons.find(m => m.id == currentMeetingId);
+            if (!meeting) return;
+
+            if (!isEditing) {
+                isEditing = true;
+                editMeetingDetailBtn.textContent = '저장';
+                editMeetingDetailBtn.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md';
+                if (cancelEditBtn) cancelEditBtn.classList.remove('hidden');
+
+                document.getElementById('detailTitle').innerHTML = `
+                    <input type="text" id="editSermonTitle" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-sm font-bold outline-none focus:bg-white/20 transition" value="${meeting.sermon_title || meeting.title}">
+                `;
+
+                if (meeting.type === '외부설교') {
+                    const churchContainer = document.getElementById('churchContainer');
+                    if (churchContainer) churchContainer.classList.remove('hidden');
+                    const churchViewArea = document.getElementById('churchViewArea');
+                    if (churchViewArea) {
+                        churchViewArea.innerHTML = `
+                            <input type="text" id="editChurch" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value="${meeting.church || ''}">
+                        `;
+                    }
+                }
+
+                const memoViewArea = document.getElementById('memoViewArea');
+                if (memoViewArea) {
+                    memoViewArea.innerHTML = `
+                        <textarea id="editMemo" class="w-full h-40 p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
+                    `;
+                }
+            } else {
+                const editSermonTitle = document.getElementById('editSermonTitle');
+                const editMemo = document.getElementById('editMemo');
+                const editChurch = document.getElementById('editChurch');
+
+                const newSermonTitle = editSermonTitle ? editSermonTitle.value.trim() : '';
+                const newMemo = editMemo ? editMemo.value.trim() : '';
+                const newChurch = editChurch ? editChurch.value.trim() : '';
+
+                if (!newSermonTitle) {
+                    alert('제목을 입력해 주세요.');
+                    return;
+                }
+
+                const updatedData = {
+                    title: meeting.type === '설교' ? newSermonTitle : meeting.title,
+                    date: meeting.date,
+                    end_date: meeting.end_date,
+                    type: meeting.type,
+                    sermon_title: newSermonTitle,
+                    memo: newMemo,
+                    church: meeting.type === '외부설교' ? newChurch : meeting.church,
+                    start_time: meeting.start_time,
+                    end_time: meeting.end_time
+                };
+
+                editMeetingDetailBtn.disabled = true;
+                editMeetingDetailBtn.textContent = '저장 중...';
+
+                try {
+                    const response = await fetch(`/api/meetings/${currentMeetingId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Network response error');
+                    }
+
+                    meeting.title = updatedData.title;
+                    meeting.sermon_title = updatedData.sermon_title;
+                    meeting.memo = updatedData.memo;
+                    meeting.church = updatedData.church;
+
+                    exitEditMode();
+                    showMeetingDetail(currentMeetingId);
+                    applyFilters();
+
+                } catch (error) {
+                    console.error('Error updating meeting:', error);
+                    alert('기록을 저장하는 중 오류가 발생했습니다.');
+                    editMeetingDetailBtn.textContent = '저장';
+                } finally {
+                    editMeetingDetailBtn.disabled = false;
+                }
             }
         });
     }
