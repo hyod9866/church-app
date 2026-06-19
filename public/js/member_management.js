@@ -398,6 +398,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentMemberData && currentMemberData.bs) finalRel = (currentMemberData.bs === 'S') ? '남편' : '아내';
             else if (bs) finalRel = (bs === 'B') ? '아내' : '남편';
         }
+        
+        // 배우자 등록 시 폼 내부의 결혼 상태를 기혼으로 자동 변경
+        if (finalRel === '남편' || finalRel === '아내') {
+            const maritalSelect = document.querySelector('select[name="marital_status"]');
+            if (maritalSelect) {
+                maritalSelect.value = '기혼';
+            }
+        }
+
         const entry = `${name.trim()}(${finalRel})`;
         const currentText = familyRelationText.value.trim();
         const entries = currentText ? currentText.split(',').map(n => n.trim()).filter(n => n) : [];

@@ -233,9 +233,18 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
       });
 
       for (const task of tasks) {
+        const updatePayload = {
+          family_id: task.family_id,
+          family_relation: task.family_relation
+        };
+        // 만약 새로 구성된 가족관계에 '남편'이나 '아내'가 포함된다면, 해당 성도도 기혼으로 자동 보정
+        if (task.family_relation && (task.family_relation.includes('남편') || task.family_relation.includes('아내'))) {
+          updatePayload.marital_status = '기혼';
+        }
+
         const { error: updateErr } = await supabase
           .from('members')
-          .update({ family_id: task.family_id, family_relation: task.family_relation })
+          .update(updatePayload)
           .eq('id', task.id);
         if (updateErr) console.error('Family relation update error:', updateErr);
       }
@@ -860,6 +869,12 @@ app.post('/api/members', async (req, res) => {
 
     const birthYearVal = (b.birth_year === '' || b.birth_year === undefined || b.birth_year === null) ? null : parseInt(b.birth_year);
     
+    // 가족관계에 남편이나 아내가 포함되어 있다면 결혼 상태를 자동으로 '기혼'으로 설정
+    let maritalStatusVal = b.marital_status;
+    if (b.family_relation && (b.family_relation.includes('남편') || b.family_relation.includes('아내'))) {
+      maritalStatusVal = '기혼';
+    }
+    
     const insertData = {
       name: b.name,
       category: b.category,
@@ -878,7 +893,7 @@ app.post('/api/members', async (req, res) => {
       church: b.church || '교회정보없음',
       parish: b.parish || '교구정보없음',
       district: b.district || '구역정보없음',
-      marital_status: b.marital_status
+      marital_status: maritalStatusVal
     };
 
     const { data, error } = await supabase
@@ -938,6 +953,12 @@ app.put('/api/members/:id', async (req, res) => {
 
     const birthYearVal = (b.birth_year === '' || b.birth_year === undefined || b.birth_year === null) ? null : parseInt(b.birth_year);
 
+    // 가족관계에 남편이나 아내가 포함되어 있다면 결혼 상태를 자동으로 '기혼'으로 설정
+    let maritalStatusVal = b.marital_status;
+    if (b.family_relation && (b.family_relation.includes('남편') || b.family_relation.includes('아내'))) {
+      maritalStatusVal = '기혼';
+    }
+
     const updateData = {
       name: b.name,
       category: b.category,
@@ -955,7 +976,7 @@ app.put('/api/members/:id', async (req, res) => {
       family_id: fid,
       church: b.church,
       parish: b.parish,
-      marital_status: b.marital_status
+      marital_status: maritalStatusVal
     };
 
     const { error } = await supabase

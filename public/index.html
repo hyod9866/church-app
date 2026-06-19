@@ -2,10 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pastoral Ministry Program</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- FullCalendar CDN -->
@@ -295,12 +311,89 @@
                 transform: none !important;
             }
         }
+
+        /* --- FullCalendar 다크모드 대응 스타일 --- */
+        .dark .fc {
+            color: #e2e8f0 !important;
+        }
+        .dark .fc-col-header-cell {
+            background-color: #1e293b !important;
+            border-color: #334155/60 !important;
+        }
+        .dark .fc-col-header-cell-cushion {
+            color: #94a3b8 !important;
+            font-weight: 700 !important;
+        }
+        .dark .fc-daygrid-day {
+            background-color: #0f172a !important;
+            border-color: #1e293b !important;
+        }
+        .dark .fc-daygrid-day-number {
+            color: #94a3b8 !important;
+            font-weight: 700 !important;
+        }
+        .dark .fc-day-today {
+            background-color: #1e293b/40 !important;
+        }
+        .dark .fc-toolbar-title {
+            color: #f1f5f9 !important;
+        }
+        .dark .fc-button {
+            background-color: #1e293b !important;
+            color: #94a3b8 !important;
+            border-color: #334155/80 !important;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
+        }
+        .dark .fc-button:hover {
+            background-color: #334155 !important;
+            color: #f1f5f9 !important;
+            border-color: #475569 !important;
+        }
+        .dark .fc-button-active {
+            background-color: #3b82f6 !important;
+            color: #ffffff !important;
+            border-color: #2563eb !important;
+        }
+        .dark .fc-theme-standard td, 
+        .dark .fc-theme-standard th {
+            border-color: #1e293b !important;
+        }
+        .dark .fc-timegrid-slot {
+            border-bottom: 1px solid #1e293b !important;
+            background-color: #0f172a !important;
+        }
+        .dark .fc-timegrid-slot-minor {
+            border-bottom: 1px solid #1e293b/40 !important;
+        }
+        .dark .fc-timegrid-axis {
+            background-color: #0f172a !important;
+            border-color: #1e293b !important;
+        }
+        .dark .fc-timegrid-slot-label-cushion {
+            color: #64748b !important;
+        }
+        
+        /* 구원기념일 이벤트 텍스트 색상 대응 */
+        .fc-event.salvation-event,
+        .fc-event.salvation-event * {
+            color: #0f172a !important;
+            background-color: #fef2f2 !important;
+            border-color: #fca5a5 !important;
+            border-radius: 4px;
+        }
+        .dark .fc-event.salvation-event,
+        .dark .fc-event.salvation-event * {
+            color: #fce7f3 !important;
+            background-color: #831843 !important;
+            border-color: #9d174d !important;
+            border-radius: 4px;
+        }
     </style>
 </head>
-<body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 dark:bg-[#0B0F19] h-screen flex flex-col overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white p-2.5 md:p-4 shadow-lg border-b border-blue-950/20 flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 dark:from-slate-900 dark:via-[#0F172A] dark:to-slate-900 text-white p-2.5 md:p-4 shadow-lg border-b border-blue-950/20 dark:border-slate-800/60 flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
         <div class="flex items-center gap-1.5 md:gap-3 mr-2 min-w-0 flex-shrink-0">
             <!-- 토글 버튼 (메인/아이패드/아이폰 전체 작동) -->
             <button id="toggleSidebar" class="text-white hover:bg-white/10 p-2 rounded-xl transition active:scale-95 flex-shrink-0" title="성도목록 접기/펼치기">
@@ -337,52 +430,56 @@
                 <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                 설교 현황
             </a>
+            <!-- Settings Gear Button -->
+            <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 p-2.5 rounded-lg transition duration-200 cursor-pointer flex items-center justify-center ml-2 flex-shrink-0" title="설정">
+                <i class="fa-solid fa-gear text-[13px] md:text-sm"></i>
+            </button>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex overflow-hidden relative">
+    <main class="flex-1 flex overflow-hidden relative dark:bg-[#0F172A]">
         <!-- Sidebar -->
-        <aside id="sidebar" class="w-80 bg-white shadow-2xl z-30 flex flex-col border-r border-slate-200/60 closed">
-            <div class="p-4 bg-slate-50 border-b border-slate-100/80 flex flex-col gap-3">
+        <aside id="sidebar" class="w-80 bg-white dark:bg-[#131B2E] shadow-2xl z-30 flex flex-col border-r border-slate-200/60 dark:border-slate-800/80 closed">
+            <div class="p-4 bg-slate-50 dark:bg-[#0B0F19]/40 border-b border-slate-100/80 dark:border-slate-800/60 flex flex-col gap-3">
                 <div class="flex justify-between items-center">
-                    <h2 class="font-extrabold text-slate-800 flex items-center gap-2">성도 목록</h2>
-                    <span id="memberCount" class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-black border border-blue-100">0명</span>
-                    <button id="closeSidebar" class="md:hidden text-gray-500">
+                    <h2 class="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2">성도 목록</h2>
+                    <span id="memberCount" class="text-[10px] bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-black border border-blue-100 dark:border-blue-900/30">0명</span>
+                    <button id="closeSidebar" class="md:hidden text-gray-500 dark:text-slate-400">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
                 <!-- 교회 및 교구 선택기 -->
                 <div class="flex gap-1.5 items-center w-full">
-                    <select id="headerChurchSelect" class="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition duration-150"></select>
-                    <select id="headerParishSelect" class="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition duration-150"></select>
+                    <select id="headerChurchSelect" class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:ring-blue-500/30 transition duration-150"></select>
+                    <select id="headerParishSelect" class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:ring-blue-500/30 transition duration-150"></select>
                 </div>
-                <input type="text" id="memberSearch" placeholder="성함 검색..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200">
-                <select id="sidebarDistrictFilter" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200"><option value="전체">모든 구역</option><option value="581구역">581구역</option><option value="582구역">582구역</option><option value="583구역">583구역</option></select>
-                <select id="sidebarCategoryFilter" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200"><option value="전체">모든 회별</option><option value="봉사회">봉사회</option><option value="어머니회">어머니회</option><option value="청년회">청년회</option><option value="은장회">은장회</option></select>
-                <select id="sidebarStatusFilter" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200">
+                <input type="text" id="memberSearch" placeholder="성함 검색..." class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 transition duration-200">
+                <select id="sidebarDistrictFilter" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-200 transition duration-200"><option value="전체">모든 구역</option><option value="581구역">581구역</option><option value="582구역">582구역</option><option value="583구역">583구역</option></select>
+                <select id="sidebarCategoryFilter" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-200 transition duration-200"><option value="전체">모든 회별</option><option value="봉사회">봉사회</option><option value="어머니회">어머니회</option><option value="청년회">청년회</option><option value="은장회">은장회</option></select>
+                <select id="sidebarStatusFilter" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-200 transition duration-200">
                     <option value="active" selected>교제 나옴</option>
                     <option value="inactive">교제 안나옴</option>
                     <option value="all">전체 상태</option>
                 </select>
-                <select id="sidebarMaritalFilter" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition duration-200">
+                <select id="sidebarMaritalFilter" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-200 transition duration-200">
                     <option value="전체">전체 선택</option>
                     <option value="기혼">기혼</option>
                     <option value="미혼_미선택">미혼/미선택</option>
                 </select>
             </div>
-            <div id="memberList" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50 no-scrollbar"></div>
-            <div class="p-3 border-t border-slate-100 bg-white">
+            <div id="memberList" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50 dark:bg-[#0F172A]/40 no-scrollbar"></div>
+            <div class="p-3 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-[#131B2E]">
                 <button id="openAddMemberModal" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2.5 rounded-xl font-black text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">새 성도 등록</button>
             </div>
         </aside>
 
         <!-- Main Calendar -->
-        <section class="flex-1 flex flex-col bg-white overflow-y-auto relative no-scrollbar">
+        <section class="flex-1 flex flex-col bg-white dark:bg-[#0F172A] overflow-y-auto relative no-scrollbar">
             <div id="calendar" class="flex-1 p-2 md:p-4"></div>
 
             <!-- Right Detail Panel -->
-            <div id="meetingPanelsContainer" class="absolute inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-slate-200/80 hidden">
+            <div id="meetingPanelsContainer" class="absolute inset-y-0 right-0 w-full md:w-[450px] bg-white dark:bg-[#131B2E] shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-slate-200/80 dark:border-slate-800/80 hidden">
                 <div id="meetingDetailPanel" class="flex-1 flex flex-col h-full min-h-0 overflow-hidden hidden">
                     <div class="p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white shadow-md">
                         <div class="flex justify-between items-start">
@@ -391,8 +488,8 @@
                         </div>
                         <p id="detailDate" class="text-blue-200/90 font-bold text-xs mt-1"></p>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30" id="detailContent"></div>
-                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 border-t border-slate-100 flex gap-2"><button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button></div>
+                    <div class="flex-1 overflow-y-auto p-5 md:p-6 no-scrollbar bg-slate-50/30 dark:bg-[#0B0F19]/40" id="detailContent"></div>
+                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E]/90 border-t border-slate-100 dark:border-slate-800/80 flex gap-2"><button id="editMeetingDetailBtn" class="flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-3 rounded-xl font-bold text-sm shadow-md">기록 수정</button></div>
                 </div>
 
                 <!-- Add/Edit Meeting Panel -->
@@ -401,24 +498,24 @@
                         <h3 id="modalTitle" class="font-black text-sm md:text-base">새 모임 만들기</h3>
                         <button id="closeModal" class="text-slate-400 hover:text-white transition-colors duration-150"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-slate-50/20">
+                    <div class="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-slate-50/20 dark:bg-[#0B0F19]/60">
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">모임 명칭</label><input type="text" id="meetingTitle" class="w-full border-b border-slate-300 focus:border-blue-500 bg-transparent outline-none py-1.5 text-base md:text-lg font-black transition-colors" placeholder="예: 581구역모임"></div>
+                            <div class="col-span-2"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">모임 명칭</label><input type="text" id="meetingTitle" class="w-full border-b border-slate-300 dark:border-slate-700/60 focus:border-blue-500 bg-transparent outline-none py-1.5 text-base md:text-lg font-black transition-colors dark:text-slate-100 dark:placeholder-slate-500" placeholder="예: 581구역모임"></div>
                             <div>
                                 <label id="meetingDateLabel" class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">날짜</label>
-                                <input type="date" id="meetingDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                <input type="date" id="meetingDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                             </div>
-                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="상담">개인상담</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
+                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="상담">개인상담</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
                             <div id="sermonTagsField" class="col-span-2 hidden">
                                 <label class="text-[10px] font-black text-slate-450 block mb-1.5 uppercase tracking-wider">설교 구분 태그</label>
                                 <div class="flex flex-wrap gap-1.5" id="sermonTagsList">
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="청년회토요교제">#청년회토요교제</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="교회학교공과">#교회학교공과</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="시설부">#시설부</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="직장인모임">#직장인모임</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="새신자말씀">#새신자말씀</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="새신자부봉사자말씀">#새신자부봉사자말씀</button>
-                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-xs font-bold border border-slate-200 transition duration-150 cursor-pointer" data-value="직접입력">#직접입력</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="청년회토요교제">#청년회토요교제</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="교회학교공과">#교회학교공과</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="시설부">#시설부</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="직장인모임">#직장인모임</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="새신자말씀">#새신자말씀</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="새신자부봉사자말씀">#새신자부봉사자말씀</button>
+                                    <button type="button" class="sermon-tag px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700/60 transition duration-150 cursor-pointer" data-value="직접입력">#직접입력</button>
                                 </div>
                             </div>
                             <div>
@@ -428,11 +525,11 @@
                                         <input type="checkbox" id="isAllDayEvent" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500/25 border-slate-300"> 종일
                                     </label>
                                 </div>
-                                <input type="time" id="meetingStartTime" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                <input type="time" id="meetingStartTime" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                             </div>
                             <div id="meetingEndTimeField">
                                 <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">종료 시간</label>
-                                <input type="time" id="meetingEndTime" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                <input type="time" id="meetingEndTime" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                             </div>
                             <div id="meetingEndDateField" class="hidden col-span-2">
                                 <div class="flex justify-between items-center mb-1">
@@ -441,12 +538,12 @@
                                         <input type="checkbox" id="isSameDayEvent" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500/25 border-slate-300"> 당일행사
                                     </label>
                                 </div>
-                                <input type="date" id="meetingEndDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                <input type="date" id="meetingEndDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                             </div>
-                            <div class="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                            <div class="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800/80 pt-3">
                                 <div>
                                     <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">반복 설정</label>
-                                    <select id="meetingRecurrence" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white shadow-sm outline-none cursor-pointer transition duration-150">
+                                    <select id="meetingRecurrence" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                                         <option value="none">반복 안함</option>
                                         <option value="weekly">매주 반복</option>
                                         <option value="monthly">매월 반복</option>
@@ -455,31 +552,31 @@
                                 </div>
                                 <div id="recurrenceEndDateField" class="hidden">
                                     <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">반복 종료일</label>
-                                    <input type="date" id="meetingRecurrenceEndDate" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150">
+                                    <input type="date" id="meetingRecurrenceEndDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                                 </div>
                             </div>
                         </div>
-                        <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label><input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 shadow-sm outline-none transition duration-150" autocomplete="off"></div>
-                        <div id="directSermonTagField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 태그 (직접 입력)</label><input type="text" id="directSermonTag" placeholder="태그를 직접 입력하세요..." class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 shadow-sm outline-none transition duration-150" autocomplete="off"></div>
-                        <div id="memoField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">메모</label><textarea id="meetingMemo" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm h-24 shadow-sm outline-none transition duration-150"></textarea></div>
+                        <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label><input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
+                        <div id="directSermonTagField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 태그 (직접 입력)</label><input type="text" id="directSermonTag" placeholder="태그를 직접 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
+                        <div id="memoField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">메모</label><textarea id="meetingMemo" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm h-24 bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></textarea></div>
                         
                         <!-- 외부설교 시 교회 검색 섹션 -->
                         <div id="churchSearchSection" class="hidden">
                             <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">외부 교회 검색</label>
                             <div class="relative">
-                                <input type="text" id="churchSearchInput" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold shadow-sm outline-none transition duration-150" placeholder="교회 이름 입력 (예: 파주)..." autocomplete="off">
-                                <div id="churchSearchResults" class="absolute left-0 right-0 mt-1.5 max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-50 hidden no-scrollbar"></div>
+                                <input type="text" id="churchSearchInput" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" placeholder="교회 이름 입력 (예: 파주)..." autocomplete="off">
+                                <div id="churchSearchResults" class="absolute left-0 right-0 mt-1.5 max-h-40 overflow-y-auto bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 hidden no-scrollbar"></div>
                             </div>
-                            <div id="selectedChurchContainer" class="mt-2.5 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-xl border border-blue-100 flex items-center justify-between hidden">
+                            <div id="selectedChurchContainer" class="mt-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-3 py-2 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center justify-between hidden">
                                 <span>선택된 교회: <span id="selectedChurchName">없음</span></span>
                                 <button type="button" id="clearSelectedChurch" class="text-red-500 hover:text-red-700 font-bold">✕</button>
                             </div>
                         </div>
 
-                        <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
-                        <div class="mt-60 pt-8 border-t border-slate-200 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">없음</p></div></div>
+                        <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
+                        <div class="mt-60 pt-8 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
                     </div>
-                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 border-t border-slate-100 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 active:scale-[0.98] text-red-500 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 border border-slate-200 py-3 rounded-xl font-bold text-sm text-slate-700 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
+                    <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800/50 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/35 active:scale-[0.98] text-red-500 dark:text-red-400 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700/60 py-3 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
                 </div>
 
         </section>
@@ -788,7 +885,7 @@
     <div id="recurrenceConfirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[200] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 transform scale-95 transition-all duration-200">
             <div class="p-5 text-center">
-                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/25 text-blue-600 flex items-center justify-center mx-auto mb-4">
                     <i class="fa-solid fa-arrows-spin text-xl"></i>
                 </div>
                 <h4 id="recurrenceModalTitle" class="text-base font-extrabold text-slate-800 mb-2">반복 일정 수정</h4>
@@ -796,12 +893,53 @@
                 <div class="space-y-2.5">
                     <button id="recurrenceActionSingle" type="button" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl text-sm transition-all duration-150 active:scale-[0.98]">이 일정만 적용</button>
                     <button id="recurrenceActionAll" type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl text-sm transition-all duration-150 active:scale-[0.98]">전체 일정 적용</button>
-                    <button id="recurrenceActionCancel" type="button" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition-all duration-150">취소</button>
+                    <button id="recurrenceActionCancel" type="button" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-bold py-2.5 rounded-xl text-xs transition-all duration-150">취소</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-sm rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    애플리케이션 설정
+                </h3>
+                <button id="closeSettingsModal" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 dark:text-slate-555 uppercase tracking-wider block mb-2">테마 스타일</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="themeLightBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">☀️</span>
+                            라이트
+                        </button>
+                        <button type="button" id="themeDarkBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">🌙</span>
+                            다크
+                        </button>
+                        <button type="button" id="themeSystemBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">💻</span>
+                            시스템
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-555">Pastoral Ministry Program v1.2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/app.js?v=20260612-1450"></script>
 </body>
 </html>

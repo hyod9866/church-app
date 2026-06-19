@@ -438,8 +438,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('memberCount').textContent = `${members.length}명`;
             memberList.innerHTML = members.map(m => {
                 const age = m.birth_year ? (2026 - parseInt(m.birth_year) + 1) : '-';
-                const ps = (m.position || '').split(',').filter(p=>p.trim()).map(p => `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 py-0.5 rounded border border-yellow-200 font-black ml-0.5">${p}</span>`).join('');
-                return `<div class="p-3 border rounded-xl hover:bg-blue-50 cursor-pointer transition member-item shadow-sm bg-white mb-2" data-id="${m.id}"><div class="flex justify-between items-start mb-1"><div><span class="font-bold text-blue-800 text-[16px]">${m.name}</span><span class="text-[11px] text-gray-400 ml-1">(${age}세)</span>${ps}</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded ${m.bs === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}">${m.bs || '-'}</div></div><div class="text-[12px] text-gray-600 font-bold"><span class="${getDC(m.district)} px-1.5 py-0.5 rounded-full border text-[10px] mr-1">${m.district || ''}</span>${m.category || ''}</div>${m.family_relation ? `<div class="text-[11px] text-gray-400 mt-1 truncate">가족: ${m.family_relation}</div>` : ''}</div>`;
+                const ps = (m.position || '').split(',').filter(p=>p.trim()).map(p => `<span class="bg-yellow-100 dark:bg-yellow-950/25 text-yellow-800 dark:text-yellow-450 text-[9px] px-1 py-0.5 rounded border border-yellow-200 dark:border-yellow-900/35 font-black ml-0.5">${p}</span>`).join('');
+                return `<div class="p-3 border dark:border-slate-850/50 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800/50 cursor-pointer transition member-item shadow-sm bg-white dark:bg-[#131B2E] mb-2" data-id="${m.id}"><div class="flex justify-between items-start mb-1"><div><span class="font-bold text-blue-800 dark:text-blue-400 text-[16px]">${m.name}</span><span class="text-[11px] text-gray-400 dark:text-slate-500 ml-1">(${age}세)</span>${ps}</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded ${m.bs === 'B' ? 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400'}">${m.bs || '-'}</div></div><div class="text-[12px] text-gray-600 dark:text-slate-300 font-bold"><span class="${getDC(m.district)} px-1.5 py-0.5 rounded-full border dark:border-none text-[10px] mr-1">${m.district || ''}</span>${m.category || ''}</div>${m.family_relation ? `<div class="text-[11px] text-gray-400 dark:text-slate-500 mt-1 truncate">가족: ${m.family_relation}</div>` : ''}</div>`;
             }).join('');
             memberList.querySelectorAll('.member-item').forEach(item => item.addEventListener('click', () => openMemberHistoryModal(item.dataset.id)));
         } catch (e) { console.error(e); }
@@ -1715,10 +1715,10 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
 
         if (absentees.length > 0) {
             absentHtml = `
-                <div class="mt-6 pt-4 border-t border-dashed">
-                    <h4 class="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
+                <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
+                    <h4 class="text-[10px] font-black text-gray-400 dark:text-slate-550 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
                     <div class="flex flex-wrap gap-1">
-                        ${absentees.map(m => `<span class="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[11px] font-bold">${m.name}</span>`).join('')}
+                        ${absentees.map(m => `<span class="px-2 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-[11px] font-bold">${m.name}</span>`).join('')}
                     </div>
                 </div>
             `;
@@ -1729,13 +1729,13 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     let testimonyHtml = '';
     if (pWithTestimony.length > 0) {
         testimonyHtml = `
-            <div class="mt-6 pt-4 border-t border-dashed">
-                <h4 class="text-[10px] font-black text-blue-700 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
+            <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
+                <h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
                 <div class="space-y-2">
                     ${pWithTestimony.map(a => `
-                        <div class="p-2 bg-blue-50 rounded border border-blue-100">
-                            <div class="font-bold text-blue-800 text-sm">${a.name}</div>
-                            <p class="text-xs text-gray-700 mt-1 pl-2 border-l-2 border-blue-200">${a.testimony_snapshot}</p>
+                        <div class="p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
+                            <div class="font-bold text-blue-800 dark:text-blue-300 text-sm">${a.name}</div>
+                            <p class="text-xs text-gray-700 dark:text-slate-300 mt-1 pl-2 border-l-2 border-blue-200 dark:border-blue-850">${a.testimony_snapshot}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -1747,35 +1747,35 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     if (typeStr === '교회행사') {
         if (memo && memo.trim()) {
             detailHTML = `
-                <div class="mb-4 bg-teal-50/50 p-4.5 rounded-xl border border-teal-100/70 shadow-sm">
-                    <h4 class="text-[10px] font-black text-teal-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
+                    <h4 class="text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         행사 메모 / 안내 사항
                     </h4>
-                    <p class="text-sm text-slate-800 font-semibold whitespace-pre-wrap leading-relaxed">${memo}</p>
+                    <p class="text-sm text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${memo}</p>
                 </div>
             `;
         } else {
             detailHTML = `
-                <div class="mb-4 bg-slate-50/50 p-4.5 rounded-xl border border-slate-200 text-center">
+                <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
                     <p class="text-xs text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
                 </div>
             `;
         }
     } else {
         detailHTML = `
-            <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
-                <span class="font-bold">총 참석</span>
-                <span class="text-2xl font-black text-blue-600">${p.length}명</span>
+            <div class="mb-4 bg-white dark:bg-[#1e293b] p-4 rounded-xl shadow-sm border dark:border-slate-800/80 flex justify-between items-center">
+                <span class="font-bold dark:text-slate-200">총 참석</span>
+                <span class="text-2xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
             </div>
-            ${church ? `<div class="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-200"><h4 class="text-[10px] font-black text-blue-700">외부 교회</h4><p class="font-bold">${church}</p></div>` : ''}
-            ${sermon ? `<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h4 class="text-[10px] font-black text-yellow-700">설교</h4><p class="font-bold">${sermon}</p></div>` : ''}
-            ${memo ? `<div class="mb-4 bg-slate-50 p-4.5 rounded-xl border border-slate-200"><h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">${memo}</p></div>` : ''}
+            ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold dark:text-slate-200">${church}</p></div>` : ''}
+            ${sermon ? `<div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30"><h4 class="text-[10px] font-black text-yellow-700 dark:text-amber-400">설교</h4><p class="font-bold dark:text-slate-100">${sermon}</p></div>` : ''}
+            ${memo ? `<div class="mb-4 bg-slate-50 dark:bg-[#172237]/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-850/50"><h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${memo}</p></div>` : ''}
             
             <div class="mb-4">
-                <h4 class="text-[10px] font-black text-blue-600 mb-2 uppercase tracking-wider">참석자</h4>
+                <h4 class="text-[10px] font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
                 <div class="flex flex-wrap gap-1">
-                    ${p.map(a => `<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[11px] font-bold">${a.name}</span>`).join('')}
+                    ${p.map(a => `<span class="px-2 py-1 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-[11px] font-bold">${a.name}</span>`).join('')}
                 </div>
             </div>
 
@@ -2488,7 +2488,7 @@ document.getElementById('closeExtraMemberModal').addEventListener('click', () =>
 document.getElementById('extraMemberSearchInput').addEventListener('input', async (e) => {
     const q = e.target.value.trim(); if (q.length < 1) return;
     const res = await fetch(`/api/members/search?q=${encodeURIComponent(q)}&status=active`); const ms = await res.json();
-    document.getElementById('extraSearchResults').innerHTML = ms.map(m => `<div class="p-3 bg-white border rounded hover:bg-blue-50 cursor-pointer font-bold" onclick="addExtraAttendee(${m.id}, '${m.name}', '${m.district}')">${m.name} (${m.district})</div>`).join('');
+    document.getElementById('extraSearchResults').innerHTML = ms.map(m => `<div class="p-3 bg-white dark:bg-slate-800 border dark:border-slate-700/80 rounded hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer font-bold dark:text-slate-200" onclick="addExtraAttendee(${m.id}, '${m.name}', '${m.district}')">${m.name} (${m.district})</div>`).join('');
 });
 window.addExtraAttendee = (id, name, district) => {
     if (!extraAttendees.some(x => x.id === id)) { extraAttendees.push({ id, name, district, is_present: true, testimony_snapshot: '' }); renderExtras(); }

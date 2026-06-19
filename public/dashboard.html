@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>연간 출석 대시보드 - Pastoral Ministry Program</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+        // Prevent flickering
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .sticky-col {
@@ -106,62 +121,201 @@
         .overflow-y-auto {
             -webkit-overflow-scrolling: touch;
         }
+        
+        /* 다크모드 기본 배경 및 레이아웃 */
+        .dark body {
+            background-color: #0B0F19 !important;
+            color: #f1f5f9 !important;
+        }
+        .dark header .bg-blue-700 {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark #toggleSidebar {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+        .dark select, .dark input {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+        .dark select option {
+            background-color: #131B2E !important;
+            color: #cbd5e1 !important;
+        }
+        .dark #selectAllMeetingTypes, .dark #deselectAllMeetingTypes {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+            color: #94a3b8 !important;
+        }
+        .dark #selectAllMeetingTypes:hover, .dark #deselectAllMeetingTypes:hover {
+            color: #f1f5f9 !important;
+            background-color: #1e293b !important;
+        }
+        .dark .bg-white {
+            background-color: #131B2E !important;
+        }
+        .dark .text-gray-900 {
+            color: #cbd5e1 !important;
+        }
+        .dark .text-gray-550, .dark .text-gray-500, .dark .text-gray-400 {
+            color: #94a3b8 !important;
+        }
+        .dark .text-blue-600 {
+            color: #60a5fa !important;
+        }
+        
+        /* 미팅타입 칩 버튼 다크모드 */
+        .dark .meeting-type-checkbox:checked + .meeting-type-chip {
+            background-color: #1e293b !important;
+            color: #60a5fa !important;
+            border-color: #3b82f6 !important;
+        }
+        .dark .meeting-type-checkbox:not(:checked) + .meeting-type-chip {
+            background-color: rgba(11, 15, 25, 0.4) !important;
+            color: #64748b !important;
+            border-color: #1e293b !important;
+        }
+        
+        /* 사이드바 다크모드 */
+        .dark aside {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark aside h2 {
+            color: #f1f5f9 !important;
+        }
+        
+        /* 테이블 스티키 컬럼/헤더 다크모드 오버라이드 (핵심) */
+        .dark .sticky-col {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+        .dark .sticky-header-1 {
+            background-color: #172237 !important;
+            border-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        .dark .sticky-header-2 {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+        .dark .sticky-both {
+            background-color: #172237 !important;
+            border-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        .dark .dist-num {
+            color: #60a5fa !important;
+        }
+        .dark .border-gray-200, .dark .border-gray-100, .dark .border-slate-200 {
+            border-color: #1e293b !important;
+        }
+        .dark table th, .dark table td {
+            border-color: #1e293b !important;
+            color: #94a3b8 !important;
+        }
+        .dark tbody tr:hover td {
+            background-color: rgba(30, 41, 59, 0.4) !important;
+        }
+        .dark tbody tr:hover .sticky-col {
+            background-color: #172237 !important;
+        }
+        
+        /* 출석 뱃지 */
+        .dark .rate-high { background-color: rgba(16, 185, 129, 0.2) !important; color: #34d399 !important; }
+        .dark .rate-mid { background-color: rgba(245, 158, 11, 0.2) !important; color: #fbbf24 !important; }
+        .dark .rate-low { background-color: rgba(239, 68, 68, 0.2) !important; color: #f87171 !important; }
+        
+        /* 모달 다크모드 */
+        .dark #testimonyModal .bg-white {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        .dark #testimonyModal .bg-amber-50\/30 {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+        }
+        .dark #testimonyModal .text-slate-800 {
+            color: #cbd5e1 !important;
+        }
+        .dark #testimonyModal .text-slate-700 {
+            color: #cbd5e1 !important;
+        }
+        .dark #testimonyModal .bg-slate-100 {
+            background-color: #0B0F19 !important;
+            color: #94a3b8 !important;
+        }
+        .dark #testimonyModal .border-slate-100 {
+            border-color: #1e293b !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
     <!-- Header -->
-    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white flex flex-col flex-shrink-0">
+    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 dark:from-slate-900 dark:via-[#0F172A] dark:to-slate-900 text-white flex flex-col flex-shrink-0 border-b border-blue-950/20 dark:border-slate-800/60 shadow-lg dark:shadow-none">
         <!-- Main Header Row -->
-        <div class="p-3 md:p-4 shadow-md flex justify-between items-center z-10 relative">
+        <div class="p-3 md:p-4 shadow-md dark:shadow-none flex justify-between items-center z-10 relative">
             <div>
                 <a href="/" class="hover:opacity-80 transition-opacity duration-150">
                     <h1 class="text-base md:text-xl font-black truncate mr-2">
                         <span class="md:hidden">P.M.P</span>
                         <span class="hidden md:flex flex-col text-left leading-none">
                             <span class="text-sm md:text-base font-black tracking-wider">Pastoral Ministry</span>
-                            <span class="text-[10px] text-blue-200/90 font-bold mt-0.5">Program</span>
+                            <span class="text-[10px] text-blue-200/90 dark:text-slate-400 font-bold mt-0.5">Program</span>
                         </span>
                     </h1>
                 </a>
             </div>
-            <div class="flex gap-2 overflow-x-auto no-scrollbar">
-                <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 min-w-0">
+            <div class="flex gap-2 overflow-x-auto no-scrollbar items-center pr-1">
+                <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5 animate-none">
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
                     교회/교구/구역 현황
                 </a>
                 <!-- 성도 현황 -->
-                <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     성도 현황
                 </a>
                 <!-- 출석 현황 (Active) -->
-                <a href="/dashboard.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <a href="/dashboard.html" class="bg-white text-blue-700 dark:bg-blue-600 dark:text-white dark:border-blue-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                     출석 현황
                 </a>
                 <!-- 심방 현황 -->
-                <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                     심방 현황
                 </a>
                 <!-- 설교 현황 -->
-                <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     설교 현황
                 </a>
             </div>
+            <!-- 설정 버튼 (톱니바퀴) -->
+            <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 p-2 rounded-lg transition whitespace-nowrap flex items-center justify-center shrink-0 cursor-pointer ml-1" title="설정">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
         </div>
         
         <!-- Filter Bar -->
-        <div class="bg-blue-700 px-3 py-2 md:px-4 flex flex-wrap gap-3 items-center text-sm border-t border-blue-600 shadow-sm z-0 relative">
-            <button id="toggleSidebar" class="xl:hidden bg-blue-800 hover:bg-blue-900 border border-blue-500 active:scale-95 transition-all text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shadow-sm">
-                <svg class="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+        <div class="bg-blue-700 dark:bg-slate-900 border-t border-blue-600 dark:border-slate-800/80 px-3 py-2 md:px-4 flex flex-wrap gap-3 items-center text-sm shadow-sm z-0 relative">
+            <button id="toggleSidebar" class="xl:hidden bg-blue-800 hover:bg-blue-900 dark:bg-slate-800 dark:hover:bg-slate-700 border border-blue-500 dark:border-slate-700/50 active:scale-95 transition-all text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shadow-sm">
+                <svg class="w-4 h-4 text-blue-300 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                 추이 차트 보기
             </button>
-            <select id="yearSelect" class="bg-blue-800 text-white border border-blue-500 rounded-lg px-2 py-1.5 font-bold focus:outline-none">
+            <select id="yearSelect" class="bg-blue-800 dark:bg-slate-800 dark:border-slate-700/50 text-white border border-blue-500 dark:border-slate-700/50 rounded-lg px-2 py-1.5 font-bold focus:outline-none transition duration-200">
                 <!-- Years will be populated dynamically -->
             </select>
-            <p id="dashboardRange" class="text-xs text-blue-200 hidden md:block mr-2">작년 12월 ~ 올해 11월 기준</p>
+            <p id="dashboardRange" class="text-xs text-blue-200 dark:text-slate-400 hidden md:block mr-2">작년 12월 ~ 올해 11월 기준</p>
             <input type="text" id="memberSearch" placeholder="이름 검색..." class="text-gray-900 border-none rounded-lg px-3 py-1.5 w-32 md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-400">
             
             <div class="flex items-center gap-2">
@@ -331,6 +485,48 @@
         </div>
     </div>
 
+    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-sm rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    애플리케이션 설정
+                </h3>
+                <button id="closeSettingsModal" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider block mb-2">테마 스타일</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="themeLightBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">☀️</span>
+                            라이트
+                        </button>
+                        <button type="button" id="themeDarkBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">🌙</span>
+                            다크
+                        </button>
+                        <button type="button" id="themeSystemBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">💻</span>
+                            시스템
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-550">Pastoral Ministry Program v1.2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/dashboard.js"></script>
 </body>
 </html>

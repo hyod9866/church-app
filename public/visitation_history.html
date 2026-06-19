@@ -5,45 +5,388 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>심방 현황 관리</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+        // Prevent flickering
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 다크모드 기본 배경 및 텍스트 */
+        .dark body {
+            background-color: #0B0F19 !important;
+            color: #f1f5f9 !important;
+        }
+        .dark nav {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark nav h2 {
+            color: #f1f5f9 !important;
+        }
+        .dark main {
+            background-color: #0B0F19 !important;
+        }
+        .dark select {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+        .dark select option {
+            background-color: #131B2E !important;
+            color: #cbd5e1 !important;
+        }
+        .dark .bg-white.p-4.rounded-xl.shadow-sm {
+            background-color: #131B2E !important;
+            border: 1px solid #1e293b !important;
+            box-shadow: none !important;
+        }
+        
+        /* 심방 리스트 카드 다크모드 */
+        .dark #visitationList > div {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark #visitationList > div:hover {
+            border-color: #3b82f6 !important;
+        }
+        .dark #visitationList .text-blue-600 {
+            color: #60a5fa !important;
+        }
+        .dark #visitationList .text-blue-600:hover {
+            color: #93c5fd !important;
+        }
+        .dark #visitationList .text-gray-400 {
+            color: #64748b !important;
+        }
+        .dark #visitationList .text-gray-500 {
+            color: #94a3b8 !important;
+        }
+        .dark #visitationList .bg-gray-100 {
+            background-color: #0B0F19 !important;
+            color: #94a3b8 !important;
+        }
+        .dark #visitationList .bg-gray-50 {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+        }
+        .dark #visitationList .text-gray-700 {
+            color: #cbd5e1 !important;
+        }
+        .dark #visitationList .bg-blue-50 {
+            background-color: rgba(30, 58, 138, 0.25) !important;
+            color: #60a5fa !important;
+        }
+        .dark #visitationList .bg-blue-50:hover {
+            background-color: #3b82f6 !important;
+            color: white !important;
+        }
+        .dark #visitationList .bg-purple-50 {
+            background-color: rgba(147, 51, 234, 0.2) !important;
+            color: #c084fc !important;
+        }
+        .dark #visitationList .bg-purple-50:hover {
+            background-color: #a855f7 !important;
+            color: white !important;
+        }
+        .dark #visitationList .bg-indigo-50 {
+            background-color: rgba(79, 70, 229, 0.2) !important;
+            color: #818cf8 !important;
+            border-color: rgba(79, 70, 229, 0.1) !important;
+        }
+        .dark #visitationList .bg-teal-50 {
+            background-color: rgba(13, 148, 136, 0.2) !important;
+            color: #2dd4bf !important;
+            border-color: rgba(13, 148, 136, 0.1) !important;
+        }
+        
+        /* 상세 모달 다크모드 */
+        .dark #memberHistoryModal .bg-white {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        .dark #memberHistoryModal .bg-slate-50\/50 {
+            background-color: #0B0F19 !important;
+        }
+        .dark #memberBasicInfo {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark #memberBasicInfo .text-gray-800 {
+            color: #cbd5e1 !important;
+        }
+        .dark #memberBasicInfo .text-gray-400 {
+            color: #64748b !important;
+        }
+        
+        /* 모달 탭 */
+        .dark .member-tab-btn {
+            color: #94a3b8 !important;
+        }
+        .dark .member-tab-btn.active {
+            color: #60a5fa !important;
+            border-color: #60a5fa !important;
+        }
+        .dark .border-slate-250, .dark .border-slate-200 {
+            border-color: #1e293b !important;
+        }
+        
+        /* 모달 테이블 */
+        .dark #memberHistoryModal table {
+            background-color: #131B2E !important;
+        }
+        .dark #memberHistoryModal thead {
+            background-color: #172237 !important;
+            border-color: #1e293b !important;
+        }
+        .dark #memberHistoryModal thead th {
+            color: #cbd5e1 !important;
+            border-color: #1e293b !important;
+        }
+        .dark #memberHistoryModal tbody tr {
+            border-color: #1e293b !important;
+        }
+        .dark #memberHistoryModal tbody td {
+            color: #94a3b8 !important;
+            border-color: #1e293b !important;
+        }
+        .dark #memberHistoryModal tbody td.border-r {
+            border-right-color: #1e293b !important;
+        }
+        
+        /* 심방 기록 카드 */
+        .dark #visitationMemoList > div {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark #timelineContainer {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        .dark .text-slate-850, .dark .text-slate-655 {
+            color: #cbd5e1 !important;
+        }
+        .dark .bg-slate-50 {
+            background-color: #0B0F19 !important;
+            border-color: #1e293b !important;
+        }
+        
+        /* 상세 모달 다크모드 가독성 극대화 */
+        .dark #memberHistoryModal .bg-white {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        .dark #memberHistoryModal .bg-slate-50\/50 {
+            background-color: #0B0F19 !important;
+        }
+        .dark #memberBasicInfo {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+        }
+        
+        .dark #memberBasicInfo h3 {
+            color: #f8fafc !important;
+        }
+        .dark #memberBasicInfo .text-slate-400 {
+            color: #cbd5e1 !important;
+            font-weight: 800 !important;
+        }
+        .dark #memberBasicInfo .bg-slate-100\/70 {
+            background-color: #1e293b !important;
+        }
+        
+        /* 모달 내 각각의 정보 카드 블록 (구원일, 연락처, 주소, 가족 등) */
+        .dark #memberBasicInfo .bg-slate-50\/50 {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        .dark #memberBasicInfo .bg-slate-50\/50 .text-slate-400 {
+            color: #94a3b8 !important;
+            font-weight: 800 !important;
+        }
+        .dark #memberBasicInfo .bg-slate-50\/50 .text-slate-700 {
+            color: #f8fafc !important;
+        }
+        .dark #memberBasicInfo .bg-slate-50\/50 span.truncate {
+            color: #f8fafc !important;
+        }
+        .dark #memberBasicInfo .bg-slate-50\/50 span.truncate:hover {
+            color: #60a5fa !important;
+        }
+        .dark #memberBasicInfo .bg-slate-50\/50 .text-[9px].text-slate-400 {
+            color: #94a3b8 !important;
+        }
+        
+        /* 봉사 내역 카드 */
+        .dark #memberBasicInfo .bg-blue-50\/40 {
+            background-color: rgba(30, 58, 138, 0.25) !important;
+            border-color: rgba(59, 130, 246, 0.3) !important;
+        }
+        .dark #memberBasicInfo .bg-blue-50\/40 .text-blue-700 {
+            color: #93c5fd !important;
+        }
+        .dark #memberBasicInfo .bg-blue-50\/40 .text-blue-900 {
+            color: #60a5fa !important;
+        }
+        
+        /* 간증 및 메모 카드 */
+        .dark #memberBasicInfo .bg-yellow-50\/30 {
+            background-color: rgba(245, 158, 11, 0.1) !important;
+            border-color: rgba(245, 158, 11, 0.25) !important;
+        }
+        .dark #memberBasicInfo .bg-yellow-50\/30 .text-yellow-700 {
+            color: #fde047 !important;
+        }
+        .dark #memberBasicInfo #testimonyViewMode {
+            color: #cbd5e1 !important;
+        }
+        
+        /* 가족관계 뱃지 링크 */
+        .dark #memberBasicInfo .bg-blue-50.text-blue-700 {
+            background-color: #1e293b !important;
+            color: #60a5fa !important;
+            border-color: #3b82f6 !important;
+        }
+        .dark #memberBasicInfo .bg-slate-100.text-slate-700 {
+            background-color: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
+        }
+        
+        /* 출석 탭 내 필터 카드 버튼 */
+        .dark .att-filter-card {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+            color: #cbd5e1 !important;
+        }
+        .dark .att-filter-card:hover {
+            border-color: #475569 !important;
+            background-color: #243249 !important;
+        }
+        .dark .att-filter-card.border-blue-500 {
+            border-color: #3b82f6 !important;
+            background-color: rgba(30, 58, 138, 0.3) !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        }
+        .dark .att-filter-card .text-slate-400 {
+            color: #94a3b8 !important;
+        }
+        .dark .att-filter-card .text-slate-800 {
+            color: #f8fafc !important;
+        }
+        .dark .att-filter-card .text-blue-600 {
+            color: #60a5fa !important;
+        }
+        .dark .att-filter-card .text-slate-550, .dark .att-filter-card .text-slate-500 {
+            color: #cbd5e1 !important;
+        }
+        .dark #attListTitle {
+            color: #f8fafc !important;
+        }
+        .dark #memberAttendanceStats {
+            background-color: rgba(30, 58, 138, 0.3) !important;
+            border-color: rgba(59, 130, 246, 0.4) !important;
+            color: #60a5fa !important;
+        }
+        
+        /* 가족 관계 선택 모달 다크모드 가독성 */
+        .dark #familyRelationSelectModal .bg-white {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        .dark #familyRelationSelectModal .bg-blue-50 {
+            background-color: rgba(37, 99, 235, 0.15) !important;
+            border-color: rgba(37, 99, 235, 0.3) !important;
+            color: #60a5fa !important;
+        }
+        .dark #familyRelationSelectModal .bg-blue-50:hover {
+            background-color: rgba(37, 99, 235, 0.25) !important;
+        }
+        .dark #familyRelationSelectModal .bg-emerald-50 {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+            border-color: rgba(16, 185, 129, 0.3) !important;
+            color: #34d399 !important;
+        }
+        .dark #familyRelationSelectModal .bg-emerald-50:hover {
+            background-color: rgba(16, 185, 129, 0.25) !important;
+        }
+        .dark #familyRelationSelectModal .bg-amber-50 {
+            background-color: rgba(245, 158, 11, 0.15) !important;
+            border-color: rgba(245, 158, 11, 0.3) !important;
+            color: #fbbf24 !important;
+        }
+        .dark #familyRelationSelectModal .bg-amber-50:hover {
+            background-color: rgba(245, 158, 11, 0.25) !important;
+        }
+        .dark #familyRelationSelectModal .bg-slate-50 {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+            color: #cbd5e1 !important;
+        }
+        .dark #familyRelationSelectModal .bg-slate-50:hover {
+            background-color: #243249 !important;
+        }
+        .dark #familyRelationSelectModal .text-slate-450 {
+            color: #94a3b8 !important;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header -->
-    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white p-3 md:p-4 shadow-md flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 dark:from-slate-900 dark:via-[#0F172A] dark:to-slate-900 text-white p-3 md:p-4 shadow-md dark:shadow-none border-b border-blue-950/20 dark:border-slate-800/60 flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
         <a href="/" class="hover:opacity-80 transition-opacity duration-150">
             <h1 class="text-base md:text-xl font-black truncate mr-2">
                 <span class="md:hidden">P.M.P</span>
                 <span class="hidden md:flex flex-col text-left leading-none">
                     <span class="text-sm md:text-base font-black tracking-wider">Pastoral Ministry</span>
-                    <span class="text-[10px] text-blue-200/90 font-bold mt-0.5">Program</span>
+                    <span class="text-[10px] text-blue-200/90 dark:text-slate-400 font-bold mt-0.5">Program</span>
                 </span>
             </h1>
         </a>
-        <div class="flex gap-2 overflow-x-auto no-scrollbar">
-            <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
-                교회/교구/구역 현황
-            </a>
-            <!-- 성도 현황 -->
-            <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                성도 현황
-            </a>
-            <!-- 출석 현황 -->
-            <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                출석 현황
-            </a>
-            <!-- 심방 현황 (Active) -->
-            <a href="/visitation_history.html" class="bg-white text-blue-700 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-                심방 현황
-            </a>
-            <!-- 설교 현황 -->
-            <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                설교 현황
-            </a>
+        <div class="flex items-center gap-1.5 min-w-0">
+            <div class="flex gap-2 overflow-x-auto no-scrollbar items-center pr-1">
+                <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                    교회/교구/구역 현황
+                </a>
+                <!-- 성도 현황 -->
+                <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    성도 현황
+                </a>
+                <!-- 출석 현황 -->
+                <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    출석 현황
+                </a>
+                <!-- 심방 현황 (Active) -->
+                <a href="/visitation_history.html" class="bg-white text-blue-700 dark:bg-blue-600 dark:text-white dark:border-blue-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    심방 현황
+                </a>
+                <!-- 설교 현황 -->
+                <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    설교 현황
+                </a>
+            </div>
+            <!-- 설정 버튼 (톱니바퀴) -->
+            <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 p-2 rounded-lg transition whitespace-nowrap flex items-center justify-center shrink-0 cursor-pointer ml-1" title="설정">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
         </div>
     </header>
 
@@ -176,6 +519,48 @@
         </div>
     </div>
 
+    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-sm rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    애플리케이션 설정
+                </h3>
+                <button id="closeSettingsModal" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider block mb-2">테마 스타일</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="themeLightBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">☀️</span>
+                            라이트
+                        </button>
+                        <button type="button" id="themeDarkBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">🌙</span>
+                            다크
+                        </button>
+                        <button type="button" id="themeSystemBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">💻</span>
+                            시스템
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-550">Pastoral Ministry Program v1.2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/visitation_history.js"></script>
 </body>
 </html>
