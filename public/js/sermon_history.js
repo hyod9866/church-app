@@ -27,16 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isUpcoming = (meeting) => {
         const now = new Date();
-        const meetingDate = new Date(meeting.date);
+        const [year, month, day] = meeting.date.split('-');
         
-        // If there is an end time or start time, parse it
+        let meetingDate;
         let timeStr = meeting.end_time || meeting.start_time;
         if (timeStr) {
             const [hours, minutes] = timeStr.split(':');
-            meetingDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+            meetingDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
         } else {
-            // If no time is specified, consider it upcoming until the end of the day
-            meetingDate.setHours(23, 59, 59, 999);
+            meetingDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), 23, 59, 59, 999);
         }
         
         return meetingDate >= now;
