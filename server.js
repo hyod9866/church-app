@@ -146,7 +146,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-app.use(express.static(dirname(fileURLToPath(import.meta.url)) + '/public'));
+app.use(express.static(dirname(fileURLToPath(import.meta.url)) + '/public', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // --- Family Link Sync Engine ---
 function getSymmetricRelation(relation) {

@@ -25,12 +25,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'bg-sky-50 text-sky-700 border-sky-250/50';
     };
 
-    const isUpcoming = (dateStr) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const meetingDate = new Date(dateStr);
-        meetingDate.setHours(0, 0, 0, 0);
-        return meetingDate >= today;
+    const isUpcoming = (meeting) => {
+        const now = new Date();
+        const meetingDate = new Date(meeting.date);
+        
+        // If there is an end time or start time, parse it
+        let timeStr = meeting.end_time || meeting.start_time;
+        if (timeStr) {
+            const [hours, minutes] = timeStr.split(':');
+            meetingDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+        } else {
+            // If no time is specified, consider it upcoming until the end of the day
+            meetingDate.setHours(23, 59, 59, 999);
+        }
+        
+        return meetingDate >= now;
     };
 
     const isLargeScreen = () => window.innerWidth >= 1024;
@@ -56,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentMonth = today.getMonth();
 
         const thisMonthSermons = allSermons.filter(m => {
-            if (isUpcoming(m.date)) return false;
+            if (isUpcoming(m)) return false;
             const mDate = new Date(m.date);
             return mDate.getFullYear() === currentYear && mDate.getMonth() === currentMonth;
         }).length;
 
-        const upcomingCount = allSermons.filter(m => isUpcoming(m.date)).length;
+        const upcomingCount = allSermons.filter(m => isUpcoming(m)).length;
         const totalCount = allSermons.length;
 
         const typeCounts = allSermons.reduce((acc, m) => {
@@ -212,8 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const upcoming = sermons.filter(s => isUpcoming(s.date)).sort((a, b) => new Date(a.date) - new Date(b.date));
-        const completed = sermons.filter(s => !isUpcoming(s.date)).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const upcoming = sermons.filter(s => isUpcoming(s)).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const completed = sermons.filter(s => !isUpcoming(s)).sort((a, b) => new Date(b.date) - new Date(a.date));
 
         let html = '';
 
