@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
 
             allSermons = meetings.filter(m => {
-                if (m.type === '구원기념일' || m.type === '교회행사') return false;
+                if (m.type === '구원기념일' || m.type === '교회행사' || m.type === '심방' || m.type === '상담' || m.type === '개인상담') return false;
                 if (m.date >= today) return true;
                 return m.type === '설교' || m.type === '외부설교' || (m.sermon_title && m.sermon_title.trim() !== '');
             });
