@@ -97,14 +97,17 @@ async function fetchStats() {
 
         // Render Word Cloud
         if (data.topKeywords.length > 0) {
-            anychart.onDocumentReady(function() {
+            const container = document.getElementById("wordCloudContainer");
+            if (container) {
+                container.innerHTML = '';
                 var chart = anychart.tagCloud(data.topKeywords.map(k => ({x: k.text, value: k.weight})));
                 chart.angles([0, -45, 90]);
                 chart.colorRange(false);
                 chart.background().fill("transparent");
+                chart.palette(['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1']);
                 chart.container("wordCloudContainer");
                 chart.draw();
-            });
+            }
         }
 
         // Render Bible Pie Chart
