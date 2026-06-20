@@ -563,6 +563,10 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.editBtn.className = 'flex-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
         }
         if (elements.cancelBtn) elements.cancelBtn.classList.add('hidden');
+        if (window._editBibleDocClickListener) {
+            document.removeEventListener('click', window._editBibleDocClickListener);
+            window._editBibleDocClickListener = null;
+        }
     }
 
     function bindEditButtons() {
@@ -601,12 +605,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const sermonTitleArea = document.getElementById('sermonTitleArea');
                     if (sermonTitleArea) {
                         const bibleOptions = ['창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기', '사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야', '에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가', '에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔', '하박국', '스바냐', '학개', '스가랴', '말라기', '마태복음', '마가복음', '누가복음', '요한복음', '사도행전', '로마서', '고린도전서', '고린도후서', '갈라디아서', '에베소서', '빌립보서', '골로새서', '데살로니가전서', '데살로니가후서', '디모데전서', '디모데후서', '디도서', '빌레몬서', '히브리서', '야고보서', '베드로전서', '베드로후서', '요한1서', '요한2서', '요한3서', '유다서', '요한계시록'];
-                        
-                        let bibleSelectOptions = '<option value="">선택 안함</option>';
-                        bibleOptions.forEach(b => {
-                            const selected = (meeting.sermon_bible === b) ? 'selected' : '';
-                            bibleSelectOptions += `<option value="${b}" ${selected}>${b}</option>`;
-                        });
 
                         sermonTitleArea.innerHTML = `
                             <div class="space-y-3">
@@ -615,11 +613,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <input type="text" id="editSermonTitle" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <div>
+                                    <div class="relative">
                                         <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">본문 성경</label>
-                                        <select id="editSermonBible" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition">
-                                            ${bibleSelectOptions}
-                                        </select>
+                                        <input type="text" id="editSermonBible" placeholder="성경 검색 (예: 창세, 마태)..." class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" autocomplete="off" value="${meeting.sermon_bible || ''}">
+                                        <div id="editSermonBibleResults" class="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg z-50 hidden no-scrollbar"></div>
                                     </div>
                                     <div>
                                         <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그</label>
@@ -628,6 +625,94 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         `;
+
+                        // Autocomplete logic for editSermonBible
+                        const bibleInput = document.getElementById('editSermonBible');
+                        const bibleResults = document.getElementById('editSermonBibleResults');
+
+                        if (bibleInput && bibleResults) {
+                            bibleResults.innerHTML = '';
+                            bibleResults.classList.add('hidden');
+
+                            let currentFocus = -1;
+
+                            bibleInput.oninput = () => {
+                                currentFocus = -1;
+                                const val = bibleInput.value.trim().toLowerCase();
+                                if (!val) {
+                                    bibleResults.innerHTML = '';
+                                    bibleResults.classList.add('hidden');
+                                    return;
+                                }
+
+                                const filtered = bibleOptions.filter(b => b.toLowerCase().includes(val));
+                                if (filtered.length === 0) {
+                                    bibleResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+                                    bibleResults.classList.remove('hidden');
+                                    return;
+                                }
+
+                                bibleResults.innerHTML = filtered.map(b => `
+                                    <div class="bible-search-item p-2 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer font-bold text-sm text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800/80" data-name="${b}">
+                                        ${b}
+                                    </div>
+                                `).join('');
+                                bibleResults.classList.remove('hidden');
+
+                                bibleResults.querySelectorAll('.bible-search-item').forEach(item => {
+                                    item.onclick = () => {
+                                        bibleInput.value = item.getAttribute('data-name');
+                                        bibleResults.innerHTML = '';
+                                        bibleResults.classList.add('hidden');
+                                    };
+                                });
+                            };
+
+                            bibleInput.onkeydown = (e) => {
+                                const items = bibleResults.querySelectorAll('.bible-search-item');
+                                if (e.key === 'ArrowDown') {
+                                    currentFocus++;
+                                    addActive(items);
+                                    e.preventDefault();
+                                } else if (e.key === 'ArrowUp') {
+                                    currentFocus--;
+                                    addActive(items);
+                                    e.preventDefault();
+                                } else if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (currentFocus > -1) {
+                                        if (items && items[currentFocus]) items[currentFocus].click();
+                                    } else if (items.length > 0) {
+                                        items[0].click();
+                                    }
+                                }
+                            };
+
+                            function addActive(items) {
+                                if (!items || items.length === 0) return false;
+                                removeActive(items);
+                                if (currentFocus >= items.length) currentFocus = 0;
+                                if (currentFocus < 0) currentFocus = (items.length - 1);
+                                items[currentFocus].classList.add('bg-blue-100', 'dark:bg-slate-700');
+                            }
+
+                            function removeActive(items) {
+                                for (let i = 0; i < items.length; i++) {
+                                    items[i].classList.remove('bg-blue-100', 'dark:bg-slate-700');
+                                }
+                            }
+
+                            const editBibleDocListener = (e) => {
+                                if (bibleInput && !bibleInput.contains(e.target) && !bibleResults.contains(e.target)) {
+                                    bibleResults.classList.add('hidden');
+                                }
+                            };
+                            if (window._editBibleDocClickListener) {
+                                document.removeEventListener('click', window._editBibleDocClickListener);
+                            }
+                            window._editBibleDocClickListener = editBibleDocListener;
+                            document.addEventListener('click', editBibleDocListener);
+                        }
                     }
 
                     // Convert Church name to Input (if type is 외부설교)
