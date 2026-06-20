@@ -1968,7 +1968,7 @@ app.get('/api/sermon-stats', async (req, res) => {
             let cleanMemo = meeting.memo || '';
             
             if (cleanMemo.startsWith('{')) {
-                const firstLine = cleanMemo.split('\n')[0];
+                const firstLine = cleanMemo.split('\\n')[0];
                 try {
                     if (firstLine.endsWith('}')) {
                         const meta = JSON.parse(firstLine);
