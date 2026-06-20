@@ -1,5 +1,9 @@
 window.myCharts = [];
 
+let currentSermons = [];
+let sortKey = 'date';
+let sortDirection = 'desc'; // 'asc' or 'desc'
+
 document.addEventListener('DOMContentLoaded', async () => {
     await fetchStats();
     await fetchAttendanceCharts();
@@ -16,6 +20,73 @@ const themeObserver = new MutationObserver(() => {
     }
 });
 themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+function renderSermonTable() {
+    const tbody = document.getElementById('sermonLogBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    // Sort
+    const sorted = [...currentSermons].sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        if (sortKey === 'date') {
+            valA = new Date(valA);
+            valB = new Date(valB);
+        } else if (sortKey === 'attendee_count') {
+            valA = Number(valA) || 0;
+            valB = Number(valB) || 0;
+        } else {
+            valA = String(valA || '').toLowerCase();
+            valB = String(valB || '').toLowerCase();
+        }
+        
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    sorted.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-4 py-3">${new Date(s.date).toLocaleDateString()}</td>
+            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">${s.meeting_title || '(모임 제목 없음)'}</td>
+            <td class="px-4 py-3">${s.type}</td>
+            <td class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
+            <td class="px-4 py-3 font-bold text-blue-600 dark:text-blue-400">${s.attendee_count || 0}명</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update icons
+    const keys = ['date', 'meeting_title', 'type', 'sermon_title', 'attendee_count'];
+    keys.forEach(k => {
+        const icon = document.getElementById(`sort-icon-${k}`);
+        if (icon) {
+            if (k === sortKey) {
+                icon.textContent = sortDirection === 'asc' ? '▲' : '▼';
+                icon.classList.remove('opacity-0', 'text-slate-400', 'dark:text-slate-500');
+                icon.classList.add('text-blue-600', 'dark:text-blue-400');
+            } else {
+                icon.textContent = '▲';
+                icon.classList.add('opacity-0', 'text-slate-400', 'dark:text-slate-500');
+                icon.classList.remove('text-blue-600', 'dark:text-blue-400');
+            }
+        }
+    });
+}
+
+window.sortSermons = function(key) {
+    if (sortKey === key) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortKey = key;
+        sortDirection = 'asc';
+    }
+    renderSermonTable();
+};
 
 async function fetchStats() {
     try {
@@ -74,17 +145,8 @@ async function fetchStats() {
         }
 
         // Render Sermon Log
-        const tbody = document.getElementById('sermonLogBody');
-        tbody.innerHTML = '';
-        data.matchedSermons.slice(0, 20).forEach(s => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="px-4 py-3">${new Date(s.date).toLocaleDateString()}</td>
-                <td class="px-4 py-3">${s.type}</td>
-                <td class="px-4 py-3 font-medium">${s.title}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        currentSermons = data.matchedSermons || [];
+        renderSermonTable();
 
     } catch(e) {
         console.error(e);

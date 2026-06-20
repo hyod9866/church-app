@@ -137,13 +137,40 @@
                 <table class="min-w-full text-sm text-left">
                     <thead class="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-300 font-bold border-b border-gray-100 dark:border-slate-800/60">
                         <tr>
-                            <th class="px-4 py-3">날짜</th>
-                            <th class="px-4 py-3">모임 대상</th>
-                            <th class="px-4 py-3">설교/모임 제목</th>
+                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('date')">
+                                <div class="flex items-center gap-1">
+                                    날짜
+                                    <span id="sort-icon-date" class="text-blue-600 dark:text-blue-400 text-[10px]">▼</span>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('meeting_title')">
+                                <div class="flex items-center gap-1">
+                                    모임 제목
+                                    <span id="sort-icon-meeting_title" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('type')">
+                                <div class="flex items-center gap-1">
+                                    모임 구분
+                                    <span id="sort-icon-type" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('sermon_title')">
+                                <div class="flex items-center gap-1">
+                                    설교 제목
+                                    <span id="sort-icon-sermon_title" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('attendee_count')">
+                                <div class="flex items-center gap-1">
+                                    참석 인원수
+                                    <span id="sort-icon-attendee_count" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="sermonLogBody" class="divide-y divide-gray-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-                        <tr><td colspan="3" class="text-center py-4">로딩 중...</td></tr>
+                        <tr><td colspan="5" class="text-center py-4">로딩 중...</td></tr>
                     </tbody>
                 </table>
             </div>

@@ -1949,7 +1949,7 @@ app.get('/api/sermon-stats', async (req, res) => {
     try {
         const { data: meetings, error } = await supabase
             .from('meetings')
-            .select('date, type, sermon_title, memo')
+            .select('date, title, type, sermon_title, memo, attendee_count')
             .not('sermon_title', 'is', null)
             .neq('sermon_title', '')
             .order('date', { ascending: false })
@@ -1982,10 +1982,10 @@ app.get('/api/sermon-stats', async (req, res) => {
 
             matchedSermons.push({
                 date: meeting.date,
+                meeting_title: meeting.title || '',
                 type: meeting.type,
-                title: title,
-                has_obsidian: false, // Disabled Obsidian
-                path: null
+                sermon_title: title,
+                attendee_count: meeting.attendee_count || 0
             });
 
             // Bible Counting
