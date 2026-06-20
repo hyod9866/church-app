@@ -336,9 +336,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 end_time: info.event.extendedProps.end_time,
                 rrule_type: info.event.extendedProps.rrule_type,
                 rrule_end_date: info.event.extendedProps.rrule_end_date,
-                exdates: info.event.extendedProps.exdates
+                exdates: info.event.extendedProps.exdates,
+                sermon_tags: info.event.extendedProps.sermon_tags,
+                sermon_bible: info.event.extendedProps.sermon_bible
             };
-            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time);
+            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time, info.event.extendedProps.sermon_tags);
         }
     });
     calendar.render();
@@ -1662,7 +1664,7 @@ async function fetchDistricts(parishId) { const res = await fetch(`/api/district
 // Meeting Functions
 let currentMeetingId = null, extraAttendees = [], selectedChurch = '', currentSermonTagsList = [];
 
-async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '') {
+async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '', sermonTags = '') {
     currentMeetingId = id; const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden'); setTimeout(() => { c.classList.remove('translate-x-full'); c.classList.add('translate-x-0'); }, 10);
     document.getElementById('meetingDetailPanel').classList.remove('hidden'); document.getElementById('meetingModal').classList.add('hidden');
@@ -1771,6 +1773,11 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
             </div>
             ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold dark:text-slate-200">${church}</p></div>` : ''}
             ${sermon ? `<div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30"><h4 class="text-[10px] font-black text-yellow-700 dark:text-amber-400">설교</h4><p class="font-bold dark:text-slate-100">${sermon}</p></div>` : ''}
+            ${sermonTags ? `
+                <div class="mb-4 flex flex-wrap gap-1.5">
+                    ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-[10px] font-bold">#${t}</span>`).join('')}
+                </div>
+            ` : ''}
             ${memo ? `<div class="mb-4 bg-slate-50 dark:bg-[#172237]/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-850/50"><h4 class="text-[10px] font-black text-slate-450 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${memo}</p></div>` : ''}
             
             <div class="mb-4">
