@@ -1910,6 +1910,144 @@ app.get('/api/dashboard/attendance', async (req, res) => {
     }
 });
 
+// --- Obsidian Sermon Sync & Analytics ---
+const obsidianVaultPath = 'C:\\Users\\D-kanghyodgeun\\Documents\\KHG';
+
+function scanObsidianDir(dir) {
+    try {
+        const files = fs.readdirSync(dir);
+        let mdFiles = [];
+        for (const file of files) {
+            const fullPath = `${dir}\\${file}`;
+            try {
+                const stat = fs.statSync(fullPath);
+                if (stat.isDirectory()) {
+                    if (!file.startsWith('.')) {
+                        mdFiles = [...mdFiles, ...scanObsidianDir(fullPath)];
+                    }
+                } else if (file.endsWith('.md')) {
+                    mdFiles.push(fullPath);
+                }
+            } catch (e) {}
+        }
+        return mdFiles;
+    } catch (e) {
+        return [];
+    }
+}
+
+app.get('/api/sermon-stats', async (req, res) => {
+    try {
+        // Fetch recent meetings with sermon titles
+        const { data: meetings, error } = await supabase
+            .from('meetings')
+            .select('date, type, sermon_title')
+            .not('sermon_title', 'is', null)
+            .neq('sermon_title', '')
+            .order('date', { ascending: false })
+            .limit(100);
+
+        if (error) throw error;
+
+        // Scan Obsidian Vault
+        let mdFiles = [];
+        if (fs.existsSync(obsidianVaultPath)) {
+             mdFiles = scanObsidianDir(obsidianVaultPath);
+        }
+
+        // Simple stopwords for keyword extraction
+        const stopWords = ['수', '있', '하', '것', '들', '그', '되', '이', '보', '않', '없', '나', '사람', '주', '아니', '등', '같', '우리', '때', '년', '가', '한', '지', '대하', '오', '말', '일', '그렇', '위하', '때문', '그것', '두', '말하', '알', '그러나', '받', '못하', '그런', '또', '문제', '더', '사회', '많', '그리고', '좋', '크', '따르', '중', '나오', '가지', '씨', '시키', '만들', '지금', '생각하', '그러', '속', '하나', '집', '살', '모르', '적', '월', '데', '자신', '안', '어떤', '내', '경우', '명', '생각', '시간', '그녀', '다시', '이런', '앞', '보이', '번', '나', '다른', '어떻', '여자', '개', '전', '들', '사실', '이렇', '점', '싶', '말', '정도', '좀', '원', '잘', '통하', '소리', '놓', '위해', '대한'];
+
+        let bibleBooksCount = {};
+        let keywordsCount = {};
+        let matchedSermons = [];
+
+        meetings.forEach(meeting => {
+            let matchedContent = null;
+            let matchedPath = null;
+            const title = meeting.sermon_title.trim();
+
+            if (mdFiles.length > 0 && title.length > 1) {
+                // Find matching Obsidian file
+                const foundFile = mdFiles.find(f => {
+                    const filename = f.split('\\').pop().replace('.md', '');
+                    return filename === title || filename.includes(title);
+                });
+
+                if (foundFile) {
+                    matchedPath = foundFile;
+                    try {
+                        matchedContent = fs.readFileSync(foundFile, 'utf8');
+                    } catch(e) {}
+                }
+            }
+
+            matchedSermons.push({
+                date: meeting.date,
+                type: meeting.type,
+                title: title,
+                has_obsidian: !!matchedContent,
+                path: matchedPath ? `obsidian://open?vault=KHG&file=${encodeURIComponent(matchedPath.split('\\').pop().replace('.md',''))}` : null
+            });
+
+            // Extract Bible Book from Title
+            const bibleBooks = ['창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기', '사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야', '에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가', '에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔', '하박국', '스바냐', '학개', '스가랴', '말라기', '마태복음', '마가복음', '누가복음', '요한복음', '사도행전', '로마서', '고린도전서', '고린도후서', '갈라디아서', '에베소서', '빌립보서', '골로새서', '데살로니가전서', '데살로니가후서', '디모데전서', '디모데후서', '디도서', '빌레몬서', '히브리서', '야고보서', '베드로전서', '베드로후서', '요한1서', '요한2서', '요한3서', '유다서', '요한계시록', '창', '출', '레', '민', '신', '수', '삿', '룻', '삼상', '삼하', '왕상', '왕하', '대상', '대하', '스', '느', '에', '욥', '시', '잠', '전', '아', '사', '렘', '애', '겔', '단', '호', '욜', '암', '옵', '욘', '미', '나', '합', '습', '학', '슥', '말', '마', '막', '눅', '요', '행', '롬', '고전', '고후', '갈', '엡', '빌', '골', '살전', '살후', '딤전', '딤후', '딛', '몬', '히', '약', '벧전', '벧후', '요일', '요이', '요삼', '유', '계'];
+            
+            let extractedBook = null;
+            for (const book of bibleBooks) {
+                if (title.includes(book)) {
+                    extractedBook = book;
+                    break;
+                }
+            }
+            if (matchedContent && !extractedBook) {
+                 for (const book of bibleBooks) {
+                    if (matchedContent.substring(0, 300).includes(book)) {
+                        extractedBook = book;
+                        break;
+                    }
+                }
+            }
+
+            if (extractedBook) {
+                const mapping = {'창':'창세기','출':'출애굽기','레':'레위기','민':'민수기','신':'신명기','수':'여호수아','삿':'사사기','룻':'룻기','삼상':'사무엘상','삼하':'사무엘하','왕상':'열왕기상','왕하':'열왕기하','대상':'역대상','대하':'역대하','스':'에스라','느':'느헤미야','에':'에스더','욥':'욥기','시':'시편','잠':'잠언','전':'전도서','아':'아가','사':'이사야','렘':'예레미야','애':'예레미야애가','겔':'에스겔','단':'다니엘','호':'호세아','욜':'요엘','암':'아모스','옵':'오바댜','욘':'요나','미':'미가','나':'나훔','합':'하박국','습':'스바냐','학':'학개','슥':'스가랴','말':'말라기','마':'마태복음','막':'마가복음','눅':'누가복음','요':'요한복음','행':'사도행전','롬':'로마서','고전':'고린도전서','고후':'고린도후서','갈':'갈라디아서','엡':'에베소서','빌':'빌립보서','골':'골로새서','살전':'데살로니가전서','살후':'데살로니가후서','딤전':'디모데전서','딤후':'디모데후서','딛':'디도서','몬':'빌레몬서','히':'히브리서','약':'야고보서','벧전':'베드로전서','벧후':'베드로후서','요일':'요한1서','요이':'요한2서','요삼':'요한3서','유':'유다서','계':'요한계시록'};
+                const fullBook = mapping[extractedBook] || extractedBook;
+                bibleBooksCount[fullBook] = (bibleBooksCount[fullBook] || 0) + 1;
+            }
+
+            // Keyword Extraction
+            const targetText = matchedContent ? matchedContent : title;
+            const words = targetText.replace(/[^\w\s가-힣]/g, ' ').split(/\s+/);
+            words.forEach(word => {
+                if (word.length > 1 && !stopWords.includes(word) && isNaN(word)) {
+                    keywordsCount[word] = (keywordsCount[word] || 0) + 1;
+                }
+            });
+        });
+
+        // Format for response
+        const topKeywords = Object.entries(keywordsCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 30)
+            .map(([text, weight]) => ({ text, weight }));
+
+        const bibleDist = Object.entries(bibleBooksCount)
+            .sort((a, b) => b[1] - a[1])
+            .map(([book, count]) => ({ book, count }));
+
+        res.json({
+            matchedSermons,
+            topKeywords,
+            bibleDist,
+            totalAnalyzed: meetings.length,
+            obsidianMatches: matchedSermons.filter(s => s.has_obsidian).length
+        });
+    } catch (err) {
+        console.error('Sermon stats error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
 }
