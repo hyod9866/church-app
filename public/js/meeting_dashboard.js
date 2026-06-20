@@ -74,6 +74,7 @@ function renderSermonTable() {
                 end_time: s.end_time
             };
             showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
+            openDetailPanel();
         };
 
         tr.innerHTML = `
