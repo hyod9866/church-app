@@ -50,8 +50,12 @@ function renderSermonTable() {
 
     sorted.forEach(s => {
         const tr = document.createElement('tr');
+        const d = new Date(s.date);
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const dateStr = `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. (${days[d.getDay()]})`;
+
         tr.innerHTML = `
-            <td class="px-4 py-3">${new Date(s.date).toLocaleDateString()}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${dateStr}</td>
             <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">${s.meeting_title || '(모임 제목 없음)'}</td>
             <td class="px-4 py-3">${s.type}</td>
             <td class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
