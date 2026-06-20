@@ -407,6 +407,12 @@ function closeDetailPanel() {
 if (closeDetailPanelBtn) closeDetailPanelBtn.addEventListener('click', closeDetailPanel);
 if (detailPanelOverlay) detailPanelOverlay.addEventListener('click', closeDetailPanel);
 
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && detailPanelOverlay && !detailPanelOverlay.classList.contains('hidden')) {
+        closeDetailPanel();
+    }
+});
+
 if (backToMeetingListBtn) {
     backToMeetingListBtn.addEventListener('click', () => {
         backToMeetingListBtn.classList.add('hidden');
