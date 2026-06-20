@@ -80,48 +80,48 @@
 
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="kpiContainer">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 font-bold">월평균 교구 출석률</p>
-                <h3 class="text-2xl font-black text-blue-600" id="kpiAttendance">--%</h3>
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800/60">
+                <p class="text-xs text-gray-500 dark:text-slate-400 font-bold">월평균 교구 출석률</p>
+                <h3 class="text-2xl font-black text-blue-600 dark:text-blue-400" id="kpiAttendance">--%</h3>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 font-bold">이번 달 심방 건수</p>
-                <h3 class="text-2xl font-black text-green-600" id="kpiVisitations">--건</h3>
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800/60">
+                <p class="text-xs text-gray-500 dark:text-slate-400 font-bold">이번 달 심방 건수</p>
+                <h3 class="text-2xl font-black text-green-600 dark:text-green-400" id="kpiVisitations">--건</h3>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 font-bold">이번 달 상담 건수</p>
-                <h3 class="text-2xl font-black text-purple-600" id="kpiCounselings">--건</h3>
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800/60">
+                <p class="text-xs text-gray-500 dark:text-slate-400 font-bold">이번 달 상담 건수</p>
+                <h3 class="text-2xl font-black text-purple-600 dark:text-purple-400" id="kpiCounselings">--건</h3>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 font-bold">전체 등록된 모임/설교 수</p>
-                <h3 class="text-2xl font-black text-indigo-600" id="kpiTotalMeetings">--개</h3>
+            <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800/60">
+                <p class="text-xs text-gray-500 dark:text-slate-400 font-bold">전체 등록된 모임/설교 수</p>
+                <h3 class="text-2xl font-black text-indigo-600 dark:text-indigo-400" id="kpiTotalMeetings">--개</h3>
             </div>
         </div>
 
         <!-- Attendance Charts -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-lg font-bold mb-4">모임별/소속별 출석 인원 추이 (최근 6개월)</h3>
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5">
+            <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">모임별/소속별 출석 인원 추이 (최근 6개월)</h3>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div><h4 class="text-sm font-bold text-center mb-2">구역모임 (각 구역별)</h4><div class="chart-container" style="height: 350px;"><canvas id="distChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">조모임 (각 조별)</h4><div class="chart-container" style="height: 350px;"><canvas id="grpChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">형제모임</h4><div class="chart-container" style="height: 300px;"><canvas id="broChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">청년모임</h4><div class="chart-container" style="height: 300px;"><canvas id="ythChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2 text-slate-700 dark:text-slate-300">구역모임 (각 구역별)</h4><div class="chart-container" style="height: 350px;"><canvas id="distChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2 text-slate-700 dark:text-slate-300">조모임 (각 조별)</h4><div class="chart-container" style="height: 350px;"><canvas id="grpChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2 text-slate-700 dark:text-slate-300">형제모임</h4><div class="chart-container" style="height: 300px;"><canvas id="broChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2 text-slate-700 dark:text-slate-300">청년모임</h4><div class="chart-container" style="height: 300px;"><canvas id="ythChart"></canvas></div></div>
             </div>
         </div>
 
         <!-- Sermon Insights -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Word Cloud -->
-            <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+            <div class="lg:col-span-2 bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5">
+                <h3 class="text-lg font-bold mb-2 flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <span class="text-blue-500">☁️</span> 설교 키워드 클라우드
                 </h3>
-                <p class="text-xs text-gray-500 mb-4">설교 제목과 모임 기록 내용에서 추출된 핵심 키워드입니다.</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400 mb-4">설교 제목과 모임 기록 내용에서 추출된 핵심 키워드입니다.</p>
                 <div id="wordCloudContainer"></div>
             </div>
             <!-- Bible Distribution -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+            <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5">
+                <h3 class="text-lg font-bold mb-2 flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <span class="text-green-500">📖</span> 성경 본문 분포
                 </h3>
                 <div class="chart-container">
@@ -131,18 +131,18 @@
         </div>
 
         <!-- Sermon Log Table -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-10">
-            <h3 class="text-lg font-bold mb-4">최근 설교 및 모임 목록</h3>
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5 mb-10">
+            <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">최근 설교 및 모임 목록</h3>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-600 font-bold border-b">
+                    <thead class="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-300 font-bold border-b border-gray-100 dark:border-slate-800/60">
                         <tr>
                             <th class="px-4 py-3">날짜</th>
                             <th class="px-4 py-3">모임 대상</th>
                             <th class="px-4 py-3">설교/모임 제목</th>
                         </tr>
                     </thead>
-                    <tbody id="sermonLogBody" class="divide-y divide-gray-100">
+                    <tbody id="sermonLogBody" class="divide-y divide-gray-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
                         <tr><td colspan="3" class="text-center py-4">로딩 중...</td></tr>
                     </tbody>
                 </table>

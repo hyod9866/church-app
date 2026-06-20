@@ -1,8 +1,21 @@
+window.myCharts = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     await fetchStats();
     await fetchAttendanceCharts();
 });
+
+// Setup MutationObserver to dynamically update Chart.js colors on dark mode toggle
+const themeObserver = new MutationObserver(() => {
+    if (window.myCharts) {
+        window.myCharts.forEach(chart => {
+            if (chart && typeof chart.update === 'function') {
+                chart.update();
+            }
+        });
+    }
+});
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
 async function fetchStats() {
     try {
@@ -17,6 +30,7 @@ async function fetchStats() {
                 var chart = anychart.tagCloud(data.topKeywords.map(k => ({x: k.text, value: k.weight})));
                 chart.angles([0, -45, 90]);
                 chart.colorRange(false);
+                chart.background().fill("transparent");
                 chart.container("wordCloudContainer");
                 chart.draw();
             });
@@ -24,7 +38,14 @@ async function fetchStats() {
 
         // Render Bible Pie Chart
         if (data.bibleDist.length > 0) {
-            new Chart(document.getElementById('biblePieChart'), {
+            const canvasId = 'biblePieChart';
+            const existingChart = Chart.getChart(canvasId);
+            if (existingChart) {
+                existingChart.destroy();
+                window.myCharts = window.myCharts.filter(c => c !== existingChart);
+            }
+
+            const bibleChart = new Chart(document.getElementById(canvasId), {
                 type: 'doughnut',
                 data: {
                     labels: data.bibleDist.map(b => b.book),
@@ -33,8 +54,23 @@ async function fetchStats() {
                         backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#64748b']
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                font: { size: 11 },
+                                color: () => document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b'
+                            }
+                        }
+                    }
+                }
             });
+            window.myCharts.push(bibleChart);
         }
 
         // Render Sermon Log
@@ -151,7 +187,13 @@ async function fetchAttendanceCharts() {
                 datasets.push({ label: '데이터 없음', data: [0,0,0,0,0,0] });
             }
 
-            new Chart(document.getElementById(id), {
+            const existingChart = Chart.getChart(id);
+            if (existingChart) {
+                existingChart.destroy();
+                window.myCharts = window.myCharts.filter(c => c !== existingChart);
+            }
+
+            const c = new Chart(document.getElementById(id), {
                 type: isBar ? 'bar' : 'line',
                 data: {
                     labels: months,
@@ -185,14 +227,29 @@ async function fetchAttendanceCharts() {
                             labels: {
                                 usePointStyle: true,
                                 boxWidth: 8,
-                                font: { size: 11 }
+                                font: { size: 11 },
+                                color: () => document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b'
                             }
                         }
                     },
                     scales: {
+                        x: {
+                            grid: {
+                                color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'
+                            }
+                        },
                         y: {
                             beginAtZero: true,
-                            ticks: { precision: 0 }
+                            ticks: { 
+                                precision: 0,
+                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'
+                            },
+                            grid: {
+                                color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
                         }
                     },
                     onHover: (event, chartElement) => {
@@ -212,6 +269,7 @@ async function fetchAttendanceCharts() {
                     }
                 }
             });
+            window.myCharts.push(c);
         };
         
         renderChart('distChart', categories['distChart'], true);
