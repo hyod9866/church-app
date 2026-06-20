@@ -1949,7 +1949,7 @@ app.get('/api/sermon-stats', async (req, res) => {
     try {
         const { data: meetings, error } = await supabase
             .from('meetings')
-            .select('date, title, type, sermon_title, memo, attendee_count')
+            .select('date, title, type, sermon_title, memo')
             .not('sermon_title', 'is', null)
             .neq('sermon_title', '')
             .order('date', { ascending: false })
