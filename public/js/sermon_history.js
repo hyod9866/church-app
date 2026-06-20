@@ -478,9 +478,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-100/50 dark:border-amber-900/25 shadow-sm">
-                    <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider mb-1">설교 주제</h4>
-                    <div id="sermonTitleArea">
-                        ${meeting.sermon_title ? `<p class="font-bold text-xs text-slate-800 dark:text-slate-200">${meeting.sermon_title}</p>` : `<p class="text-[11px] text-slate-400 dark:text-slate-500 italic">등록된 설교 주제가 없습니다.</p>`}
+                    <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider mb-1">설교 주제 / 본문 / 태그</h4>
+                    <div id="sermonTitleArea" class="space-y-2 mt-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 mr-1">제목:</span>
+                            ${meeting.sermon_title ? `<span class="font-bold text-xs text-slate-800 dark:text-slate-200">${meeting.sermon_title}</span>` : `<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">없음</span>`}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <span class="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 mr-1">본문:</span>
+                                ${meeting.sermon_bible ? `<span class="font-bold text-xs text-slate-800 dark:text-slate-200">${meeting.sermon_bible}</span>` : `<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">없음</span>`}
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 mr-1">태그:</span>
+                                ${meeting.sermon_tags ? `<span class="font-bold text-xs text-slate-800 dark:text-slate-200">${meeting.sermon_tags}</span>` : `<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">없음</span>`}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -587,8 +600,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Convert Sermon Title to Input in the body area
                     const sermonTitleArea = document.getElementById('sermonTitleArea');
                     if (sermonTitleArea) {
+                        const bibleOptions = ['창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기', '사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야', '에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가', '에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔', '하박국', '스바냐', '학개', '스가랴', '말라기', '마태복음', '마가복음', '누가복음', '요한복음', '사도행전', '로마서', '고린도전서', '고린도후서', '갈라디아서', '에베소서', '빌립보서', '골로새서', '데살로니가전서', '데살로니가후서', '디모데전서', '디모데후서', '디도서', '빌레몬서', '히브리서', '야고보서', '베드로전서', '베드로후서', '요한1서', '요한2서', '요한3서', '유다서', '요한계시록'];
+                        
+                        let bibleSelectOptions = '<option value="">선택 안함</option>';
+                        bibleOptions.forEach(b => {
+                            const selected = (meeting.sermon_bible === b) ? 'selected' : '';
+                            bibleSelectOptions += `<option value="${b}" ${selected}>${b}</option>`;
+                        });
+
                         sermonTitleArea.innerHTML = `
-                            <input type="text" id="editSermonTitle" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label>
+                                    <input type="text" id="editSermonTitle" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">본문 성경</label>
+                                        <select id="editSermonBible" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition">
+                                            ${bibleSelectOptions}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그</label>
+                                        <input type="text" id="editSermonTags" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_tags || ''}" placeholder="예: 믿음, 기도, 위로">
+                                    </div>
+                                </div>
+                            </div>
                         `;
                     }
 
@@ -616,10 +654,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const editSermonTitle = document.getElementById('editSermonTitle');
                     const editMemo = document.getElementById('editMemo');
                     const editChurch = document.getElementById('editChurch');
+                    const editSermonBible = document.getElementById('editSermonBible');
+                    const editSermonTags = document.getElementById('editSermonTags');
 
                     const newSermonTitle = editSermonTitle ? editSermonTitle.value.trim() : '';
                     const newMemo = editMemo ? editMemo.value.trim() : '';
                     const newChurch = editChurch ? editChurch.value.trim() : '';
+                    const newSermonBible = editSermonBible ? editSermonBible.value : '';
+                    const newSermonTags = editSermonTags ? editSermonTags.value.trim() : '';
 
                     if ((meeting.type === '설교' || meeting.type === '외부설교') && !newSermonTitle) {
                         alert('설교 주제를 입력해 주세요.');
@@ -635,7 +677,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         memo: newMemo,
                         church: meeting.type === '외부설교' ? newChurch : meeting.church,
                         start_time: meeting.start_time,
-                        end_time: meeting.end_time
+                        end_time: meeting.end_time,
+                        sermon_bible: newSermonBible,
+                        sermon_tags: newSermonTags
                     };
 
                     activeElements.editBtn.disabled = true;
