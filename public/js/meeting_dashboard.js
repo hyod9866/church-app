@@ -348,10 +348,14 @@ async function fetchAttendanceCharts() {
 const detailPanelOverlay = document.getElementById('detailPanelOverlay');
 const meetingPanelsContainer = document.getElementById('meetingPanelsContainer');
 const closeDetailPanelBtn = document.getElementById('closeDetailPanelBtn');
+const backToMeetingListBtn = document.getElementById('backToMeetingListBtn');
 const detailPanelTitle = document.getElementById('detailPanelTitle');
 const detailPanelSubtitle = document.getElementById('detailPanelSubtitle');
 const detailMeetingList = document.getElementById('detailMeetingList');
 const detailEmptyState = document.getElementById('detailEmptyState');
+
+let lastActiveGroup = '';
+let lastActiveMonthLabel = '';
 
 function openDetailPanel() {
     detailPanelOverlay.classList.remove('hidden');
@@ -373,7 +377,168 @@ function closeDetailPanel() {
 if (closeDetailPanelBtn) closeDetailPanelBtn.addEventListener('click', closeDetailPanel);
 if (detailPanelOverlay) detailPanelOverlay.addEventListener('click', closeDetailPanel);
 
+if (backToMeetingListBtn) {
+    backToMeetingListBtn.addEventListener('click', () => {
+        backToMeetingListBtn.classList.add('hidden');
+        document.getElementById('singleMeetingDetailContainer').classList.add('hidden');
+        document.getElementById('detailMeetingList').classList.remove('hidden');
+        
+        detailPanelTitle.textContent = lastActiveGroup;
+        detailPanelSubtitle.textContent = lastActiveMonthLabel + ' 전체 모임 내역';
+    });
+}
+
+async function showSingleMeetingDetail(m, groupName, monthLabel) {
+    const container = document.getElementById('singleMeetingDetailContainer');
+    const listContainer = document.getElementById('detailMeetingList');
+    
+    if (backToMeetingListBtn) backToMeetingListBtn.classList.remove('hidden');
+    if (listContainer) listContainer.classList.add('hidden');
+    if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = '<div class="text-center py-8 text-slate-400 font-bold">상세 정보 로딩 중...</div>';
+    }
+    
+    detailPanelTitle.textContent = m.title || groupName;
+    
+    let timeStr = m.start_time || '';
+    if (m.start_time && m.end_time) {
+        timeStr = `${m.start_time}~${m.end_time}`;
+    }
+    detailPanelSubtitle.textContent = `${new Date(m.date).toLocaleDateString()}${timeStr ? ' ' + timeStr : ''} | ${m.type}`;
+    
+    try {
+        const id = m.id;
+        const res = await fetch(`/api/meetings/${id}/attendance`);
+        const att = await res.json();
+        const p = att.filter(a => a.is_present);
+        const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
+        
+        // Absent list logic matching app.js
+        let absentHtml = '';
+        const typeStr = m.type || '';
+        if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
+            let targetParams = new URLSearchParams({ status: 'active' });
+            if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
+                const distMatch = typeStr.match(/\d+/);
+                if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
+            } else if (typeStr === '교구임원모임') {
+                targetParams.append('has_position', 'true');
+            } else if (typeStr.includes('형제모임')) {
+                targetParams.append('category', '봉사회');
+            } else if (typeStr.includes('청년모임')) {
+                targetParams.append('category', '청년회');
+            }
+
+            const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
+            let allTargets = await mRes.json();
+            
+            if (typeStr.includes('형제모임')) {
+                const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
+                const eMembers = await eRes.json();
+                allTargets = [...allTargets, ...eMembers];
+                allTargets = allTargets.filter(member => member.bs === 'B');
+            }
+
+            if (typeStr.includes('조모임')) {
+                allTargets = allTargets.filter(member => member.bs === 'S' && member.category !== '청년회');
+            }
+
+            if (typeStr === '교구임원모임') {
+                allTargets = allTargets.filter(member => member.position && member.position.trim().length > 0);
+            }
+
+            const presentIds = p.map(a => a.member_id);
+            const absentees = allTargets.filter(member => !presentIds.includes(member.id));
+
+            if (absentees.length > 0) {
+                absentHtml = `
+                    <div class="mt-6 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800/80">
+                        <h4 class="text-[10px] font-black text-gray-400 dark:text-slate-500 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
+                        <div class="flex flex-wrap gap-1">
+                            ${absentees.map(member => `<span class="px-2 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-[11px] font-bold">${member.name}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Testimony matching app.js
+        let testimonyHtml = '';
+        if (pWithTestimony.length > 0) {
+            testimonyHtml = `
+                <div class="mt-6 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800/80">
+                    <h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
+                    <div class="space-y-2">
+                        ${pWithTestimony.map(a => `
+                            <div class="p-2 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
+                                <div class="font-bold text-blue-800 dark:text-blue-300 text-sm">${a.members?.name || a.name || ''}</div>
+                                <p class="text-xs text-gray-700 dark:text-slate-350 mt-1 pl-2 border-l-2 border-blue-200 dark:border-blue-850">${a.testimony_snapshot}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        let detailHTML = '';
+        if (typeStr === '교회행사') {
+            if (m.memo && m.memo.trim()) {
+                detailHTML = `
+                    <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
+                        <h4 class="text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            행사 메모 / 안내 사항
+                        </h4>
+                        <p class="text-sm text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${m.memo}</p>
+                    </div>
+                `;
+            } else {
+                detailHTML = `
+                    <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
+                        <p class="text-xs text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
+                    </div>
+                `;
+            }
+        } else {
+            detailHTML = `
+                <div class="mb-4 bg-white dark:bg-[#1e293b] p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+                    <span class="font-bold dark:text-slate-200">총 참석</span>
+                    <span class="text-2xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
+                </div>
+                ${m.church ? `<div class="mb-4 bg-blue-50/50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold dark:text-slate-200">${m.church}</p></div>` : ''}
+                ${m.sermon_title ? `<div class="mb-4 bg-yellow-50/50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30"><h4 class="text-[10px] font-black text-yellow-700 dark:text-amber-400">설교</h4><p class="font-bold dark:text-slate-100">${m.sermon_title}</p></div>` : ''}
+                ${m.memo ? `<div class="mb-4 bg-slate-50 dark:bg-[#172237]/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-850/50"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">메모</h4><p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${m.memo}</p></div>` : ''}
+                
+                <div class="mb-4">
+                    <h4 class="text-[10px] font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
+                    <div class="flex flex-wrap gap-1">
+                        ${p.map(a => `<span class="px-2 py-1 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-[11px] font-bold">${a.members?.name || a.name || ''}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            ${detailHTML}
+            ${absentHtml}
+            ${testimonyHtml}
+        `;
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div class="text-center py-8 text-red-500">상세 정보를 불러오는 중 에러가 발생했습니다.</div>';
+    }
+}
+
 function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
+    lastActiveGroup = groupName;
+    lastActiveMonthLabel = monthLabel;
+    
+    if (backToMeetingListBtn) backToMeetingListBtn.classList.add('hidden');
+    document.getElementById('singleMeetingDetailContainer').classList.add('hidden');
+    document.getElementById('detailMeetingList').classList.remove('hidden');
+    
     detailPanelTitle.textContent = `${groupName}`;
     detailPanelSubtitle.textContent = `${monthLabel} 전체 모임 내역`;
     
@@ -399,7 +564,8 @@ function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
         
         filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
             const el = document.createElement('div');
-            el.className = 'bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm';
+            el.className = 'bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition-colors';
+            el.onclick = () => showSingleMeetingDetail(m, groupName, monthLabel);
             
             const badgeColor = m.attendee_count > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
             
@@ -413,11 +579,11 @@ function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
                     </span>
                 </div>
                 <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1 leading-tight">
-                    ${m.sermon_title || '(제목 없음)'}
+                    ${m.sermon_title || m.title || '(제목 없음)'}
                 </h4>
-                <div class="text-xs font-medium text-slate-500 dark:text-slate-400 break-words whitespace-pre-wrap mt-2 bg-slate-50 dark:bg-[#0B0F19] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50">
-                    ${m.memo || '메모가 없습니다.'}
-                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-2 leading-relaxed">
+                    ${(m.memo || '메모가 없습니다.').replace(/\{.*?\}/, '').trim() || '메모가 없습니다.'}
+                </p>
             `;
             detailMeetingList.appendChild(el);
         });
