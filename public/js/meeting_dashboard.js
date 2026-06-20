@@ -226,8 +226,9 @@ async function fetchAttendanceCharts() {
 
 // Side Panel UI Logic
 const detailPanelOverlay = document.getElementById('detailPanelOverlay');
-const detailSidePanel = document.getElementById('detailSidePanel');
+const meetingPanelsContainer = document.getElementById('meetingPanelsContainer');
 const closeDetailPanelBtn = document.getElementById('closeDetailPanelBtn');
+const detailPanelTitle = document.getElementById('detailPanelTitle');
 const detailPanelSubtitle = document.getElementById('detailPanelSubtitle');
 const detailMeetingList = document.getElementById('detailMeetingList');
 const detailEmptyState = document.getElementById('detailEmptyState');
@@ -237,13 +238,13 @@ function openDetailPanel() {
     // slight delay to allow display:block to apply before opacity transition
     setTimeout(() => {
         detailPanelOverlay.classList.remove('opacity-0');
-        detailSidePanel.classList.remove('translate-x-full');
+        meetingPanelsContainer.classList.remove('translate-x-full');
     }, 10);
 }
 
 function closeDetailPanel() {
     detailPanelOverlay.classList.add('opacity-0');
-    detailSidePanel.classList.add('translate-x-full');
+    meetingPanelsContainer.classList.add('translate-x-full');
     setTimeout(() => {
         detailPanelOverlay.classList.add('hidden');
     }, 300);
@@ -253,7 +254,8 @@ if (closeDetailPanelBtn) closeDetailPanelBtn.addEventListener('click', closeDeta
 if (detailPanelOverlay) detailPanelOverlay.addEventListener('click', closeDetailPanel);
 
 function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
-    detailPanelSubtitle.textContent = `${groupName} - ${monthLabel} 모임 내역`;
+    detailPanelTitle.textContent = `${groupName}`;
+    detailPanelSubtitle.textContent = `${monthLabel} 전체 모임 내역`;
     
     // Filter meetings matching the exact monthKey (YYYY-MM) and the groupName
     const filtered = allMeetings.filter(m => {
