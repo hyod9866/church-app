@@ -612,18 +612,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="space-y-3">
                                 <div>
                                     <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label>
-                                    <input type="text" id="editSermonTitle" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
+                                    <input type="text" id="editSermonTitle" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_title || ''}" placeholder="설교 주제를 입력해 주세요.">
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">본문 성경</label>
-                                        <select id="editSermonBible" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition">
+                                        <select id="editSermonBible" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition">
                                             ${bibleSelectOptions}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그</label>
-                                        <input type="text" id="editSermonTags" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_tags || ''}" placeholder="예: 믿음, 기도, 위로">
+                                        <input type="text" id="editSermonTags" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_tags || ''}" placeholder="예: 믿음, 기도, 위로">
                                     </div>
                                 </div>
                             </div>
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const churchViewArea = document.getElementById('churchViewArea');
                         if (churchViewArea) {
                             churchViewArea.innerHTML = `
-                                <input type="text" id="editChurch" class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none" value="${meeting.church || ''}">
+                                <input type="text" id="editChurch" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" value="${meeting.church || ''}">
                             `;
                         }
                     }
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const memoViewArea = document.getElementById('memoViewArea');
                     if (memoViewArea) {
                         memoViewArea.innerHTML = `
-                            <textarea id="editMemo" class="w-full h-40 p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
+                            <textarea id="editMemo" class="w-full h-40 p-2.5 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white dark:bg-slate-800" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
                         `;
                     }
                 } else {
