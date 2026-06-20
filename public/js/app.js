@@ -1645,7 +1645,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const ms = await res.json();
                 const m = ms.find(x => x.id == editMeetingId);
                 if (m) {
-                    openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time);
+                    openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
                 }
             } catch (err) {
                 console.error('Failed to auto-open meeting modal from URL parameter:', err);
@@ -1791,7 +1791,7 @@ document.getElementById('editMeetingDetailBtn').addEventListener('click', async 
     const res = await fetch(`/api/meetings`); const rawMs = await res.json();
     const ms = rawMs.map(parseRecurringMetadata);
     const m = ms.find(x => x.id == currentMeetingId);
-    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date);
+    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
 });
 
 let clickedInstanceDate = null;
