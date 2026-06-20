@@ -411,17 +411,17 @@ async function fetchAttendanceCharts() {
                             const mom = Math.round(((avgAttVal - prevAvg) / prevAvg) * 100);
                             const momColor = mom >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500';
                             const momIcon = mom >= 0 ? '▲' : '▼';
-                            momHtml = `<span class="text-xs font-bold ${momColor} ml-1">${momIcon} ${Math.abs(mom)}%</span>`;
+                            momHtml = `<span class="text-xs font-bold ${momColor} ml-1 opacity-80">ㅣ전월비 ${momIcon}${Math.abs(mom)}%</span>`;
                         }
 
                         kpiEl.innerHTML = `
                             <div class="px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs shadow-sm flex items-center">
-                                <span class="text-slate-500 dark:text-slate-400 mr-1">평균 출석:</span>
+                                <span class="text-slate-500 dark:text-slate-400 mr-1">당월 평균 출석:</span>
                                 <span class="font-bold text-slate-800 dark:text-slate-200">${avgAtt}명</span>
                                 ${momHtml}
                             </div>
                             <div class="px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs shadow-sm flex items-center">
-                                <span class="text-slate-500 dark:text-slate-400 mr-1">간증 참여:</span>
+                                <span class="text-slate-500 dark:text-slate-400 mr-1">당월 간증 참여:</span>
                                 <span class="font-bold text-blue-600 dark:text-blue-400">${sharingRate}%</span>
                             </div>
                         `;
