@@ -1949,9 +1949,10 @@ app.get('/api/sermon-stats', async (req, res) => {
     try {
         const { data: meetings, error } = await supabase
             .from('meetings')
-            .select('date, title, type, sermon_title, memo')
+            .select('date, title, type, sermon_title, memo, attendance(count)')
             .not('sermon_title', 'is', null)
             .neq('sermon_title', '')
+            .eq('attendance.is_present', 1)
             .order('date', { ascending: false })
             .limit(100);
 
@@ -1985,7 +1986,7 @@ app.get('/api/sermon-stats', async (req, res) => {
                 meeting_title: meeting.title || '',
                 type: meeting.type,
                 sermon_title: title,
-                attendee_count: meeting.attendee_count || 0
+                attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0
             });
 
             // Bible Counting
