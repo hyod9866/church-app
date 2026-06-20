@@ -568,7 +568,13 @@
                                     <div id="meetingSermonBibleResults" class="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 hidden no-scrollbar"></div>
                                 </div>
                             </div>
-                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그</label><input type="text" id="meetingSermonTags" placeholder="예: 믿음, 기도, 위로" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그 (엔터로 추가)</label>
+                                <div id="sermonTagsContainer" class="flex flex-wrap gap-1.5 items-center w-full border border-slate-200 dark:border-slate-700/60 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 rounded-xl px-3 py-1.5 min-h-[38px] bg-amber-50/50 dark:bg-slate-800 shadow-sm transition duration-150 cursor-text">
+                                    <div id="sermonTagBadgesList" class="flex flex-wrap gap-1.5"></div>
+                                    <input type="text" id="meetingSermonTags" placeholder="태그 입력..." class="flex-1 min-w-[60px] border-none outline-none text-xs md:text-sm font-bold bg-transparent dark:text-slate-100 dark:placeholder-slate-500" autocomplete="off">
+                                </div>
+                            </div>
                         </div>
                         <div id="directSermonTagField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 태그 (직접 입력)</label><input type="text" id="directSermonTag" placeholder="태그를 직접 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
                         <div id="memoField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">메모</label><textarea id="meetingMemo" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm h-24 bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></textarea></div>

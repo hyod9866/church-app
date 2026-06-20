@@ -1659,7 +1659,7 @@ async function fetchParishes(churchId) { const res = await fetch(`/api/parishes?
 async function fetchDistricts(parishId) { const res = await fetch(`/api/districts?parish_id=${parishId}`); return await res.json(); }
 
 // Meeting Functions
-let currentMeetingId = null, extraAttendees = [], selectedChurch = '';
+let currentMeetingId = null, extraAttendees = [], selectedChurch = '', currentSermonTagsList = [];
 
 async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '') {
     currentMeetingId = id; const c = document.getElementById('meetingPanelsContainer');
@@ -1794,6 +1794,28 @@ document.getElementById('editMeetingDetailBtn').addEventListener('click', async 
     if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
 });
 
+function renderSermonTagBadges() {
+    const list = document.getElementById('sermonTagBadgesList');
+    if (!list) return;
+    list.innerHTML = currentSermonTagsList.map((tag, idx) => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg text-[11px] font-bold border border-blue-200/50 dark:border-blue-800/40">
+            #${tag}
+            <button type="button" class="text-blue-500 hover:text-blue-700 font-bold focus:outline-none cursor-pointer text-xs ml-0.5" onclick="removeSermonTag(${idx})">×</button>
+        </span>
+    `).join('');
+    
+    // Adjust placeholder based on tags count
+    const input = document.getElementById('meetingSermonTags');
+    if (input) {
+        input.placeholder = currentSermonTagsList.length > 0 ? '' : '태그 입력 (예: 믿음, 기도)...';
+    }
+}
+
+window.removeSermonTag = function(idx) {
+    currentSermonTagsList.splice(idx, 1);
+    renderSermonTagBadges();
+};
+
 let clickedInstanceDate = null;
 let currentMeetingData = null;
 
@@ -1843,7 +1865,43 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingType').value = type;
     document.getElementById('meetingSermonBible').value = sermon_bible || '';
-    document.getElementById('meetingSermonTags').value = sermon_tags || '';
+    
+    // Parse tags (split by comma, space or hash)
+    if (sermon_tags) {
+        currentSermonTagsList = sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0);
+    } else {
+        currentSermonTagsList = [];
+    }
+    renderSermonTagBadges();
+
+    const tagsInput = document.getElementById('meetingSermonTags');
+    const tagsContainer = document.getElementById('sermonTagsContainer');
+    
+    if (tagsContainer && tagsInput) {
+        tagsInput.value = '';
+        
+        tagsContainer.onclick = (e) => {
+            if (e.target === tagsContainer || e.target === document.getElementById('sermonTagBadgesList')) {
+                tagsInput.focus();
+            }
+        };
+        
+        tagsInput.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+                e.preventDefault();
+                const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
+                if (tagVal && !currentSermonTagsList.includes(tagVal)) {
+                    currentSermonTagsList.push(tagVal);
+                    tagsInput.value = '';
+                    renderSermonTagBadges();
+                }
+            } else if (e.key === 'Backspace' && !tagsInput.value) {
+                currentSermonTagsList.pop();
+                renderSermonTagBadges();
+            }
+        };
+    }
+
     let parsedSermonTitle = sermon || '';
     let parsedTag = '';
     if (type === '설교' && sermon) {
@@ -2319,7 +2377,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const sermon = document.getElementById('meetingSermon').value.trim();
     const memo = document.getElementById('meetingMemo').value.trim();
     const sermon_bible = document.getElementById('meetingSermonBible').value.trim();
-    const sermon_tags = document.getElementById('meetingSermonTags').value.trim();
+    const sermon_tags = currentSermonTagsList.map(t => `#${t}`).join(' ');
     
     const rrule_type = document.getElementById('meetingRecurrence').value;
     const rrule_end_date = document.getElementById('meetingRecurrenceEndDate').value || null;
