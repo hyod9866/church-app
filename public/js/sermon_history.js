@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allSermons = [];
     let currentMeetingId = null;
     let isEditing = false;
+    let editSermonTagsList = [];
     let selectedType = '전체';
 
     const getBadgeStyles = (type) => {
@@ -557,6 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. Inline Editing & Saving Logic ---
     function exitEditMode() {
         isEditing = false;
+        editSermonTagsList = [];
         const elements = getDetailElements();
         if (elements.editBtn) {
             elements.editBtn.textContent = '기록 수정';
@@ -619,8 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <div id="editSermonBibleResults" class="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg z-50 hidden no-scrollbar"></div>
                                     </div>
                                     <div>
-                                        <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그</label>
-                                        <input type="text" id="editSermonTags" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition" value="${meeting.sermon_tags || ''}" placeholder="예: 믿음, 기도, 위로">
+                                        <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">주제 태그 (엔터로 추가)</label>
+                                        <div id="editSermonTagsContainer" class="flex flex-wrap gap-1.5 items-center w-full border border-slate-200 dark:border-slate-700/60 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 rounded-lg px-2.5 py-1 min-h-[32px] bg-white dark:bg-slate-800 shadow-sm transition cursor-text">
+                                            <div id="editSermonTagBadgesList" class="flex flex-wrap gap-1.5"></div>
+                                            <input type="text" id="editSermonTags" placeholder="태그 입력..." class="flex-1 min-w-[50px] border-none outline-none text-xs font-bold bg-transparent dark:text-slate-100 dark:placeholder-slate-500" autocomplete="off">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -713,6 +718,62 @@ document.addEventListener('DOMContentLoaded', () => {
                             window._editBibleDocClickListener = editBibleDocListener;
                             document.addEventListener('click', editBibleDocListener);
                         }
+
+                        // Initialize editSermonTagsList
+                        if (meeting.sermon_tags) {
+                            editSermonTagsList = meeting.sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0);
+                        } else {
+                            editSermonTagsList = [];
+                        }
+
+                        const renderEditSermonTagBadges = () => {
+                            const list = document.getElementById('editSermonTagBadgesList');
+                            if (!list) return;
+                            list.innerHTML = editSermonTagsList.map((tag, idx) => `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold border border-blue-200/50 dark:border-blue-800/40">
+                                    #${tag}
+                                    <button type="button" class="text-blue-500 hover:text-blue-700 font-bold focus:outline-none cursor-pointer text-xs ml-0.5" onclick="window.removeEditSermonTag(${idx})">×</button>
+                                </span>
+                            `).join('');
+                            
+                            const input = document.getElementById('editSermonTags');
+                            if (input) {
+                                input.placeholder = editSermonTagsList.length > 0 ? '' : '예: 믿음, 기도, 위로';
+                            }
+                        };
+
+                        window.removeEditSermonTag = (idx) => {
+                            editSermonTagsList.splice(idx, 1);
+                            renderEditSermonTagBadges();
+                        };
+
+                        const tagsInput = document.getElementById('editSermonTags');
+                        const tagsContainer = document.getElementById('editSermonTagsContainer');
+                        
+                        if (tagsContainer && tagsInput) {
+                            renderEditSermonTagBadges();
+
+                            tagsContainer.onclick = (e) => {
+                                if (e.target === tagsContainer || e.target === document.getElementById('editSermonTagBadgesList')) {
+                                    tagsInput.focus();
+                                }
+                            };
+                            
+                            tagsInput.onkeydown = (e) => {
+                                if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+                                    e.preventDefault();
+                                    const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
+                                    if (tagVal && !editSermonTagsList.includes(tagVal)) {
+                                        editSermonTagsList.push(tagVal);
+                                        tagsInput.value = '';
+                                        renderEditSermonTagBadges();
+                                    }
+                                } else if (e.key === 'Backspace' && !tagsInput.value) {
+                                    editSermonTagsList.pop();
+                                    renderEditSermonTagBadges();
+                                }
+                            };
+                        }
                     }
 
                     // Convert Church name to Input (if type is 외부설교)
@@ -746,7 +807,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newMemo = editMemo ? editMemo.value.trim() : '';
                     const newChurch = editChurch ? editChurch.value.trim() : '';
                     const newSermonBible = editSermonBible ? editSermonBible.value : '';
-                    const newSermonTags = editSermonTags ? editSermonTags.value.trim() : '';
+                    
+                    if (editSermonTags) {
+                        const remaining = editSermonTags.value.replace(/[#,\s]/g, '').trim();
+                        if (remaining && !editSermonTagsList.includes(remaining)) {
+                            editSermonTagsList.push(remaining);
+                        }
+                    }
+                    const newSermonTags = editSermonTagsList.map(t => `#${t}`).join(' ');
 
                     if ((meeting.type === '설교' || meeting.type === '외부설교') && !newSermonTitle) {
                         alert('설교 주제를 입력해 주세요.');
