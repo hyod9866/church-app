@@ -1733,9 +1733,9 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <h4 class="text-[10px] font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
                 <div class="space-y-2">
                     ${pWithTestimony.map(a => `
-                        <div class="p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
+                        <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
                             <div class="font-bold text-blue-800 dark:text-blue-300 text-sm">${a.name}</div>
-                            <p class="text-xs text-gray-700 dark:text-slate-300 mt-1 pl-2 border-l-2 border-blue-200 dark:border-blue-850">${a.testimony_snapshot}</p>
+                            <p class="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 mt-2 pl-3 border-l-2 border-blue-500 dark:border-blue-400">${a.testimony_snapshot}</p>
                         </div>
                     `).join('')}
                 </div>
