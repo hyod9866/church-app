@@ -394,24 +394,42 @@ async function fetchAttendanceCharts() {
                         const avgAtt = (currentMonthTotalAtt / currentMonthGroupCount).toFixed(1);
                         const sharingRate = currentMonthTotalAtt > 0 ? Math.round((currentMonthTotalTest / currentMonthTotalAtt)*100) : 0;
                         let momHtml = '';
-                        let prevTotalAtt = 0, prevGroupCount = 0;
+                        let prevTotalAtt = 0, prevGroupCount = 0, prevTotalTest = 0;
                         if (currIdx >= 1) {
                             Object.keys(catData).forEach(group => {
                                 const pm = catData[group][targetKeys[currIdx-1]];
                                 if (pm && pm.att > 0) {
                                     prevTotalAtt += pm.att;
+                                    prevTotalTest += pm.test;
                                     prevGroupCount++;
                                 }
                             });
                         }
                         const prevAvg = prevGroupCount > 0 ? (prevTotalAtt / prevGroupCount) : 0;
+                        const prevSharingRate = prevTotalAtt > 0 ? Math.round((prevTotalTest / prevTotalAtt)*100) : 0;
                         
-                        if (prevAvg > 0) {
+                        if (currIdx >= 1 && prevAvg > 0) {
                             const avgAttVal = currentMonthTotalAtt / currentMonthGroupCount;
                             const mom = Math.round(((avgAttVal - prevAvg) / prevAvg) * 100);
-                            const momColor = mom >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500';
-                            const momIcon = mom >= 0 ? '▲' : '▼';
-                            momHtml = `<span class="text-xs font-bold ${momColor} ml-1 opacity-80">ㅣ전월비 ${momIcon}${Math.abs(mom)}%</span>`;
+                            if (mom > 0) {
+                                momHtml = `<span class="text-xs font-bold text-blue-600 dark:text-blue-400 ml-1 opacity-80">ㅣ전월비 ▲${mom}%</span>`;
+                            } else if (mom < 0) {
+                                momHtml = `<span class="text-xs font-bold text-red-500 ml-1 opacity-80">ㅣ전월비 ▼${Math.abs(mom)}%</span>`;
+                            } else {
+                                momHtml = `<span class="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1 opacity-80">ㅣ전월비 -</span>`;
+                            }
+                        }
+
+                        let momTestHtml = '';
+                        if (currIdx >= 1) {
+                            const momTest = sharingRate - prevSharingRate;
+                            if (momTest > 0) {
+                                momTestHtml = `<span class="text-xs font-bold text-blue-600 dark:text-blue-400 ml-1 opacity-80">ㅣ전월비 ▲${momTest}%p</span>`;
+                            } else if (momTest < 0) {
+                                momTestHtml = `<span class="text-xs font-bold text-red-500 ml-1 opacity-80">ㅣ전월비 ▼${Math.abs(momTest)}%p</span>`;
+                            } else {
+                                momTestHtml = `<span class="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1 opacity-80">ㅣ전월비 -</span>`;
+                            }
                         }
 
                         kpiEl.innerHTML = `
@@ -423,6 +441,7 @@ async function fetchAttendanceCharts() {
                             <div class="px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs shadow-sm flex items-center">
                                 <span class="text-slate-500 dark:text-slate-400 mr-1">당월 간증 참여:</span>
                                 <span class="font-bold text-blue-600 dark:text-blue-400">${sharingRate}%</span>
+                                ${momTestHtml}
                             </div>
                         `;
                     } else {
