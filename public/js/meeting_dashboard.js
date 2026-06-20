@@ -50,16 +50,38 @@ function renderSermonTable() {
 
     sorted.forEach(s => {
         const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group";
+        
         const d = new Date(s.date);
         const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const dateStr = `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. (${days[d.getDay()]})`;
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yy}.${mm}.${dd}(${days[d.getDay()]})`;
+        
+        const attendeeText = s.attendee_count ? `${s.attendee_count}명` : '-';
+        const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
+
+        tr.onclick = () => {
+            // Need to mock title and type for the detail panel mapping
+            const mockMeetingObj = {
+                id: s.id,
+                date: s.date,
+                title: s.meeting_title,
+                type: s.type,
+                sermon_title: s.sermon_title,
+                start_time: s.start_time,
+                end_time: s.end_time
+            };
+            showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
+        };
 
         tr.innerHTML = `
-            <td class="px-4 py-3 whitespace-nowrap">${dateStr}</td>
-            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">${s.meeting_title || '(모임 제목 없음)'}</td>
+            <td class="px-4 py-3 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${dateStr}</td>
+            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${s.meeting_title || '(모임 제목 없음)'}</td>
             <td class="px-4 py-3">${s.type}</td>
             <td class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
-            <td class="px-4 py-3 font-bold text-blue-600 dark:text-blue-400">${s.attendee_count || 0}명</td>
+            <td class="px-4 py-3 font-bold ${attendeeClass}">${attendeeText}</td>
         `;
         tbody.appendChild(tr);
     });

@@ -1949,7 +1949,7 @@ app.get('/api/sermon-stats', async (req, res) => {
     try {
         const { data: meetings, error } = await supabase
             .from('meetings')
-            .select('date, title, type, sermon_title, memo, attendance(count)')
+            .select('id, date, title, type, sermon_title, memo, start_time, end_time, attendance(count)')
             .not('sermon_title', 'is', null)
             .neq('sermon_title', '')
             .eq('attendance.is_present', 1)
@@ -1982,10 +1982,13 @@ app.get('/api/sermon-stats', async (req, res) => {
             }
 
             matchedSermons.push({
+                id: meeting.id,
                 date: meeting.date,
                 meeting_title: meeting.title || '',
                 type: meeting.type,
                 sermon_title: title,
+                start_time: meeting.start_time,
+                end_time: meeting.end_time,
                 attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0
             });
 
