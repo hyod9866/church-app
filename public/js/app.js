@@ -1797,7 +1797,7 @@ document.getElementById('editMeetingDetailBtn').addEventListener('click', async 
 let clickedInstanceDate = null;
 let currentMeetingData = null;
 
-async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '') {
+async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
     currentMeetingId = id; extraAttendees = [];
     
     // 반복 설정 UI 바인딩
@@ -1842,6 +1842,8 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingType').value = type;
+    document.getElementById('meetingSermonBible').value = sermon_bible || '';
+    document.getElementById('meetingSermonTags').value = sermon_tags || '';
     let parsedSermonTitle = sermon || '';
     let parsedTag = '';
     if (type === '설교' && sermon) {
@@ -2056,6 +2058,65 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.removeEventListener('click', window._churchDocClickListener);
     window._churchDocClickListener = docClickListener;
     document.addEventListener('click', docClickListener);
+    // Bible Books Autocomplete Logic
+    const bibleBooks = [
+        "창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기", "사무엘상", "사무엘하",
+        "열왕기상", "열왕기하", "역대상", "역대하", "에스라", "느헤미야", "에스더", "욥기", "시편", "잠언",
+        "전도서", "아가", "이사야", "예레미야", "예레미야애가", "에스겔", "다니엘", "호세아", "요엘", "아모스",
+        "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기",
+        "마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", "고린도후서", "갈라디아서", "에베소서",
+        "빌립보서", "골로새서", "데살로니가전서", "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", "야고보서",
+        "베드로전서", "베드로후서", "요한1서", "요한2서", "요한3서", "유다서", "요한계시록"
+    ];
+
+    const bibleInput = document.getElementById('meetingSermonBible');
+    const bibleResults = document.getElementById('meetingSermonBibleResults');
+
+    if (bibleInput && bibleResults) {
+        bibleInput.value = '';
+        bibleResults.innerHTML = '';
+        bibleResults.classList.add('hidden');
+
+        bibleInput.oninput = () => {
+            const val = bibleInput.value.trim().toLowerCase();
+            if (!val) {
+                bibleResults.innerHTML = '';
+                bibleResults.classList.add('hidden');
+                return;
+            }
+
+            const filtered = bibleBooks.filter(b => b.toLowerCase().includes(val));
+            if (filtered.length === 0) {
+                bibleResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+                bibleResults.classList.remove('hidden');
+                return;
+            }
+
+            bibleResults.innerHTML = filtered.map(b => `
+                <div class="bible-search-item p-2 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer font-bold text-sm text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800/80" data-name="${b}">
+                    ${b}
+                </div>
+            `).join('');
+            bibleResults.classList.remove('hidden');
+
+            document.querySelectorAll('.bible-search-item').forEach(item => {
+                item.onclick = () => {
+                    bibleInput.value = item.getAttribute('data-name');
+                    bibleResults.innerHTML = '';
+                    bibleResults.classList.add('hidden');
+                };
+            });
+        };
+
+        const bibleDocListener = (e) => {
+            if (bibleInput && !bibleInput.contains(e.target) && !bibleResults.contains(e.target)) {
+                bibleResults.classList.add('hidden');
+            }
+        };
+        document.removeEventListener('click', window._bibleDocClickListener);
+        window._bibleDocClickListener = bibleDocListener;
+        document.addEventListener('click', bibleDocListener);
+    }
     
     // 명단 로드 함수 정의
     const refreshAttendanceList = async () => {
@@ -2257,6 +2318,8 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const type = document.getElementById('meetingType').value;
     const sermon = document.getElementById('meetingSermon').value.trim();
     const memo = document.getElementById('meetingMemo').value.trim();
+    const sermon_bible = document.getElementById('meetingSermonBible').value.trim();
+    const sermon_tags = document.getElementById('meetingSermonTags').value.trim();
     
     const rrule_type = document.getElementById('meetingRecurrence').value;
     const rrule_end_date = document.getElementById('meetingRecurrenceEndDate').value || null;
@@ -2335,7 +2398,9 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                         memo, // 메타데이터 없는 순수 메모
                         church: selectedChurch,
                         start_time: startTime || null,
-                        end_time: endTime || null
+                        end_time: endTime || null,
+                        sermon_bible,
+                        sermon_tags
                     })
                 });
                 const { id } = await newRes.json();
@@ -2361,7 +2426,9 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                         memo: finalMemo,
                         church: selectedChurch,
                         start_time: startTime || null,
-                        end_time: endTime || null
+                        end_time: endTime || null,
+                        sermon_bible,
+                        sermon_tags
                     })
                 });
                 const { id } = await res.json();
