@@ -1487,14 +1487,18 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id')
+      .select('meeting_id, testimony_snapshot')
       .eq('is_present', 1);
     if (attErr) throw attErr;
 
     const countMap = {};
+    const testimonyCountMap = {};
     if (presentAttendance) {
       presentAttendance.forEach(a => {
         countMap[a.meeting_id] = (countMap[a.meeting_id] || 0) + 1;
+        if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
+            testimonyCountMap[a.meeting_id] = (testimonyCountMap[a.meeting_id] || 0) + 1;
+        }
       });
     }
 
@@ -1522,7 +1526,8 @@ app.get('/api/meetings', async (req, res) => {
         memo: cleanMemo,
         sermon_bible,
         sermon_tags,
-        attendee_count: countMap[m.id] || 0
+        attendee_count: countMap[m.id] || 0,
+        testimony_count: testimonyCountMap[m.id] || 0
       };
     });
 
