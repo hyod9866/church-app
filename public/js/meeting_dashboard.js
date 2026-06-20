@@ -283,18 +283,24 @@ async function fetchAttendanceCharts() {
             const datasets = [];
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1'];
             
-            // Calculate overall averages per month
-            const monthAverages = targetKeys.map(mk => {
-                let totalAtt = 0;
-                let groupCount = 0;
+            // Calculate global average across all visible months
+            let globalTotalAtt = 0;
+            let globalGroupCount = 0;
+            targetKeys.forEach(mk => {
+                if (mk > currentMonthKey) return;
                 Object.keys(catData).forEach(group => {
                     const d = catData[group][mk];
                     if (d !== null && d.att > 0) {
-                        totalAtt += d.att;
-                        groupCount++;
+                        globalTotalAtt += d.att;
+                        globalGroupCount++;
                     }
                 });
-                return groupCount > 0 ? (totalAtt / groupCount) : null;
+            });
+            const globalAvg = globalGroupCount > 0 ? (globalTotalAtt / globalGroupCount) : null;
+
+            const monthAverages = targetKeys.map(mk => {
+                if (mk > currentMonthKey) return null;
+                return globalAvg;
             });
 
             // At-Risk Calculation
@@ -484,7 +490,7 @@ async function fetchAttendanceCharts() {
                             callbacks: {
                                 label: function(context) {
                                     if(context.dataset.label === '전체 평균') {
-                                        return `전체 평균: ${context.parsed.y.toFixed(1)}명`;
+                                        return `전체 기간 평균: ${context.parsed.y.toFixed(1)}명`;
                                     }
                                     const group = context.dataset.label;
                                     const mk = targetKeys[context.dataIndex];
