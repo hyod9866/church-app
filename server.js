@@ -1968,7 +1968,7 @@ app.get('/api/sermon-stats', async (req, res) => {
             let cleanMemo = meeting.memo || '';
             
             if (cleanMemo.startsWith('{')) {
-                const firstLine = cleanMemo.split('\\n')[0];
+                const firstLine = cleanMemo.split('\n')[0];
                 try {
                     if (firstLine.endsWith('}')) {
                         const meta = JSON.parse(firstLine);
@@ -1995,7 +1995,7 @@ app.get('/api/sermon-stats', async (req, res) => {
 
             // Keyword Extraction from explicit tags or fallback to title
             let targetText = sermon_tags ? sermon_tags : title;
-            const words = targetText.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\\s+/);
+            const words = targetText.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\s+/);
             const stopWords = ['수', '있', '하', '것', '들', '그', '되', '이', '보', '않', '없', '나', '사람', '주', '아니', '등', '같', '우리', '때', '년', '가', '한', '지', '대하', '오', '말', '일', '그렇', '위하', '때문', '그것', '두', '말하', '알', '그러나', '받', '못하', '그런', '또', '문제', '더', '사회', '많', '그리고', '좋', '크', '따르', '중', '나오', '가지', '씨', '시키', '만들', '지금', '생각하', '그러', '속', '하나', '집', '살', '모르', '적', '월', '데', '자신', '안', '어떤', '내', '경우', '명', '생각', '시간', '그녀', '다시', '이런', '앞', '보이', '번', '나', '다른', '어떻', '여자', '개', '전', '들', '사실', '이렇', '점', '싶', '말', '정도', '좀', '원', '잘', '통하', '소리', '놓', '위해', '대한'];
             
             words.forEach(word => {
