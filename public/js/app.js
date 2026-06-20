@@ -2132,11 +2132,14 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     const bibleResults = document.getElementById('meetingSermonBibleResults');
 
     if (bibleInput && bibleResults) {
-        bibleInput.value = '';
+        // bibleInput.value = ''; (Removed to prevent overwriting existing saved value)
         bibleResults.innerHTML = '';
         bibleResults.classList.add('hidden');
 
+        let currentFocus = -1;
+
         bibleInput.oninput = () => {
+            currentFocus = -1;
             const val = bibleInput.value.trim().toLowerCase();
             if (!val) {
                 bibleResults.innerHTML = '';
@@ -2166,6 +2169,40 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
                 };
             });
         };
+
+        bibleInput.onkeydown = (e) => {
+            const items = bibleResults.querySelectorAll('.bible-search-item');
+            if (e.key === 'ArrowDown') {
+                currentFocus++;
+                addActive(items);
+                e.preventDefault();
+            } else if (e.key === 'ArrowUp') {
+                currentFocus--;
+                addActive(items);
+                e.preventDefault();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentFocus > -1) {
+                    if (items && items[currentFocus]) items[currentFocus].click();
+                } else if (items.length > 0) {
+                    items[0].click();
+                }
+            }
+        };
+
+        function addActive(items) {
+            if (!items) return false;
+            removeActive(items);
+            if (currentFocus >= items.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (items.length - 1);
+            items[currentFocus].classList.add('bg-blue-100', 'dark:bg-slate-700');
+        }
+
+        function removeActive(items) {
+            for (let i = 0; i < items.length; i++) {
+                items[i].classList.remove('bg-blue-100', 'dark:bg-slate-700');
+            }
+        }
 
         const bibleDocListener = (e) => {
             if (bibleInput && !bibleInput.contains(e.target) && !bibleResults.contains(e.target)) {
