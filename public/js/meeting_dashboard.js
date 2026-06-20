@@ -194,6 +194,21 @@ async function fetchAttendanceCharts() {
                             beginAtZero: true,
                             ticks: { precision: 0 }
                         }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const datasetIndex = elements[0].datasetIndex;
+                            const index = elements[0].index;
+                            const dataset = datasets[datasetIndex];
+                            const clickedLabel = months[index];
+                            const clickedMonthKey = monthKeys[index];
+                            const clickedGroup = dataset.label;
+                            
+                            showDetailPanel(clickedGroup, clickedMonthKey, clickedLabel, meetings);
+                        }
                     }
                 }
             });
@@ -207,4 +222,84 @@ async function fetchAttendanceCharts() {
     } catch(e) {
         console.error(e);
     }
+}
+
+// Side Panel UI Logic
+const detailPanelOverlay = document.getElementById('detailPanelOverlay');
+const detailSidePanel = document.getElementById('detailSidePanel');
+const closeDetailPanelBtn = document.getElementById('closeDetailPanelBtn');
+const detailPanelSubtitle = document.getElementById('detailPanelSubtitle');
+const detailMeetingList = document.getElementById('detailMeetingList');
+const detailEmptyState = document.getElementById('detailEmptyState');
+
+function openDetailPanel() {
+    detailPanelOverlay.classList.remove('hidden');
+    // slight delay to allow display:block to apply before opacity transition
+    setTimeout(() => {
+        detailPanelOverlay.classList.remove('opacity-0');
+        detailSidePanel.classList.remove('translate-x-full');
+    }, 10);
+}
+
+function closeDetailPanel() {
+    detailPanelOverlay.classList.add('opacity-0');
+    detailSidePanel.classList.add('translate-x-full');
+    setTimeout(() => {
+        detailPanelOverlay.classList.add('hidden');
+    }, 300);
+}
+
+if (closeDetailPanelBtn) closeDetailPanelBtn.addEventListener('click', closeDetailPanel);
+if (detailPanelOverlay) detailPanelOverlay.addEventListener('click', closeDetailPanel);
+
+function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
+    detailPanelSubtitle.textContent = `${groupName} - ${monthLabel} 모임 내역`;
+    
+    // Filter meetings matching the exact monthKey (YYYY-MM) and the groupName
+    const filtered = allMeetings.filter(m => {
+        const mDate = new Date(m.date);
+        const mk = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2, '0')}`;
+        if (mk !== monthKey) return false;
+        
+        // Exact match or includes depending on how groupName was derived. 
+        // groupName is like "581", m.type is like "581구역모임"
+        return m.type.includes(groupName);
+    });
+    
+    detailMeetingList.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        detailMeetingList.classList.add('hidden');
+        detailEmptyState.classList.remove('hidden');
+    } else {
+        detailMeetingList.classList.remove('hidden');
+        detailEmptyState.classList.add('hidden');
+        
+        filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
+            const el = document.createElement('div');
+            el.className = 'bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm';
+            
+            const badgeColor = m.attendee_count > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+            
+            el.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-black px-2 py-1 rounded-lg ${badgeColor}">
+                        참석 ${m.attendee_count}명
+                    </span>
+                    <span class="text-xs font-bold text-slate-400">
+                        ${new Date(m.date).toLocaleDateString()}
+                    </span>
+                </div>
+                <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1 leading-tight">
+                    ${m.sermon_title || '(제목 없음)'}
+                </h4>
+                <div class="text-xs font-medium text-slate-500 dark:text-slate-400 break-words whitespace-pre-wrap mt-2 bg-slate-50 dark:bg-[#0B0F19] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                    ${m.memo || '메모가 없습니다.'}
+                </div>
+            `;
+            detailMeetingList.appendChild(el);
+        });
+    }
+    
+    openDetailPanel();
 }
