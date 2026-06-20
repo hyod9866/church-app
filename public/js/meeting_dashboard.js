@@ -55,24 +55,72 @@ async function fetchStats() {
     }
 }
 
+// Register ChartDataLabels plugin
+if (typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+}
+
 async function fetchAttendanceCharts() {
     try {
         const res = await fetch('/api/meetings');
-        const meetingsData = await res.json();
-        
-        // Basic filtering for last 6 months
-        // For simplicity in this demo snippet, we'll just show mock counts if processing is complex
-        // In a real scenario, reuse the logic from dashboard.js
+        const data = await res.json();
+        const meetings = data.meetings || [];
         
         let visitations = 0;
         let counselings = 0;
         const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
         
-        meetingsData.forEach(m => {
+        // Generate last 6 months labels
+        const months = [];
+        const monthKeys = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(currentYear, currentMonth - i, 1);
+            months.push(`${d.getMonth() + 1}월`);
+            monthKeys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`);
+        }
+        
+        // Data structure
+        const categories = {
+            'distChart': {}, // 구역모임
+            'grpChart': {},  // 조모임
+            'broChart': {},  // 형제모임
+            'ythChart': {}   // 청년모임
+        };
+        
+        meetings.forEach(m => {
             const mDate = new Date(m.date);
-            if (mDate.getMonth() === currentMonth) {
+            if (mDate.getMonth() === currentMonth && mDate.getFullYear() === currentYear) {
                 if(m.type.includes('심방')) visitations++;
                 if(m.type.includes('상담')) counselings++;
+            }
+            
+            const monthKey = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2, '0')}`;
+            if (!monthKeys.includes(monthKey)) return; // Only process last 6 months
+            
+            let chartKey = null;
+            let groupName = '전체';
+            
+            if (m.type.includes('구역모임')) {
+                chartKey = 'distChart';
+                groupName = m.type.replace('구역모임', '').trim() || '구역';
+            } else if (m.type.includes('조모임')) {
+                chartKey = 'grpChart';
+                groupName = m.type.replace('조모임', '').trim() || '조';
+            } else if (m.type.includes('형제모임')) {
+                chartKey = 'broChart';
+                groupName = m.type.replace('형제모임', '').trim() || '형제';
+            } else if (m.type.includes('청년모임')) {
+                chartKey = 'ythChart';
+                groupName = m.type.replace('청년모임', '').trim() || '청년';
+            }
+            
+            if (chartKey) {
+                if (!categories[chartKey][groupName]) {
+                    categories[chartKey][groupName] = {};
+                    monthKeys.forEach(mk => categories[chartKey][groupName][mk] = 0);
+                }
+                categories[chartKey][groupName][monthKey] += (m.attendee_count || 0);
             }
         });
         
@@ -80,18 +128,80 @@ async function fetchAttendanceCharts() {
         document.getElementById('kpiCounselings').textContent = counselings + '건';
         document.getElementById('kpiAttendance').textContent = '78%'; // Placeholder
         
-        // Initialize dummy charts for now to ensure layout works
-        const ctxs = ['distChart', 'grpChart', 'broChart', 'ythChart'];
-        ctxs.forEach(id => {
-            new Chart(document.getElementById(id), {
-                type: 'bar',
-                data: {
-                    labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
-                    datasets: [{ label: '참석자 수', data: [12, 19, 15, 17, 22, 24], backgroundColor: '#3b82f6' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+        const renderChart = (id, catData, isBar = true) => {
+            const datasets = [];
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1'];
+            
+            Object.keys(catData).sort().forEach((group, i) => {
+                const dataPoints = monthKeys.map(mk => catData[group][mk]);
+                datasets.push({
+                    label: group,
+                    data: dataPoints,
+                    backgroundColor: isBar ? colors[i % colors.length] : undefined,
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 2,
+                    borderRadius: isBar ? 4 : 0,
+                    fill: false,
+                    tension: 0.1
+                });
             });
-        });
+            
+            if (datasets.length === 0) {
+                datasets.push({ label: '데이터 없음', data: [0,0,0,0,0,0] });
+            }
+
+            new Chart(document.getElementById(id), {
+                type: isBar ? 'bar' : 'line',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 20 }
+                    },
+                    plugins: {
+                        datalabels: {
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 0;
+                            },
+                            color: function() {
+                                return document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b';
+                            },
+                            anchor: 'end',
+                            align: 'top',
+                            offset: -2,
+                            font: {
+                                weight: 'bold',
+                                size: 10
+                            },
+                            formatter: Math.round
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        };
+        
+        renderChart('distChart', categories['distChart'], true);
+        renderChart('grpChart', categories['grpChart'], true);
+        renderChart('broChart', categories['broChart'], true);
+        renderChart('ythChart', categories['ythChart'], true);
 
     } catch(e) {
         console.error(e);

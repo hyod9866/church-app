@@ -6,6 +6,7 @@
     <title>모임 현황 - Pastoral Ministry Program</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <!-- AnyChart for Word Cloud -->
     <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-core.min.js"></script>
     <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-tag-cloud.min.js"></script>
@@ -99,12 +100,12 @@
 
         <!-- Attendance Charts -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-lg font-bold mb-4">모임별 출석 인원 추이 (최근 6개월)</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div><h4 class="text-sm font-bold text-center mb-2">구역모임</h4><div class="chart-container"><canvas id="distChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">조모임</h4><div class="chart-container"><canvas id="grpChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">형제모임</h4><div class="chart-container"><canvas id="broChart"></canvas></div></div>
-                <div><h4 class="text-sm font-bold text-center mb-2">청년모임</h4><div class="chart-container"><canvas id="ythChart"></canvas></div></div>
+            <h3 class="text-lg font-bold mb-4">모임별/소속별 출석 인원 추이 (최근 6개월)</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div><h4 class="text-sm font-bold text-center mb-2">구역모임 (각 구역별)</h4><div class="chart-container" style="height: 350px;"><canvas id="distChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2">조모임 (각 조별)</h4><div class="chart-container" style="height: 350px;"><canvas id="grpChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2">형제모임</h4><div class="chart-container" style="height: 300px;"><canvas id="broChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-center mb-2">청년모임</h4><div class="chart-container" style="height: 300px;"><canvas id="ythChart"></canvas></div></div>
             </div>
         </div>
 
