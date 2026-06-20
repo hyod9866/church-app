@@ -200,14 +200,24 @@ async function fetchAttendanceCharts() {
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         
+        // Generate 12 months for the current year
+        const months12 = [];
+        const monthKeys12 = [];
+        for (let i = 1; i <= 12; i++) {
+            months12.push(`${i}월`);
+            monthKeys12.push(`${currentYear}-${String(i).padStart(2, '0')}`);
+        }
+
         // Generate last 6 months labels
-        const months = [];
-        const monthKeys = [];
+        const months6 = [];
+        const monthKeys6 = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(currentYear, currentMonth - i, 1);
-            months.push(`${d.getMonth() + 1}월`);
-            monthKeys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`);
+            months6.push(`${d.getMonth() + 1}월`);
+            monthKeys6.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`);
         }
+        
+        const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
         
         // Data structure
         const categories = {
@@ -225,7 +235,6 @@ async function fetchAttendanceCharts() {
             }
             
             const monthKey = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2, '0')}`;
-            if (!monthKeys.includes(monthKey)) return; // Only process last 6 months
             
             let chartKey = null;
             let groupName = '전체';
@@ -245,11 +254,24 @@ async function fetchAttendanceCharts() {
             }
             
             if (chartKey) {
+                const targetKeys = (chartKey === 'distChart' || chartKey === 'grpChart') ? monthKeys12 : monthKeys6;
+                if (!targetKeys.includes(monthKey)) return;
+                
                 if (!categories[chartKey][groupName]) {
                     categories[chartKey][groupName] = {};
-                    monthKeys.forEach(mk => categories[chartKey][groupName][mk] = 0);
+                    targetKeys.forEach(mk => {
+                        // For future months, set to null so graph is not drawn
+                        if (mk > currentMonthKey) {
+                            categories[chartKey][groupName][mk] = null;
+                        } else {
+                            categories[chartKey][groupName][mk] = 0;
+                        }
+                    });
                 }
-                categories[chartKey][groupName][monthKey] += (m.attendee_count || 0);
+                
+                if (categories[chartKey][groupName][monthKey] !== null) {
+                    categories[chartKey][groupName][monthKey] += (m.attendee_count || 0);
+                }
             }
         });
         
@@ -257,12 +279,12 @@ async function fetchAttendanceCharts() {
         document.getElementById('kpiCounselings').textContent = counselings + '건';
         document.getElementById('kpiAttendance').textContent = '78%'; // Placeholder
         
-        const renderChart = (id, catData, isBar = true) => {
+        const renderChart = (id, catData, targetMonths, targetKeys, isBar = true) => {
             const datasets = [];
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1'];
             
             Object.keys(catData).sort().forEach((group, i) => {
-                const dataPoints = monthKeys.map(mk => catData[group][mk]);
+                const dataPoints = targetKeys.map(mk => catData[group][mk]);
                 datasets.push({
                     label: group,
                     data: dataPoints,
@@ -271,12 +293,13 @@ async function fetchAttendanceCharts() {
                     borderWidth: 2,
                     borderRadius: isBar ? 4 : 0,
                     fill: false,
-                    tension: 0.1
+                    tension: 0.1,
+                    spanGaps: false
                 });
             });
             
             if (datasets.length === 0) {
-                datasets.push({ label: '데이터 없음', data: [0,0,0,0,0,0] });
+                datasets.push({ label: '데이터 없음', data: targetKeys.map(() => 0) });
             }
 
             const existingChart = Chart.getChart(id);
@@ -288,7 +311,7 @@ async function fetchAttendanceCharts() {
             const c = new Chart(document.getElementById(id), {
                 type: isBar ? 'bar' : 'line',
                 data: {
-                    labels: months,
+                    labels: targetMonths,
                     datasets: datasets
                 },
                 options: { 
@@ -352,8 +375,8 @@ async function fetchAttendanceCharts() {
                             const datasetIndex = elements[0].datasetIndex;
                             const index = elements[0].index;
                             const dataset = datasets[datasetIndex];
-                            const clickedLabel = months[index];
-                            const clickedMonthKey = monthKeys[index];
+                            const clickedLabel = targetMonths[index];
+                            const clickedMonthKey = targetKeys[index];
                             const clickedGroup = dataset.label;
                             
                             showDetailPanel(clickedGroup, clickedMonthKey, clickedLabel, meetings);
@@ -364,10 +387,10 @@ async function fetchAttendanceCharts() {
             window.myCharts.push(c);
         };
         
-        renderChart('distChart', categories['distChart'], true);
-        renderChart('grpChart', categories['grpChart'], true);
-        renderChart('broChart', categories['broChart'], true);
-        renderChart('ythChart', categories['ythChart'], true);
+        renderChart('distChart', categories['distChart'], months12, monthKeys12, true);
+        renderChart('grpChart', categories['grpChart'], months12, monthKeys12, true);
+        renderChart('broChart', categories['broChart'], months6, monthKeys6, true);
+        renderChart('ythChart', categories['ythChart'], months6, monthKeys6, true);
 
     } catch(e) {
         console.error(e);
