@@ -64,7 +64,8 @@ async function fetchAttendanceCharts() {
     try {
         const res = await fetch('/api/meetings');
         const data = await res.json();
-        const meetings = data.meetings || [];
+        // /api/meetings returns an array of meetings
+        const meetings = Array.isArray(data) ? data : (data.meetings || []);
         
         let visitations = 0;
         let counselings = 0;
