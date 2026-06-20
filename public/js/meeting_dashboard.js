@@ -383,6 +383,8 @@ const detailPanelTitle = document.getElementById('detailPanelTitle');
 const detailPanelSubtitle = document.getElementById('detailPanelSubtitle');
 const detailMeetingList = document.getElementById('detailMeetingList');
 const detailEmptyState = document.getElementById('detailEmptyState');
+const editBtnContainer = document.getElementById('editBtnContainer');
+const editMeetingDetailBtn = document.getElementById('editMeetingDetailBtn');
 
 let lastActiveGroup = '';
 let lastActiveMonthLabel = '';
@@ -418,6 +420,7 @@ if (backToMeetingListBtn) {
         backToMeetingListBtn.classList.add('hidden');
         document.getElementById('singleMeetingDetailContainer').classList.add('hidden');
         document.getElementById('detailMeetingList').classList.remove('hidden');
+        if (editBtnContainer) editBtnContainer.classList.add('hidden');
         
         detailPanelTitle.textContent = lastActiveGroup;
         detailPanelSubtitle.textContent = lastActiveMonthLabel + ' 전체 모임 내역';
@@ -430,6 +433,15 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
     
     if (backToMeetingListBtn) backToMeetingListBtn.classList.remove('hidden');
     if (listContainer) listContainer.classList.add('hidden');
+    if (editBtnContainer) {
+        editBtnContainer.classList.remove('hidden');
+        if (editMeetingDetailBtn) {
+            editMeetingDetailBtn.onclick = () => {
+                window.location.href = `/?editMeetingId=${m.id}`;
+            };
+        }
+    }
+    
     if (container) {
         container.classList.remove('hidden');
         container.innerHTML = '<div class="text-center py-8 text-slate-400 font-bold">상세 정보 로딩 중...</div>';
