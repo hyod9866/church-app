@@ -1268,7 +1268,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             if (extraAttSec) extraAttSec.classList.remove('hidden');
             
             // 다른 타입의 메모 필드 조절
-            if (['심방', '외부설교', '기타'].includes(currentType)) {
+            if (['심방', '외부설교', '기타', '상담', '설교'].includes(currentType) || currentType.includes('모임')) {
                 if (memoField) memoField.classList.remove('hidden');
             } else {
                 if (memoField) memoField.classList.add('hidden');
