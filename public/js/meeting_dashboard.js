@@ -9,7 +9,7 @@ async function fetchStats() {
         const res = await fetch('/api/sermon-stats');
         const data = await res.json();
         
-        document.getElementById('kpiObsidian').textContent = data.obsidianMatches + '개';
+        document.getElementById('kpiTotalMeetings').textContent = data.totalAnalyzed + '개';
 
         // Render Word Cloud
         if (data.topKeywords.length > 0) {
@@ -42,12 +42,10 @@ async function fetchStats() {
         tbody.innerHTML = '';
         data.matchedSermons.slice(0, 20).forEach(s => {
             const tr = document.createElement('tr');
-            const linkHtml = s.has_obsidian ? `<a href="${s.path}" class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold hover:bg-indigo-200">옵시디언 열기</a>` : '<span class="text-gray-400 text-xs">매칭 안됨</span>';
             tr.innerHTML = `
                 <td class="px-4 py-3">${new Date(s.date).toLocaleDateString()}</td>
                 <td class="px-4 py-3">${s.type}</td>
                 <td class="px-4 py-3 font-medium">${s.title}</td>
-                <td class="px-4 py-3">${linkHtml}</td>
             `;
             tbody.appendChild(tr);
         });

@@ -92,8 +92,8 @@
                 <h3 class="text-2xl font-black text-purple-600" id="kpiCounselings">--건</h3>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 font-bold">옵시디언 연동 원고</p>
-                <h3 class="text-2xl font-black text-indigo-600" id="kpiObsidian">--개</h3>
+                <p class="text-xs text-gray-500 font-bold">전체 등록된 모임/설교 수</p>
+                <h3 class="text-2xl font-black text-indigo-600" id="kpiTotalMeetings">--개</h3>
             </div>
         </div>
 
@@ -113,9 +113,9 @@
             <!-- Word Cloud -->
             <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-                    <span class="text-blue-500">☁️</span> 설교 키워드 클라우드 (옵시디언 연동)
+                    <span class="text-blue-500">☁️</span> 설교 키워드 클라우드
                 </h3>
-                <p class="text-xs text-gray-500 mb-4">옵시디언 원고와 제목에서 추출된 핵심 강조 단어입니다.</p>
+                <p class="text-xs text-gray-500 mb-4">설교 제목과 모임 기록 내용에서 추출된 핵심 키워드입니다.</p>
                 <div id="wordCloudContainer"></div>
             </div>
             <!-- Bible Distribution -->
@@ -131,19 +131,18 @@
 
         <!-- Sermon Log Table -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-10">
-            <h3 class="text-lg font-bold mb-4">최근 설교 목록 및 원고 링크</h3>
+            <h3 class="text-lg font-bold mb-4">최근 설교 및 모임 목록</h3>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm text-left">
                     <thead class="bg-gray-50 text-gray-600 font-bold border-b">
                         <tr>
                             <th class="px-4 py-3">날짜</th>
                             <th class="px-4 py-3">모임 대상</th>
-                            <th class="px-4 py-3">설교 제목</th>
-                            <th class="px-4 py-3">원고(Obsidian)</th>
+                            <th class="px-4 py-3">설교/모임 제목</th>
                         </tr>
                     </thead>
                     <tbody id="sermonLogBody" class="divide-y divide-gray-100">
-                        <tr><td colspan="4" class="text-center py-4">로딩 중...</td></tr>
+                        <tr><td colspan="3" class="text-center py-4">로딩 중...</td></tr>
                     </tbody>
                 </table>
             </div>
