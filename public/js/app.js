@@ -1645,6 +1645,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const ms = await res.json();
                 const m = ms.find(x => x.id == editMeetingId);
                 if (m) {
+                    currentMeetingData = m;
                     openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
                 }
             } catch (err) {
@@ -2499,7 +2500,12 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
             }
-            location.reload();
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('returnUrl')) {
+                window.location.href = urlParams.get('returnUrl');
+            } else {
+                location.reload();
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -2514,6 +2520,11 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 });
 
 function closeMeetingPanels() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('returnUrl')) {
+        window.location.href = urlParams.get('returnUrl');
+        return;
+    }
     const c = document.getElementById('meetingPanelsContainer');
     if (!c) return;
     c.classList.add('translate-x-full'); c.classList.remove('translate-x-0');
@@ -2557,7 +2568,12 @@ document.getElementById('deleteMeeting').addEventListener('click', async () => {
                 // 전체 삭제
                 await fetch(`/api/meetings/${currentMeetingId}`, { method: 'DELETE' });
             }
-            location.reload();
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('returnUrl')) {
+                window.location.href = urlParams.get('returnUrl');
+            } else {
+                location.reload();
+            }
         } catch (e) { console.error(e); }
     };
 
