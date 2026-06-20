@@ -289,7 +289,7 @@ async function fetchAttendanceCharts() {
                 let groupCount = 0;
                 Object.keys(catData).forEach(group => {
                     const d = catData[group][mk];
-                    if (d !== null) {
+                    if (d !== null && d.att > 0) {
                         totalAtt += d.att;
                         groupCount++;
                     }
@@ -350,15 +350,11 @@ async function fetchAttendanceCharts() {
                 // Gather KPI data
                 if (currIdx >= 0) {
                     const cm = catData[group][targetKeys[currIdx]];
-                    if (cm) {
+                    if (cm && cm.att > 0) {
                         currentMonthTotalAtt += cm.att;
                         currentMonthTotalTest += cm.test;
                         currentMonthGroupCount++;
                     }
-                }
-                if (currIdx >= 1) {
-                    const pm = catData[group][targetKeys[currIdx-1]];
-                    if (pm) prevMonthTotalAtt += pm.att;
                 }
             });
             
@@ -391,10 +387,22 @@ async function fetchAttendanceCharts() {
                     if (currentMonthGroupCount > 0) {
                         const avgAtt = (currentMonthTotalAtt / currentMonthGroupCount).toFixed(1);
                         const sharingRate = currentMonthTotalAtt > 0 ? Math.round((currentMonthTotalTest / currentMonthTotalAtt)*100) : 0;
-                        
                         let momHtml = '';
-                        if (prevMonthTotalAtt > 0) {
-                            const mom = Math.round(((currentMonthTotalAtt - prevMonthTotalAtt) / prevMonthTotalAtt) * 100);
+                        let prevTotalAtt = 0, prevGroupCount = 0;
+                        if (currIdx >= 1) {
+                            Object.keys(catData).forEach(group => {
+                                const pm = catData[group][targetKeys[currIdx-1]];
+                                if (pm && pm.att > 0) {
+                                    prevTotalAtt += pm.att;
+                                    prevGroupCount++;
+                                }
+                            });
+                        }
+                        const prevAvg = prevGroupCount > 0 ? (prevTotalAtt / prevGroupCount) : 0;
+                        
+                        if (prevAvg > 0) {
+                            const avgAttVal = currentMonthTotalAtt / currentMonthGroupCount;
+                            const mom = Math.round(((avgAttVal - prevAvg) / prevAvg) * 100);
                             const momColor = mom >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500';
                             const momIcon = mom >= 0 ? '▲' : '▼';
                             momHtml = `<span class="text-xs font-bold ${momColor} ml-1">${momIcon} ${Math.abs(mom)}%</span>`;
