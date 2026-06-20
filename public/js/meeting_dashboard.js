@@ -407,7 +407,7 @@ async function fetchAttendanceCharts() {
                                 ${momHtml}
                             </div>
                             <div class="px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs shadow-sm flex items-center">
-                                <span class="text-slate-500 dark:text-slate-400 mr-1">나눔 참여율:</span>
+                                <span class="text-slate-500 dark:text-slate-400 mr-1">간증 참여:</span>
                                 <span class="font-bold text-blue-600 dark:text-blue-400">${sharingRate}%</span>
                             </div>
                         `;
@@ -483,7 +483,7 @@ async function fetchAttendanceCharts() {
                                     const raw = catData[group][mk];
                                     if(raw && raw.att > 0) {
                                         const rate = Math.round((raw.test / raw.att)*100);
-                                        return `${group}: ${raw.att}명 (나눔 ${raw.test}명, ${rate}%)`;
+                                        return `${group}: ${raw.att}명 (간증 ${raw.test}명, ${rate}%)`;
                                     }
                                     return `${group}: ${context.parsed.y}명`;
                                 }
