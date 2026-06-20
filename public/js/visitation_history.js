@@ -135,11 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
                         <div class="text-xs font-bold text-gray-400">누적 <span class="text-blue-600">${member.total_count}</span>회</div>
                         <div class="flex flex-col gap-1">
-                            <button onclick="location.href='/?date=${new Date().toISOString().split('T')[0]}&type=심방&target=${member.id}'" 
+                            <button onclick="openRecordPanel(${member.id}, '${member.name}', '심방')" 
                                     class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white transition-colors whitespace-nowrap">
                                 심방 기록
                             </button>
-                            <button onclick="location.href='/?date=${new Date().toISOString().split('T')[0]}&type=상담&target=${member.id}'" 
+                            <button onclick="openRecordPanel(${member.id}, '${member.name}', '상담')" 
                                     class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white transition-colors whitespace-nowrap">
                                 상담 기록
                             </button>
@@ -745,4 +745,103 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     loadStatus();
+
+    // --- Record Side Panel Logic ---
+    const recordSidePanel = document.getElementById('recordSidePanel');
+    const recordPanelContent = document.getElementById('recordPanelContent');
+    const recordPanelBackdrop = document.getElementById('recordPanelBackdrop');
+    const closeRecordPanelBtn = document.getElementById('closeRecordPanelBtn');
+    const cancelRecordBtn = document.getElementById('cancelRecordBtn');
+    const saveRecordBtn = document.getElementById('saveRecordBtn');
+
+    window.openRecordPanel = (memberId, memberName, type) => {
+        document.getElementById('recordMemberId').value = memberId;
+        document.getElementById('recordType').value = type;
+        
+        document.getElementById('recordPanelTitle').textContent = `${type} 기록 작성`;
+        document.getElementById('recordPanelSubtitle').textContent = `성도: ${memberName}`;
+        
+        document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('recordMemo').value = '';
+
+        recordSidePanel.classList.remove('hidden');
+        // Trigger reflow
+        void recordSidePanel.offsetWidth;
+        recordPanelBackdrop.classList.add('opacity-100');
+        recordPanelContent.classList.remove('translate-x-full');
+    };
+
+    const closeRecordPanel = () => {
+        recordPanelBackdrop.classList.remove('opacity-100');
+        recordPanelContent.classList.add('translate-x-full');
+        setTimeout(() => {
+            recordSidePanel.classList.add('hidden');
+        }, 300);
+    };
+
+    closeRecordPanelBtn.addEventListener('click', closeRecordPanel);
+    cancelRecordBtn.addEventListener('click', closeRecordPanel);
+    recordPanelBackdrop.addEventListener('click', closeRecordPanel);
+
+    saveRecordBtn.addEventListener('click', async () => {
+        const memberId = document.getElementById('recordMemberId').value;
+        const type = document.getElementById('recordType').value;
+        const date = document.getElementById('recordDate').value;
+        const memo = document.getElementById('recordMemo').value.trim();
+
+        if (!date) return alert('날짜를 선택해주세요.');
+
+        saveRecordBtn.disabled = true;
+        saveRecordBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> 저장 중...';
+
+        try {
+            // 1. Create meeting
+            const memberName = document.getElementById('recordPanelSubtitle').textContent.replace('성도: ', '');
+            const title = `${memberName} ${type}`;
+            
+            const meetRes = await fetch('/api/meetings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    date,
+                    type,
+                    memo
+                })
+            });
+            
+            if (!meetRes.ok) throw new Error('모임 생성 실패');
+            const { id: meetingId } = await meetRes.json();
+
+            // 2. Create attendance
+            const attData = [{
+                member_id: parseInt(memberId),
+                is_present: 1,
+                testimony_snapshot: memo
+            }];
+            
+            const attRes = await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meeting_id: meetingId,
+                    attendance_data: attData
+                })
+            });
+
+            if (!attRes.ok) throw new Error('출석 기록 생성 실패');
+
+            closeRecordPanel();
+            loadStatus(); // Reload data to update counts and UI
+        } catch (error) {
+            console.error(error);
+            alert('기록 저장 중 오류가 발생했습니다.');
+        } finally {
+            saveRecordBtn.disabled = false;
+            saveRecordBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                저장하기
+            `;
+        }
+    });
 });
