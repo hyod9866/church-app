@@ -2031,23 +2031,30 @@ app.get('/api/dashboard/attendance', async (req, res) => {
 
 app.get('/api/sermon-stats', async (req, res) => {
     try {
-        const { data: meetings, error } = await supabase
+        const today = new Date().toISOString().split('T')[0];
+
+        const { data: allMeetings, error } = await supabase
             .from('meetings')
             .select('id, date, title, type, sermon_title, memo, start_time, end_time, attendance(count)')
-            .not('sermon_title', 'is', null)
-            .neq('sermon_title', '')
             .eq('attendance.is_present', 1)
-            .order('date', { ascending: false })
-            .limit(100);
+            .order('date', { ascending: false });
 
         if (error) throw error;
+
+        // Filter to match sermon_history.js logic exactly
+        const excludedTypes = ['구원기념일', '교회행사', '심방', '상담', '개인상담'];
+        const meetings = allMeetings.filter(m => {
+            if (excludedTypes.includes(m.type)) return false;
+            if (m.date >= today) return true; // Include all upcoming meetings regardless of sermon_title
+            return m.type === '설교' || m.type === '외부설교' || (m.sermon_title && m.sermon_title.trim() !== '');
+        });
 
         let bibleBooksCount = {};
         let keywordsCount = {};
         let matchedSermons = [];
 
         meetings.forEach(meeting => {
-            const title = meeting.sermon_title.trim();
+            const title = (meeting.sermon_title || '').trim();
             let sermon_bible = '';
             let sermon_tags = '';
             let cleanMemo = meeting.memo || '';
