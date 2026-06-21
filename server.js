@@ -1487,17 +1487,34 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id, testimony_snapshot')
+      .select('meeting_id, testimony_snapshot, district_snapshot')
       .eq('is_present', 1);
     if (attErr) throw attErr;
 
     const countMap = {};
     const testimonyCountMap = {};
+    const districtCountMap = {};
+    const districtTestimonyCountMap = {};
+
     if (presentAttendance) {
       presentAttendance.forEach(a => {
         countMap[a.meeting_id] = (countMap[a.meeting_id] || 0) + 1;
         if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
             testimonyCountMap[a.meeting_id] = (testimonyCountMap[a.meeting_id] || 0) + 1;
+        }
+
+        const dist = a.district_snapshot ? a.district_snapshot.trim() : '미지정';
+        
+        if (!districtCountMap[a.meeting_id]) {
+          districtCountMap[a.meeting_id] = {};
+        }
+        districtCountMap[a.meeting_id][dist] = (districtCountMap[a.meeting_id][dist] || 0) + 1;
+
+        if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
+          if (!districtTestimonyCountMap[a.meeting_id]) {
+            districtTestimonyCountMap[a.meeting_id] = {};
+          }
+          districtTestimonyCountMap[a.meeting_id][dist] = (districtTestimonyCountMap[a.meeting_id][dist] || 0) + 1;
         }
       });
     }
@@ -1527,7 +1544,9 @@ app.get('/api/meetings', async (req, res) => {
         sermon_bible,
         sermon_tags,
         attendee_count: countMap[m.id] || 0,
-        testimony_count: testimonyCountMap[m.id] || 0
+        testimony_count: testimonyCountMap[m.id] || 0,
+        district_attendees: districtCountMap[m.id] || {},
+        district_testimonies: districtTestimonyCountMap[m.id] || {}
       };
     });
 

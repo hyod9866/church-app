@@ -356,20 +356,51 @@ async function fetchAttendanceCharts() {
                 const targetKeys = (chartKey === 'distChart' || chartKey === 'grpChart') ? monthKeys12 : monthKeys6;
                 if (!targetKeys.includes(monthKey)) return;
                 
-                if (!categories[chartKey][groupName]) {
-                    categories[chartKey][groupName] = {};
-                    targetKeys.forEach(mk => {
-                        if (mk > currentMonthKey) {
-                            categories[chartKey][groupName][mk] = null;
-                        } else {
-                            categories[chartKey][groupName][mk] = { att: 0, test: 0 };
+                if (chartKey === 'broChart' || chartKey === 'ythChart') {
+                    const distAttendees = m.district_attendees && Object.keys(m.district_attendees).length > 0
+                        ? m.district_attendees
+                        : { '미지정': m.attendee_count || 0 };
+                    
+                    const distTestimonies = m.district_testimonies || {};
+
+                    Object.keys(distAttendees).forEach(dist => {
+                        const count = distAttendees[dist] || 0;
+                        if (count === 0) return;
+                        
+                        const subGroupName = dist;
+                        
+                        if (!categories[chartKey][subGroupName]) {
+                            categories[chartKey][subGroupName] = {};
+                            targetKeys.forEach(mk => {
+                                if (mk > currentMonthKey) {
+                                    categories[chartKey][subGroupName][mk] = null;
+                                } else {
+                                    categories[chartKey][subGroupName][mk] = { att: 0, test: 0 };
+                                }
+                            });
+                        }
+                        
+                        if (categories[chartKey][subGroupName][monthKey] !== null) {
+                            categories[chartKey][subGroupName][monthKey].att += count;
+                            categories[chartKey][subGroupName][monthKey].test += (distTestimonies[dist] || 0);
                         }
                     });
-                }
-                
-                if (categories[chartKey][groupName][monthKey] !== null) {
-                    categories[chartKey][groupName][monthKey].att += (m.attendee_count || 0);
-                    categories[chartKey][groupName][monthKey].test += (m.testimony_count || 0);
+                } else {
+                    if (!categories[chartKey][groupName]) {
+                        categories[chartKey][groupName] = {};
+                        targetKeys.forEach(mk => {
+                            if (mk > currentMonthKey) {
+                                categories[chartKey][groupName][mk] = null;
+                            } else {
+                                categories[chartKey][groupName][mk] = { att: 0, test: 0 };
+                            }
+                        });
+                    }
+                    
+                    if (categories[chartKey][groupName][monthKey] !== null) {
+                        categories[chartKey][groupName][monthKey].att += (m.attendee_count || 0);
+                        categories[chartKey][groupName][monthKey].test += (m.testimony_count || 0);
+                    }
                 }
             }
         });
@@ -378,9 +409,22 @@ async function fetchAttendanceCharts() {
         document.getElementById('kpiCounselings').textContent = counselings + '건';
         document.getElementById('kpiAttendance').textContent = '78%'; // Placeholder
         
-        const renderChart = (id, catData, targetMonths, targetKeys, isBar = true, kpiContainerId = null, alertContainerId = null) => {
+        const renderChart = (id, catData, targetMonths, targetKeys, isBar = true, kpiContainerId = null, alertContainerId = null, isStacked = false) => {
             const datasets = [];
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1'];
+            
+            const getGroupColor = (name, index) => {
+                const fixedColors = {
+                    '581구역': '#3b82f6', // 파랑
+                    '582구역': '#10b981', // 초록
+                    '583구역': '#f59e0b', // 노랑
+                    '581': '#3b82f6',
+                    '582': '#10b981',
+                    '583': '#f59e0b',
+                    '미지정': '#64748b'
+                };
+                return fixedColors[name] || colors[index % colors.length];
+            };
             
             // Calculate global average across all visible months
             let globalTotalAtt = 0;
@@ -426,13 +470,14 @@ async function fetchAttendanceCharts() {
                 });
                 
                 // Add individual group bar dataset
+                const groupColor = getGroupColor(group, i);
                 datasets.push({
                     label: group,
                     data: dataPoints,
-                    backgroundColor: isBar ? colors[i % colors.length] : undefined,
-                    borderColor: colors[i % colors.length],
+                    backgroundColor: isBar ? groupColor : undefined,
+                    borderColor: groupColor,
                     borderWidth: 2,
-                    borderRadius: isBar ? 4 : 0,
+                    borderRadius: isBar ? (isStacked ? 0 : 4) : 0,
                     fill: false,
                     tension: 0.1,
                     spanGaps: false
@@ -584,14 +629,15 @@ async function fetchAttendanceCharts() {
                                 return context.dataset.data[context.dataIndex] > 0;
                             },
                             color: function() {
+                                if (isStacked) return '#ffffff';
                                 return document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b';
                             },
-                            anchor: 'end',
-                            align: 'top',
-                            offset: -2,
+                            anchor: isStacked ? 'center' : 'end',
+                            align: isStacked ? 'center' : 'top',
+                            offset: isStacked ? 0 : -2,
                             font: {
                                 weight: 'bold',
-                                size: 10
+                                size: isStacked ? 9 : 10
                             },
                             formatter: Math.round
                         },
@@ -624,6 +670,7 @@ async function fetchAttendanceCharts() {
                     },
                     scales: {
                         x: {
+                            stacked: isStacked,
                             grid: {
                                 color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                             },
@@ -632,6 +679,7 @@ async function fetchAttendanceCharts() {
                             }
                         },
                         y: {
+                            stacked: isStacked,
                             beginAtZero: true,
                             ticks: { 
                                 precision: 0,
@@ -658,7 +706,7 @@ async function fetchAttendanceCharts() {
                             const clickedMonthKey = targetKeys[index];
                             const clickedGroup = dataset.label;
                             
-                            showDetailPanel(clickedGroup, clickedMonthKey, clickedLabel, meetings);
+                            showDetailPanel(clickedGroup, clickedMonthKey, clickedLabel, meetings, id);
                         }
                     }
                 }
@@ -668,8 +716,8 @@ async function fetchAttendanceCharts() {
         
         renderChart('distChart', categories['distChart'], months12, monthKeys12, true, 'distKpiContainer', 'distAlertContainer');
         renderChart('grpChart', categories['grpChart'], months12, monthKeys12, true, 'grpKpiContainer', 'grpAlertContainer');
-        renderChart('broChart', categories['broChart'], months6, monthKeys6, true, 'broKpiContainer', 'broAlertContainer');
-        renderChart('ythChart', categories['ythChart'], months6, monthKeys6, true, 'ythKpiContainer', 'ythAlertContainer');
+        renderChart('broChart', categories['broChart'], months6, monthKeys6, true, 'broKpiContainer', 'broAlertContainer', true);
+        renderChart('ythChart', categories['ythChart'], months6, monthKeys6, true, 'ythKpiContainer', 'ythAlertContainer', true);
 
     } catch(e) {
         console.error(e);
@@ -907,7 +955,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
     }
 }
 
-function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
+function showDetailPanel(groupName, monthKey, monthLabel, allMeetings, chartId = null) {
     lastActiveGroup = groupName;
     lastActiveMonthLabel = monthLabel;
     
@@ -915,7 +963,13 @@ function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
     document.getElementById('singleMeetingDetailContainer').classList.add('hidden');
     document.getElementById('detailMeetingList').classList.remove('hidden');
     
-    detailPanelTitle.textContent = `${groupName}`;
+    let displayTitle = groupName;
+    if (chartId === 'broChart') {
+        displayTitle = `형제모임 (${groupName})`;
+    } else if (chartId === 'ythChart') {
+        displayTitle = `청년모임 (${groupName})`;
+    }
+    detailPanelTitle.textContent = displayTitle;
     detailPanelSubtitle.textContent = `${monthLabel} 전체 모임 내역`;
     
     // Filter meetings matching the exact monthKey (YYYY-MM) and the groupName
@@ -924,8 +978,13 @@ function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
         const mk = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2, '0')}`;
         if (mk !== monthKey) return false;
         
-        // Exact match or includes depending on how groupName was derived. 
-        // groupName is like "581", m.type is like "581구역모임"
+        if (chartId === 'broChart') {
+            return m.type.includes('형제모임');
+        }
+        if (chartId === 'ythChart') {
+            return m.type.includes('청년모임');
+        }
+        
         return m.type.includes(groupName);
     });
     
