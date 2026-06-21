@@ -17,6 +17,13 @@
         .dark body { background-color: #0B0F19; color: #f1f5f9; }
         .chart-container { position: relative; height: 250px; width: 100%; }
         #wordCloudContainer { height: 300px; width: 100%; }
+        .sermon-card {
+            transition: all 0.2s ease;
+        }
+        .sermon-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 min-h-screen">
@@ -178,49 +185,30 @@
             </div>
         </div>
 
-        <!-- Sermon Log Table -->
-        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5 mb-10">
-            <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">최근 설교 및 모임 목록</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left">
-                    <thead class="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-300 font-bold border-b border-gray-100 dark:border-slate-800/60">
-                        <tr>
-                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('date')">
-                                <div class="flex items-center gap-1">
-                                    날짜
-                                    <span id="sort-icon-date" class="text-blue-600 dark:text-blue-400 text-[10px]">▼</span>
-                                </div>
-                            </th>
-                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('meeting_title')">
-                                <div class="flex items-center gap-1">
-                                    모임 제목
-                                    <span id="sort-icon-meeting_title" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
-                                </div>
-                            </th>
-                            <th class="px-4 py-3 cursor-pointer select-none group min-w-[120px]" onclick="sortSermons('type')">
-                                <div class="flex items-center gap-1">
-                                    모임 구분
-                                    <span id="sort-icon-type" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
-                                </div>
-                            </th>
-                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('sermon_title')">
-                                <div class="flex items-center gap-1">
-                                    설교 제목
-                                    <span id="sort-icon-sermon_title" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
-                                </div>
-                            </th>
-                            <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('attendee_count')">
-                                <div class="flex items-center gap-1">
-                                    참석 인원수
-                                    <span id="sort-icon-attendee_count" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody id="sermonLogBody" class="divide-y divide-gray-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-                        <tr><td colspan="5" class="text-center py-4">로딩 중...</td></tr>
-                    </tbody>
-                </table>
+        <!-- Sermon History Feed -->
+        <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 space-y-4 transition-colors mb-10">
+            <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
+                <h2 class="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span class="w-1.5 h-4 bg-blue-600 dark:bg-blue-500 rounded-full"></span>
+                    최근 설교 및 모임 피드
+                </h2>
+                <div class="relative w-full md:w-64">
+                    <input type="text" id="sermonSearch" placeholder="제목/본문/날짜 검색..." 
+                           class="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition duration-150 bg-slate-50/50 dark:bg-[#0B0F19] dark:text-slate-100">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+
+            <!-- Wrapping Filter Chips -->
+            <div class="flex flex-wrap items-center gap-1.5 py-0.5 border-t border-slate-100 dark:border-slate-800/60 pt-3" id="filterChipsContainer">
+                <!-- Chips will be dynamically injected by JS -->
+            </div>
+
+            <!-- Vertical Sermon List -->
+            <div id="sermonList" class="space-y-3 pt-2">
+                <div class="flex justify-center py-20">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -377,6 +365,6 @@
 
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/meeting_editor.js?v=dark-attendance-fix-1"></script>
-    <script src="/js/meeting_dashboard.js?v=stacked-bar-charts-v2"></script>
+    <script src="/js/meeting_dashboard.js?v=sermon-history-feed-v1"></script>
 </body>
 </html>
