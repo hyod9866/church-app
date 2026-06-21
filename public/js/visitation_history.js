@@ -421,10 +421,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <table class="w-full text-sm text-left border-collapse bg-white">
                                 <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
                                     <tr>
-                                        <th class="p-3.5 w-[110px] border-r text-center">날짜</th>
-                                        <th class="p-3.5 min-w-[150px] border-r text-center">모임정보</th>
-                                        <th class="p-3.5 text-center w-[90px] border-r">출석 여부</th>
-                                        <th class="p-3.5 text-center">간증</th>
+                                        <th class="py-2 px-2.5 w-[110px] border-r text-center">날짜</th>
+                                        <th class="py-2 px-2.5 min-w-[150px] border-r text-center">모임정보</th>
+                                        <th class="py-2 px-2.5 text-center w-[90px] border-r">출석 여부</th>
+                                        <th class="py-2 px-2.5 text-center">간증</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
@@ -465,10 +465,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         return `
                             <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
-                                <td class="p-3 text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
-                                <td class="p-3 font-bold text-slate-800">${h.title}</td>
-                                <td class="p-3 text-center">${statusBadge}</td>
-                                <td class="p-3 text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}">
+                                        <td class="py-1.5 px-2.5 text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
+                                        <td class="py-1.5 px-2.5 font-bold text-slate-800">${h.title}</td>
+                                        <td class="py-1.5 px-2.5 text-center">${statusBadge}</td>
+                                        <td class="py-1.5 px-2.5 text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}">
                                     <div class="flex items-center justify-between gap-2 group w-full">
                                         <span class="testimony-text flex-1">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
                                         <span class="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] whitespace-nowrap">✏️ 수정</span>
