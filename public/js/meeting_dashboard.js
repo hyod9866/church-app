@@ -614,12 +614,16 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
     if (listContainer) listContainer.classList.add('hidden');
     if (editBtnContainer) {
         editBtnContainer.classList.remove('hidden');
-        if (editMeetingDetailBtn) {
-            editMeetingDetailBtn.onclick = () => {
+        const activeEditBtn = document.getElementById('editMeetingDetailBtn');
+        if (activeEditBtn) {
+            activeEditBtn.onclick = () => {
                 console.log("[DEBUG] editMeetingDetailBtn clicked. Target m.id:", m.id);
-                window.openGlobalMeetingEditor(m.id, () => {
-                    loadSermonLog();
-                    fetchStats();
+                window.openGlobalMeetingEditor(m.id, async () => {
+                    await fetchStats();
+                    const updated = currentSermons.find(item => item.id == m.id);
+                    if (updated) {
+                        showSingleMeetingDetail(updated, groupName, monthLabel);
+                    }
                 }, () => {
                     const listContainer = document.getElementById('detailMeetingList');
                     const singleContainer = document.getElementById('singleMeetingDetailContainer');
@@ -631,7 +635,6 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                     } else {
                         closeDetailPanel();
                     }
-                    loadSermonLog();
                     fetchStats();
                 });
             };
