@@ -199,7 +199,7 @@ function renderExtras() {
             <span class="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-600">${m.district || ''}</span>
             <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
         </div>
-        <input type="text" class="testimony-input w-full border rounded px-3 py-1.5 text-xs" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
+        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-850 dark:text-slate-850 bg-white dark:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
     </div>`).join('');
 }
 
@@ -724,7 +724,7 @@ async function refreshAttendanceList() {
                 <span class="font-bold text-gray-800">${m.name}</span>
                 <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${m.district}</span>
             </div>
-            <input type="text" class="testimony-input w-full border rounded px-3 py-1.5 text-xs" placeholder="간증/기록 입력..." value="${test}">
+            <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-850 dark:text-slate-850 bg-white dark:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
         </div>`;
     };
 
