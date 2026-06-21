@@ -119,6 +119,15 @@ function updateWordCloud() {
         wordCloudChart.colorRange(false);
         wordCloudChart.background().fill("transparent");
         wordCloudChart.palette(['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1']);
+        
+        // 키워드 클릭 시 이력 모달 연동
+        wordCloudChart.listen("pointClick", function(e) {
+            const clickedTag = e.point.get("x");
+            if (clickedTag) {
+                openTagSermonsModal(clickedTag);
+            }
+        });
+
         wordCloudChart.container("wordCloudContainer");
         wordCloudChart.draw();
     }
@@ -1041,6 +1050,96 @@ function closeBibleModal() {
 if (closeBibleSermonsModal) closeBibleSermonsModal.onclick = closeBibleModal;
 if (closeBibleSermonsModalBtn) closeBibleSermonsModalBtn.onclick = closeBibleModal;
 if (bibleSermonsModalBackdrop) bibleSermonsModalBackdrop.onclick = closeBibleModal;
+
+// Tag Sermons Modal Elements
+const tagSermonsModal = document.getElementById('tagSermonsModal');
+const tagSermonsModalBackdrop = document.getElementById('tagSermonsModalBackdrop');
+const closeTagSermonsModal = document.getElementById('closeTagSermonsModal');
+const closeTagSermonsModalBtn = document.getElementById('closeTagSermonsModalBtn');
+const tagModalTitle = document.getElementById('tagModalTitle');
+const tagSermonsTableBody = document.getElementById('tagSermonsTableBody');
+
+function openTagSermonsModal(tag) {
+    if (!tagSermonsModal) return;
+    if (tagModalTitle) tagModalTitle.textContent = `#${tag}`;
+    if (tagSermonsTableBody) {
+        tagSermonsTableBody.innerHTML = '';
+
+        // s.sermon_tags에서 정규식 파싱 후 단어 목록 추출하여 비교
+        const matches = currentSermons.filter(s => {
+            if (!s.sermon_tags) return false;
+            const tagList = s.sermon_tags.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\s+/).map(t => t.trim());
+            return tagList.includes(tag);
+        });
+
+        if (matches.length === 0) {
+            tagSermonsTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 dark:text-slate-505 font-bold italic">설교 및 모임 이력이 없습니다.</td></tr>`;
+        } else {
+            // Sort by date desc
+            const sortedList = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date));
+            sortedList.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group";
+                
+                const d = new Date(s.date);
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const yy = String(d.getFullYear()).slice(-2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yy}.${mm}.${dd}(${days[d.getDay()]})`;
+
+                tr.onclick = () => {
+                    closeTagModal();
+                    // Show detail panel
+                    const mockMeetingObj = {
+                        id: s.id,
+                        date: s.date,
+                        title: s.meeting_title,
+                        type: s.type,
+                        sermon_title: s.sermon_title,
+                        sermon_tags: s.sermon_tags || '',
+                        start_time: s.start_time,
+                        end_time: s.end_time
+                    };
+                    showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
+                    openDetailPanel();
+                };
+
+                tr.innerHTML = `
+                    <td class="px-3 py-2.5 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-bold">${dateStr}</td>
+                    <td class="px-3 py-2.5 font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${s.sermon_title || '(제목 없음)'}</td>
+                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-semibold min-w-[120px]">${s.meeting_title || (s.type === '설교' ? '내부설교' : s.type) || ''}</td>
+                `;
+                tagSermonsTableBody.appendChild(tr);
+            });
+        }
+    }
+
+    tagSermonsModal.classList.remove('hidden');
+    setTimeout(() => {
+        const modalContent = tagSermonsModal.querySelector('.bg-white, .dark\\:bg-\\[\\#131B2E\\]');
+        if (modalContent) {
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+        }
+    }, 10);
+}
+
+function closeTagModal() {
+    if (!tagSermonsModal) return;
+    const modalContent = tagSermonsModal.querySelector('.bg-white, .dark\\:bg-\\[\\#131B2E\\]');
+    if (modalContent) {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+    }
+    setTimeout(() => {
+        tagSermonsModal.classList.add('hidden');
+    }, 200);
+}
+
+if (closeTagSermonsModal) closeTagSermonsModal.onclick = closeTagModal;
+if (closeTagSermonsModalBtn) closeTagSermonsModalBtn.onclick = closeTagModal;
+if (tagSermonsModalBackdrop) tagSermonsModalBackdrop.onclick = closeTagModal;
 
 function renderBibleCharts(bibleDist) {
     // Separate New and Old Testament
