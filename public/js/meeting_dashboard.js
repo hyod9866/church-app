@@ -4,9 +4,125 @@ let currentSermons = [];
 let sortKey = 'date';
 let sortDirection = 'desc'; // 'asc' or 'desc'
 
+let selectedMeetingTypes = new Set();
+let wordCloudChart = null;
+
+// 키워드 분석을 위한 한국어 불용어(StopWords) 목록 (백엔드와 정렬)
+const KEYWORD_STOP_WORDS = ['수', '있', '하', '것', '들', '그', '되', '이', '보', '않', '없', '나', '사람', '주', '아니', '등', '같', '우리', '때', '년', '가', '한', '지', '대하', '오', '말', '일', '그렇', '위하', '때문', '그것', '두', '말하', '알', '그러나', '받', '못하', '그런', '또', '문제', '더', '사회', '많', '그리고', '좋', '크', '따르', '중', '나오', '가지', '씨', '시키', '만들', '지금', '생각하', '그러', '속', '하나', '집', '살', '모르', '적', '월', '데', '자신', '안', '어떤', '내', '경우', '명', '생각', '시간', '그녀', '다시', '이런', '앞', '보이', '번', '나', '다른', '어떻', '여자', '개', '전', '들', '사실', '이렇', '점', '싶', '말', '정도', '좀', '원', '잘', '통하', '소리', '놓', '위해', '대한'];
+
 // Old & New Testament book constants
 const OLD_TESTAMENT_BOOKS = ["창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기", "사무엘상", "사무엘하", "열왕기상", "열왕기하", "역대상", "역대하", "에스라", "느헤미야", "에스더", "욥기", "시편", "잠언", "전도서", "아가", "이사야", "예레미야", "예레미야애가", "에스겔", "다니엘", "호세아", "요엘", "아모스", "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기"];
 const NEW_TESTAMENT_BOOKS = ["마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", "고린도후서", "갈라디아서", "에베소서", "빌립보서", "골로새서", "데살로니가전서", "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", "야고보서", "베드로전서", "베드로후서", "요한1서", "요한2서", "요한3서", "유다서", "요한계시록"];
+
+// 해시태그 필터 버튼 렌더링 함수
+function renderKeywordFilters() {
+    const container = document.getElementById('keywordCloudFilterContainer');
+    if (!container) return;
+
+    // 현재 로드된 설교가 있는 모임들의 고유 타입 추출 (정렬)
+    const types = new Set();
+    currentSermons.forEach(s => {
+        if (s.type) {
+            types.add(s.type);
+        }
+    });
+    const typeList = Array.from(types).sort();
+
+    container.innerHTML = '';
+
+    // 1. "전체" 필터 버튼 생성
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    const isAllActive = selectedMeetingTypes.size === 0;
+    
+    allBtn.className = isAllActive 
+        ? "px-3.5 py-1.5 rounded-full text-xs font-black transition-all duration-150 cursor-pointer shadow-sm bg-blue-600 text-white border border-blue-600 dark:bg-blue-500 dark:border-blue-500"
+        : "px-3.5 py-1.5 rounded-full text-xs font-black transition-all duration-150 cursor-pointer shadow-sm bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-700/60";
+    
+    allBtn.innerHTML = isAllActive ? "✓ 전체" : "전체";
+    allBtn.onclick = () => {
+        selectedMeetingTypes.clear();
+        renderKeywordFilters();
+        updateWordCloud();
+    };
+    container.appendChild(allBtn);
+
+    // 2. 개별 모임 구분 버튼 생성
+    typeList.forEach(type => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isActive = selectedMeetingTypes.has(type);
+        const displayType = type === '설교' ? '내부설교' : type;
+
+        btn.className = isActive
+            ? "px-3.5 py-1.5 rounded-full text-xs font-black transition-all duration-150 cursor-pointer shadow-sm bg-blue-600 text-white border border-blue-600 dark:bg-blue-500 dark:border-blue-500"
+            : "px-3.5 py-1.5 rounded-full text-xs font-black transition-all duration-150 cursor-pointer shadow-sm bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-700/60";
+
+        btn.innerHTML = isActive ? `✓ ${displayType}` : displayType;
+        btn.onclick = () => {
+            if (selectedMeetingTypes.has(type)) {
+                selectedMeetingTypes.delete(type);
+            } else {
+                selectedMeetingTypes.add(type);
+            }
+            renderKeywordFilters();
+            updateWordCloud();
+        };
+        container.appendChild(btn);
+    });
+}
+
+// 필터링된 데이터를 바탕으로 키워드 재집계 및 워드클라우드 갱신
+function updateWordCloud() {
+    const container = document.getElementById("wordCloudContainer");
+    if (!container) return;
+
+    // 필터링된 모임 선별
+    const filteredSermons = selectedMeetingTypes.size === 0 
+        ? currentSermons 
+        : currentSermons.filter(s => selectedMeetingTypes.has(s.type));
+
+    // 키워드 빈도 추출 및 분석 (명사/태그 기반)
+    const keywordsCount = {};
+    filteredSermons.forEach(s => {
+        if (s.sermon_tags) {
+            // 태그 파싱 로직 (# 제거, 특수문자 제거, 공백 split)
+            const words = s.sermon_tags.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\s+/);
+            words.forEach(word => {
+                const cleanWord = word.trim();
+                if (cleanWord.length > 1 && !KEYWORD_STOP_WORDS.includes(cleanWord) && isNaN(cleanWord)) {
+                    keywordsCount[cleanWord] = (keywordsCount[cleanWord] || 0) + 1;
+                }
+            });
+        }
+    });
+
+    // 상위 30개 가공
+    const topKeywords = Object.entries(keywordsCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30)
+        .map(([text, weight]) => ({ x: text, value: weight }));
+
+    if (topKeywords.length === 0) {
+        container.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 font-bold italic py-8">선택된 모임의 설교 키워드 데이터가 없습니다.</div>';
+        wordCloudChart = null; // 인스턴스 해제
+        return;
+    }
+
+    if (wordCloudChart) {
+        // 기존 인스턴스가 존재하면 데이터만 부드럽게 교체
+        wordCloudChart.data(topKeywords);
+    } else {
+        container.innerHTML = '';
+        wordCloudChart = anychart.tagCloud(topKeywords);
+        wordCloudChart.angles([0, -45, 90]);
+        wordCloudChart.colorRange(false);
+        wordCloudChart.background().fill("transparent");
+        wordCloudChart.palette(['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1']);
+        wordCloudChart.container("wordCloudContainer");
+        wordCloudChart.draw();
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     await fetchStats();
@@ -137,29 +253,20 @@ async function fetchStats() {
         
         document.getElementById('kpiTotalMeetings').textContent = data.totalAnalyzed + '개';
 
-        // Render Word Cloud
-        if (data.topKeywords.length > 0) {
-            const container = document.getElementById("wordCloudContainer");
-            if (container) {
-                container.innerHTML = '';
-                var chart = anychart.tagCloud(data.topKeywords.map(k => ({x: k.text, value: k.weight})));
-                chart.angles([0, -45, 90]);
-                chart.colorRange(false);
-                chart.background().fill("transparent");
-                chart.palette(['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1']);
-                chart.container("wordCloudContainer");
-                chart.draw();
-            }
-        }
+        // 1. 데이터 캐싱 및 목록 렌더링
+        currentSermons = data.matchedSermons || [];
+        renderSermonTable();
 
-        // Render Bible Bar Charts (New & Old Testament)
+        // 2. 모임 구분 해시태그 필터 칩 렌더링
+        renderKeywordFilters();
+
+        // 3. 필터 기준에 따른 실시간 워드 클라우드 렌더링
+        updateWordCloud();
+
+        // 4. 성경 분포 세로 막대 차트 (신구약 분리) 렌더링
         if (data.bibleDist && data.bibleDist.length > 0) {
             renderBibleCharts(data.bibleDist);
         }
-
-        // Render Sermon Log
-        currentSermons = data.matchedSermons || [];
-        renderSermonTable();
 
     } catch(e) {
         console.error(e);
