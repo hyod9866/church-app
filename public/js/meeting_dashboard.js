@@ -640,7 +640,23 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         editBtnContainer.classList.remove('hidden');
         if (editMeetingDetailBtn) {
             editMeetingDetailBtn.onclick = () => {
-                window.location.href = `/?editMeetingId=${m.id}`;
+                window.openGlobalMeetingEditor(m.id, () => {
+                    loadSermonLog();
+                    fetchStats();
+                }, () => {
+                    const listContainer = document.getElementById('detailMeetingList');
+                    const singleContainer = document.getElementById('singleMeetingDetailContainer');
+                    const editBtnCon = document.getElementById('editBtnContainer');
+                    const backBtn = document.getElementById('backToMeetingListBtn');
+                    
+                    if (backBtn && !backBtn.classList.contains('hidden')) {
+                        backBtn.click();
+                    } else {
+                        closeDetailPanel();
+                    }
+                    loadSermonLog();
+                    fetchStats();
+                });
             };
         }
     }

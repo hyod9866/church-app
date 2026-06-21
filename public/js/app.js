@@ -1795,11 +1795,27 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     document.getElementById('detailContent').innerHTML = detailHTML;
 }
 
-document.getElementById('editMeetingDetailBtn').addEventListener('click', async () => {
-    const res = await fetch(`/api/meetings`); const rawMs = await res.json();
-    const ms = rawMs.map(parseRecurringMetadata);
-    const m = ms.find(x => x.id == currentMeetingId);
-    if (m) openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
+document.getElementById('editMeetingDetailBtn').addEventListener('click', () => {
+    if (currentMeetingId) {
+        window.openGlobalMeetingEditor(currentMeetingId, () => {
+            if (typeof calendar !== 'undefined' && calendar.refetchEvents) {
+                calendar.refetchEvents();
+            }
+            const modal = document.getElementById('meetingModal');
+            if (modal) modal.classList.add('hidden');
+            const detailPanel = document.getElementById('meetingDetailPanel');
+            if (detailPanel) detailPanel.classList.add('hidden');
+            const panelCon = document.getElementById('meetingPanelsContainer');
+            if (panelCon) {
+                panelCon.classList.add('translate-x-full');
+                setTimeout(() => { panelCon.classList.add('hidden'); }, 300);
+            }
+        }, () => {
+            if (typeof calendar !== 'undefined' && calendar.refetchEvents) {
+                calendar.refetchEvents();
+            }
+        });
+    }
 });
 
 function renderSermonTagBadges() {

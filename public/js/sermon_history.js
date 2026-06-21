@@ -592,6 +592,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             newEditBtn.addEventListener('click', async () => {
                 if (!currentMeetingId) return;
+                window.openGlobalMeetingEditor(currentMeetingId, () => {
+                    loadSermons().then(() => {
+                        showMeetingDetail(currentMeetingId);
+                    });
+                }, () => {
+                    if (panelsContainer && !panelsContainer.classList.contains('translate-y-full')) {
+                        panelsContainer.classList.add('translate-y-full');
+                    }
+                    if (desktopDetailAnchor) desktopDetailAnchor.classList.add('hidden');
+                    if (desktopPlaceholder) desktopPlaceholder.classList.remove('hidden');
+                    loadSermons();
+                });
+                return;
                 const meeting = allSermons.find(m => m.id == currentMeetingId);
                 if (!meeting) return;
 
