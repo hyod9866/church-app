@@ -932,6 +932,15 @@ function renderBibleCharts(bibleDist) {
     const newBibleDist = bibleDist.filter(b => NEW_TESTAMENT_BOOKS.includes(b.book));
     const oldBibleDist = bibleDist.filter(b => OLD_TESTAMENT_BOOKS.includes(b.book));
 
+    // Calculate totals and update headers
+    const newTotal = newBibleDist.reduce((sum, item) => sum + (item.count || 0), 0);
+    const oldTotal = oldBibleDist.reduce((sum, item) => sum + (item.count || 0), 0);
+    
+    const newTitleEl = document.getElementById('newTestamentTitle');
+    const oldTitleEl = document.getElementById('oldTestamentTitle');
+    if (newTitleEl) newTitleEl.textContent = `신약 (${newTotal}회)`;
+    if (oldTitleEl) oldTitleEl.textContent = `구약 (${oldTotal}회)`;
+
     // Render function for each chart
     const renderSingleBibleChart = (canvasId, wrapperId, dataList, themeColor) => {
         const wrapper = document.getElementById(wrapperId);
