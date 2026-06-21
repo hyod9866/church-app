@@ -1673,7 +1673,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     if (startTime && endTime) {
         timeStr = `${startTime}~${endTime}`;
     }
-    document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type}`;
+    document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : type}`;
     const res = await fetch(`/api/meetings/${id}/attendance`); const att = await res.json();
     const p = att.filter(a => a.is_present);
     const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());

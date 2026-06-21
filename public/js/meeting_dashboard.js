@@ -95,7 +95,7 @@ function renderSermonTable() {
         tr.innerHTML = `
             <td class="px-4 py-3 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${dateStr}</td>
             <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${upcomingBadge}${s.meeting_title || '(모임 제목 없음)'}</td>
-            <td class="px-4 py-3">${s.type}</td>
+            <td class="px-4 py-3 min-w-[120px]">${s.type === '설교' ? '내부설교' : s.type}</td>
             <td class="px-4 py-3 font-medium text-slate-650 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
             <td class="px-4 py-3 font-bold ${attendeeClass}">${attendeeText}</td>
         `;
@@ -660,7 +660,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
     if (m.start_time && m.end_time) {
         timeStr = `${m.start_time}~${m.end_time}`;
     }
-    detailPanelSubtitle.textContent = `${new Date(m.date).toLocaleDateString()}${timeStr ? ' ' + timeStr : ''} | ${m.type}`;
+    detailPanelSubtitle.textContent = `${new Date(m.date).toLocaleDateString()}${timeStr ? ' ' + timeStr : ''} | ${m.type === '설교' ? '내부설교' : m.type}`;
     
     try {
         const id = m.id;
@@ -902,7 +902,7 @@ function openBibleModal(bookName, list) {
                 tr.innerHTML = `
                     <td class="px-3 py-2.5 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-bold">${dateStr}</td>
                     <td class="px-3 py-2.5 font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${s.sermon_title || '(제목 없음)'}</td>
-                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-semibold">${s.meeting_title || s.type || ''}</td>
+                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-semibold min-w-[120px]">${s.meeting_title || (s.type === '설교' ? '내부설교' : s.type) || ''}</td>
                 `;
                 bibleSermonsTableBody.appendChild(tr);
             });
