@@ -1487,7 +1487,7 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id, testimony_snapshot, district_snapshot')
+      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, members(district)')
       .eq('is_present', 1);
     if (attErr) throw attErr;
 
@@ -1503,7 +1503,17 @@ app.get('/api/meetings', async (req, res) => {
             testimonyCountMap[a.meeting_id] = (testimonyCountMap[a.meeting_id] || 0) + 1;
         }
 
-        const dist = a.district_snapshot ? a.district_snapshot.trim() : '미지정';
+        let dist = a.district_snapshot ? a.district_snapshot.trim() : null;
+        if (!dist && a.members && a.members.district) {
+          dist = a.members.district.trim();
+        }
+        if (dist) {
+          dist = dist.replace('구역', '').trim();
+          if (dist) {
+            dist = dist + '구역';
+          }
+        }
+        if (!dist) dist = '미지정';
         
         if (!districtCountMap[a.meeting_id]) {
           districtCountMap[a.meeting_id] = {};
