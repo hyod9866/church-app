@@ -63,6 +63,14 @@ function renderSermonTable() {
         const dd = String(d.getDate()).padStart(2, '0');
         const dateStr = `${yy}.${mm}.${dd}(${days[d.getDay()]})`;
         
+        // Calculate if the meeting date is in the future
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const sDateObj = new Date(s.date);
+        const sDateTime = new Date(sDateObj.getFullYear(), sDateObj.getMonth(), sDateObj.getDate()).getTime();
+        const isUpcoming = sDateTime > todayStart;
+        const upcomingBadge = isUpcoming ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 dark:border dark:border-blue-900/40 mr-1.5 whitespace-nowrap align-middle">예정</span>` : '';
+
         const attendeeText = s.attendee_count ? `${s.attendee_count}명` : '-';
         const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
 
@@ -86,9 +94,9 @@ function renderSermonTable() {
 
         tr.innerHTML = `
             <td class="px-4 py-3 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${dateStr}</td>
-            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${s.meeting_title || '(모임 제목 없음)'}</td>
+            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${upcomingBadge}${s.meeting_title || '(모임 제목 없음)'}</td>
             <td class="px-4 py-3">${s.type}</td>
-            <td class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
+            <td class="px-4 py-3 font-medium text-slate-650 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
             <td class="px-4 py-3 font-bold ${attendeeClass}">${attendeeText}</td>
         `;
         tbody.appendChild(tr);
