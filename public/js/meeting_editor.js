@@ -1,3 +1,4 @@
+(function() {
 // Global Meeting Editor Module
 // Provides the exact same edit modal UX as index.html for all pages
 
@@ -1193,3 +1194,5 @@ function initSermonTags() {
     }
 }
 initSermonTags();
+
+})();
