@@ -592,13 +592,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
             newEditBtn.addEventListener('click', async () => {
                 if (!currentMeetingId) return;
+
+                // Slide open the editor container based on viewport size
+                if (panelsContainer) {
+                    panelsContainer.classList.remove('hidden');
+                    setTimeout(() => {
+                        if (isLargeScreen()) {
+                            panelsContainer.classList.remove('translate-x-full');
+                            panelsContainer.classList.add('translate-x-0');
+                        } else {
+                            panelsContainer.classList.remove('translate-y-full');
+                            panelsContainer.classList.add('translate-y-0');
+                        }
+                    }, 10);
+                }
+
                 window.openGlobalMeetingEditor(currentMeetingId, () => {
                     loadSermons().then(() => {
                         showMeetingDetail(currentMeetingId);
                     });
                 }, () => {
-                    if (panelsContainer && !panelsContainer.classList.contains('translate-y-full')) {
-                        panelsContainer.classList.add('translate-y-full');
+                    if (panelsContainer) {
+                        if (isLargeScreen()) {
+                            panelsContainer.classList.remove('translate-x-0');
+                            panelsContainer.classList.add('translate-x-full');
+                        } else {
+                            panelsContainer.classList.remove('translate-y-0');
+                            panelsContainer.classList.add('translate-y-full');
+                        }
+                        setTimeout(() => {
+                            panelsContainer.classList.add('hidden');
+                        }, 300);
                     }
                     if (desktopDetailAnchor) desktopDetailAnchor.classList.add('hidden');
                     if (desktopPlaceholder) desktopPlaceholder.classList.remove('hidden');
