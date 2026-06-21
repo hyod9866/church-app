@@ -26,6 +26,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+
 // Token generation & verification helpers
 const COOKIE_SECRET = process.env.COOKIE_SECRET || 'super-secret-key-12345';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@church.com';
@@ -1487,7 +1488,7 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, members(district)')
+      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
       .eq('is_present', 1);
     if (attErr) throw attErr;
 
@@ -1498,6 +1499,8 @@ app.get('/api/meetings', async (req, res) => {
 
     if (presentAttendance) {
       presentAttendance.forEach(a => {
+        if (Number(a.is_present) !== 1) return;
+
         countMap[a.meeting_id] = (countMap[a.meeting_id] || 0) + 1;
         if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
             testimonyCountMap[a.meeting_id] = (testimonyCountMap[a.meeting_id] || 0) + 1;

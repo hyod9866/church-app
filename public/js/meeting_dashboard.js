@@ -6,6 +6,19 @@ let sortDirection = 'desc'; // 'asc' or 'desc'
 
 let selectedMeetingTypes = new Set();
 let wordCloudChart = null;
+let selectedType = '전체';
+
+const CATEGORIES = [
+    { label: '전체', value: '전체' },
+    { label: '🎙️ 내부설교', value: '설교' },
+    { label: '⛪ 외부설교', value: '외부설교' },
+    { label: '🏠 구역모임', value: '구역모임' },
+    { label: '👥 조모임', value: '조모임' },
+    { label: '👨 형제모임', value: '형제모임' },
+    { label: '⚡ 청년모임', value: '청년모임' },
+    { label: '💼 임원모임', value: '임원모임' },
+    { label: '💬 기타', value: '기타' }
+];
 
 // 키워드 분석을 위한 한국어 불용어(StopWords) 목록 (백엔드와 정렬)
 const KEYWORD_STOP_WORDS = ['수', '있', '하', '것', '들', '그', '되', '이', '보', '않', '없', '나', '사람', '주', '아니', '등', '같', '우리', '때', '년', '가', '한', '지', '대하', '오', '말', '일', '그렇', '위하', '때문', '그것', '두', '말하', '알', '그러나', '받', '못하', '그런', '또', '문제', '더', '사회', '많', '그리고', '좋', '크', '따르', '중', '나오', '가지', '씨', '시키', '만들', '지금', '생각하', '그러', '속', '하나', '집', '살', '모르', '적', '월', '데', '자신', '안', '어떤', '내', '경우', '명', '생각', '시간', '그녀', '다시', '이런', '앞', '보이', '번', '나', '다른', '어떻', '여자', '개', '전', '들', '사실', '이렇', '점', '싶', '말', '정도', '좀', '원', '잘', '통하', '소리', '놓', '위해', '대한'];
@@ -133,77 +146,13 @@ function updateWordCloud() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const sermonSearch = document.getElementById('sermonSearch');
-    if (sermonSearch) {
-        sermonSearch.addEventListener('input', applyFilters);
-    }
-    await fetchStats();
-    await fetchAttendanceCharts();
-});
-
-// Setup MutationObserver to dynamically update Chart.js colors on dark mode toggle
-const themeObserver = new MutationObserver(() => {
-    if (window.myCharts) {
-        window.myCharts.forEach(chart => {
-            if (chart && typeof chart.update === 'function') {
-                chart.update();
-            }
-        });
-    }
-});
-themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-let selectedType = '전체';
-
-const CATEGORIES = [
-    { label: '전체', value: '전체' },
-    { label: '🎙️ 내부설교', value: '설교' },
-    { label: '⛪ 외부설교', value: '외부설교' },
-    { label: '🏠 구역모임', value: '구역모임' },
-    { label: '👥 조모임', value: '조모임' },
-    { label: '👨 형제모임', value: '형제모임' },
-    { label: '⚡ 청년모임', value: '청년모임' },
-    { label: '💼 임원모임', value: '임원모임' },
-    { label: '💬 기타', value: '기타' }
-];
-
-const getBadgeStyles = (type) => {
-    if (type === '설교') return 'bg-amber-50 text-amber-700 border-amber-250/50 dark:bg-amber-950/30 dark:text-amber-450 dark:border-amber-900/50';
-    if (type === '외부설교') return 'bg-emerald-50 text-emerald-700 border-emerald-250/50 dark:bg-emerald-950/30 dark:text-emerald-450 dark:border-emerald-900/50';
-    if (type.includes('조모임')) return 'bg-rose-50 text-rose-700 border-rose-250/50 dark:bg-rose-950/30 dark:text-rose-450 dark:border-rose-900/50';
-    if (type.includes('구역모임')) return 'bg-orange-50 text-orange-700 border-orange-250/50 dark:bg-orange-950/30 dark:text-orange-450 dark:border-orange-900/50';
-    if (type.includes('형제')) return 'bg-teal-50 text-teal-700 border-teal-250/50 dark:bg-teal-950/30 dark:text-teal-450 dark:border-teal-900/50';
-    if (type.includes('청년')) return 'bg-purple-50 text-purple-700 border-purple-250/50 dark:bg-purple-950/30 dark:text-purple-450 dark:border-purple-900/50';
-    if (type.includes('봉사')) return 'bg-indigo-50 text-indigo-700 border-indigo-250/50 dark:bg-indigo-950/30 dark:text-indigo-450 dark:border-indigo-900/50';
-    if (type.includes('심방')) return 'bg-cyan-50 text-cyan-700 border-cyan-250/50 dark:bg-cyan-950/30 dark:text-cyan-450 dark:border-cyan-900/50';
-    return 'bg-sky-50 text-sky-700 border-sky-250/50 dark:bg-sky-950/30 dark:text-sky-450 dark:border-sky-900/50';
-};
-
-const isUpcoming = (meeting) => {
-    const now = new Date();
-    const [year, month, day] = meeting.date.split('-');
-    
-    let meetingDate;
-    let timeStr = meeting.end_time || meeting.start_time;
-    if (timeStr) {
-        const [hours, minutes] = timeStr.split(':');
-        meetingDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-    } else {
-        meetingDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), 23, 59, 59, 999);
-    }
-    
-    return meetingDate >= now;
-};
-
 function renderFilterChips() {
-    const filterChipsContainer = document.getElementById('filterChipsContainer');
-    if (!filterChipsContainer) return;
-    
-    filterChipsContainer.innerHTML = CATEGORIES.map(cat => {
+    const container = document.getElementById('filterChipsContainer');
+    if (!container) return;
+    container.innerHTML = CATEGORIES.map(cat => {
         const isActive = selectedType === cat.value;
         const activeClass = isActive 
-            ? 'bg-blue-600 text-white shadow-sm border-blue-600 font-extrabold dark:bg-blue-500 dark:border-blue-500' 
+            ? 'bg-blue-600 text-white shadow-sm border-blue-600 font-extrabold' 
             : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#131B2E] dark:hover:bg-[#1E293B] text-slate-650 dark:text-slate-350 border-slate-200/60 dark:border-slate-800/85 font-bold transition-colors';
         return `
             <button type="button" class="filter-chip px-3.5 py-1.5 rounded-full text-xs border transition duration-150 whitespace-nowrap cursor-pointer ${activeClass}" data-value="${cat.value}">
@@ -212,7 +161,7 @@ function renderFilterChips() {
         `;
     }).join('');
 
-    filterChipsContainer.querySelectorAll('.filter-chip').forEach(btn => {
+    document.querySelectorAll('.filter-chip').forEach(btn => {
         btn.addEventListener('click', () => {
             selectedType = btn.dataset.value;
             renderFilterChips();
@@ -222,15 +171,14 @@ function renderFilterChips() {
 }
 
 function applyFilters() {
-    const sermonSearch = document.getElementById('sermonSearch');
-    if (!sermonSearch) return;
-    const query = sermonSearch.value.toLowerCase();
+    const searchInput = document.getElementById('sermonSearch');
+    const query = searchInput ? searchInput.value.toLowerCase() : '';
 
     const filtered = currentSermons.filter(s => {
         const matchesSearch = (s.sermon_title && s.sermon_title.toLowerCase().includes(query)) ||
                             (s.meeting_title && s.meeting_title.toLowerCase().includes(query)) ||
                             (s.date && s.date.includes(query)) ||
-                            (s.sermon_tags && s.sermon_tags.toLowerCase().includes(query));
+                            (s.memo && s.memo.toLowerCase().includes(query));
         
         let matchesType = true;
         if (selectedType !== '전체') {
@@ -252,138 +200,140 @@ function applyFilters() {
         return matchesSearch && matchesType;
     });
 
-    renderSermons(filtered);
+    renderSermonTable(filtered);
 }
 
-function renderSermonCard(sermon, isUpcomingVal) {
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
-    const date = new Date(sermon.date);
-    const dayOfWeek = days[date.getDay()];
-    
-    const badgeClass = getBadgeStyles(sermon.type);
-    const displayType = sermon.type === '설교' ? '내부설교' : sermon.type;
-    
-    const borderSelectClass = 'border-slate-100 dark:border-slate-800/80 hover:border-blue-250 dark:hover:border-blue-900 bg-white dark:bg-[#131B2E] transition-colors duration-150';
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchStats();
+    await fetchAttendanceCharts();
 
-    return `
-        <div class="sermon-card cursor-pointer rounded-xl border p-0 flex items-stretch transition duration-150 ${borderSelectClass}" data-id="${sermon.id}">
-            <div class="${isUpcomingVal ? 'bg-blue-500/5 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400' : 'bg-slate-50 text-slate-650 dark:bg-[#0B0F19] dark:text-slate-400'} w-20 p-2 flex flex-col justify-center items-center border-r border-slate-100 dark:border-slate-800/80 shrink-0 transition-colors">
-                <span class="text-[9px] font-bold opacity-60 leading-none mb-0.5">${date.getFullYear()}</span>
-                <span class="text-sm font-black leading-none">${date.getMonth() + 1}/${date.getDate()}</span>
-                <span class="text-[9px] font-bold opacity-60 mt-1">${dayOfWeek}</span>
-            </div>
-            <div class="p-3.5 flex-1 flex items-center justify-between min-w-0">
-                <div class="flex-1 min-w-0 pr-3">
-                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-snug">
-                        ${sermon.sermon_title || sermon.meeting_title}
-                    </h3>
-                    ${sermon.meeting_title && sermon.sermon_title && sermon.meeting_title !== sermon.sermon_title ? `<p class="text-[10px] text-slate-450 dark:text-slate-500 font-bold truncate mt-0.5">${sermon.meeting_title}</p>` : ''}
-                </div>
-                <div class="flex items-center gap-1 shrink-0">
-                    <span class="${badgeClass} px-2 py-0.5 rounded-full text-[9px] font-black border dark:border-none whitespace-nowrap">${displayType}</span>
-                    ${isUpcomingVal ? `<span class="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[9px] font-black shadow-sm whitespace-nowrap animate-pulse">예정</span>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function renderSermons(sermons) {
-    const sermonList = document.getElementById('sermonList');
-    if (!sermonList) return;
-
-    if (sermons.length === 0) {
-        sermonList.innerHTML = '<p class="text-slate-400 italic text-center py-20 font-bold text-xs bg-white dark:bg-[#131B2E] rounded-2xl border border-dashed border-slate-200 dark:border-slate-800/80 transition-colors">조건에 맞는 설교 기록이 없습니다.</p>';
-        return;
-    }
-
-    const upcoming = sermons.filter(s => isUpcoming(s)).sort((a, b) => new Date(a.date) - new Date(b.date));
-    const completed = sermons.filter(s => !isUpcoming(s)).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    let html = '';
-
-    if (upcoming.length > 0) {
-        html += `
-            <div class="mb-4">
-                <h2 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5 px-1 uppercase tracking-wider">
-                    <span class="w-1.5 h-3.5 bg-blue-600 rounded-full"></span>
-                    예정된 설교 (${upcoming.length})
-                </h2>
-                <div class="space-y-2">
-                    ${upcoming.map(s => renderSermonCard(s, true)).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    if (completed.length > 0) {
-        html += `
-            <div class="mb-2">
-                <h2 class="text-xs font-black text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5 px-1 uppercase tracking-wider">
-                    <span class="w-1.5 h-3.5 bg-slate-400 rounded-full"></span>
-                    진행 완료 (${completed.length})
-                </h2>
-            </div>
-        `;
-
-        const groups = completed.reduce((acc, s) => {
-            let type = s.type === '설교' ? '내부설교' : s.type;
-            if (!acc[type]) acc[type] = [];
-            acc[type].push(s);
-            return acc;
-        }, {});
-
-        const sortedGroupNames = Object.keys(groups).sort((a, b) => {
-            if (a.includes('설교')) return -1;
-            if (b.includes('설교')) return 1;
-            return a.localeCompare(b);
-        });
-
-        sortedGroupNames.forEach(type => {
-            html += `
-                <div class="mb-4 ml-1">
-                    <h3 class="text-[11px] font-black text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5 opacity-80 uppercase tracking-widest pl-1">
-                        ㆍ${type} (${groups[type].length})
-                    </h3>
-                    <div class="space-y-2 border-l border-slate-100 dark:border-slate-800/60 pl-3 transition-colors">
-                        ${groups[type].map(s => renderSermonCard(s, false)).join('')}
-                    </div>
-                </div>
-            `;
+    const searchInput = document.getElementById('sermonSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            applyFilters();
         });
     }
+});
 
-    sermonList.innerHTML = html;
+// Setup MutationObserver to dynamically update Chart.js colors on dark mode toggle
+const themeObserver = new MutationObserver(() => {
+    if (window.myCharts) {
+        window.myCharts.forEach(chart => {
+            if (chart && typeof chart.update === 'function') {
+                chart.update();
+            }
+        });
+    }
+});
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    document.querySelectorAll('.sermon-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const id = card.dataset.id;
-            const sermon = currentSermons.find(s => s.id == id);
-            if (!sermon) return;
+let lastFilteredSermons = [];
 
-            const dateObj = new Date(sermon.date);
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            const yy = String(dateObj.getFullYear()).slice(-2);
-            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const dd = String(dateObj.getDate()).padStart(2, '0');
-            const dateStr = `${yy}.${mm}.${dd}(${days[dateObj.getDay()]})`;
+function renderSermonTable(sermons = currentSermons) {
+    lastFilteredSermons = sermons;
+    const tbody = document.getElementById('sermonLogBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    // Sort
+    const sorted = [...sermons].sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        if (sortKey === 'date') {
+            valA = new Date(valA);
+            valB = new Date(valB);
+        } else if (sortKey === 'attendee_count') {
+            valA = Number(valA) || 0;
+            valB = Number(valB) || 0;
+        } else {
+            valA = String(valA || '').toLowerCase();
+            valB = String(valB || '').toLowerCase();
+        }
+        
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
 
+    sorted.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group";
+        
+        const d = new Date(s.date);
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yy}.${mm}.${dd}(${days[d.getDay()]})`;
+        
+        // Calculate if the meeting date is in the future
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const sDateObj = new Date(s.date);
+        const sDateTime = new Date(sDateObj.getFullYear(), sDateObj.getMonth(), sDateObj.getDate()).getTime();
+        const isUpcoming = sDateTime > todayStart;
+        const upcomingBadge = isUpcoming ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 dark:border dark:border-blue-900/40 mr-1.5 whitespace-nowrap align-middle">예정</span>` : '';
+
+        const attendeeText = s.attendee_count ? `${s.attendee_count}명` : '-';
+        const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
+
+        tr.onclick = () => {
+            console.log("[DEBUG] Table Row Clicked. s:", s);
+            // Need to mock title and type for the detail panel mapping
             const mockMeetingObj = {
-                id: sermon.id,
-                date: sermon.date,
-                title: sermon.meeting_title,
-                type: sermon.type,
-                sermon_title: sermon.sermon_title,
-                sermon_tags: sermon.sermon_tags || '',
-                start_time: sermon.start_time,
-                end_time: sermon.end_time
+                id: s.id,
+                date: s.date,
+                title: s.meeting_title,
+                type: s.type,
+                sermon_title: s.sermon_title,
+                sermon_tags: s.sermon_tags || '',
+                start_time: s.start_time,
+                end_time: s.end_time
             };
-
-            showSingleMeetingDetail(mockMeetingObj, sermon.type || '모임 상세', dateStr);
+            console.log("[DEBUG] Calling showSingleMeetingDetail with mock:", mockMeetingObj);
+            showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
             openDetailPanel();
-        });
+        };
+
+        tr.innerHTML = `
+            <td class="px-4 py-3 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${dateStr}</td>
+            <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${upcomingBadge}${s.meeting_title || '(모임 제목 없음)'}</td>
+            <td class="px-4 py-3 min-w-[120px]">${s.type === '설교' ? '내부설교' : s.type}</td>
+            <td class="px-4 py-3 font-medium text-slate-650 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
+            <td class="px-4 py-3 font-bold ${attendeeClass}">${attendeeText}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update icons
+    const keys = ['date', 'meeting_title', 'type', 'sermon_title', 'attendee_count'];
+    keys.forEach(k => {
+        const icon = document.getElementById(`sort-icon-${k}`);
+        if (icon) {
+            if (k === sortKey) {
+                icon.textContent = sortDirection === 'asc' ? '▲' : '▼';
+                icon.classList.remove('opacity-0', 'text-slate-400', 'dark:text-slate-500');
+                icon.classList.add('text-blue-600', 'dark:text-blue-400');
+            } else {
+                icon.textContent = '▲';
+                icon.classList.add('opacity-0', 'text-slate-400', 'dark:text-slate-500');
+                icon.classList.remove('text-blue-600', 'dark:text-blue-400');
+            }
+        }
     });
 }
+
+window.sortSermons = function(key) {
+    if (sortKey === key) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortKey = key;
+        sortDirection = 'asc';
+    }
+    renderSermonTable(lastFilteredSermons);
+};
 
 async function fetchStats() {
     try {
@@ -1002,7 +952,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         const id = m.id;
         const res = await fetch(`/api/meetings/${id}/attendance`);
         const att = await res.json();
-        const p = att.filter(a => a.is_present);
+        const p = att.filter(a => Number(a.is_present) === 1);
         const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
         
         // Absent list logic matching app.js

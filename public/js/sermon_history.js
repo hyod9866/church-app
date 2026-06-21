@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/meetings/${id}/attendance`);
             const att = await res.json();
-            const p = att.filter(a => a.is_present);
+            const p = att.filter(a => Number(a.is_present) === 1);
             const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
 
             // 간증 섹션
