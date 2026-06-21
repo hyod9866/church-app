@@ -67,6 +67,7 @@ function renderSermonTable() {
         const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
 
         tr.onclick = () => {
+            console.log("[DEBUG] Table Row Clicked. s:", s);
             // Need to mock title and type for the detail panel mapping
             const mockMeetingObj = {
                 id: s.id,
@@ -78,6 +79,7 @@ function renderSermonTable() {
                 start_time: s.start_time,
                 end_time: s.end_time
             };
+            console.log("[DEBUG] Calling showSingleMeetingDetail with mock:", mockMeetingObj);
             showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
             openDetailPanel();
         };
@@ -604,6 +606,7 @@ if (backToMeetingListBtn) {
 }
 
 async function showSingleMeetingDetail(m, groupName, monthLabel) {
+    console.log("[DEBUG] showSingleMeetingDetail called with m:", m);
     const container = document.getElementById('singleMeetingDetailContainer');
     const listContainer = document.getElementById('detailMeetingList');
     
@@ -613,6 +616,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         editBtnContainer.classList.remove('hidden');
         if (editMeetingDetailBtn) {
             editMeetingDetailBtn.onclick = () => {
+                console.log("[DEBUG] editMeetingDetailBtn clicked. Target m.id:", m.id);
                 window.openGlobalMeetingEditor(m.id, () => {
                     loadSermonLog();
                     fetchStats();

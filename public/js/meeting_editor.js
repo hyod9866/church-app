@@ -1005,6 +1005,7 @@ function openRecurrenceConfirmModal(onSingle, onAll) {
 
 // Global Editor Entry Point
 window.openGlobalMeetingEditor = async function(id, onSave, onDelete) {
+    console.log("[DEBUG] openGlobalMeetingEditor called with id:", id);
     currentMeetingId = id;
     editorSaveCallback = onSave;
     editorDeleteCallback = onDelete;
@@ -1013,14 +1014,17 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete) {
     bindEditorEvents();
 
     if (!id) {
+        console.log("[DEBUG] openGlobalMeetingEditor - No id, opening empty modal");
         openMeetingModal(null, new Date().toISOString().split('T')[0]);
         return;
     }
 
     // Fetch and populate details
     try {
+        console.log("[DEBUG] openGlobalMeetingEditor - Fetching /api/meetings");
         const res = await fetch('/api/meetings');
         const rawMs = await res.json();
+        console.log("[DEBUG] openGlobalMeetingEditor - Fetched meetings count:", rawMs.length);
         
         const ms = rawMs.map(m => {
             let cleanMemo = m.memo || '';
@@ -1046,10 +1050,13 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete) {
         });
 
         const m = ms.find(x => x.id == id);
+        console.log("[DEBUG] openGlobalMeetingEditor - Found meeting:", m);
         if (m) {
             currentMeetingData = m;
             clickedInstanceDate = m.date; 
             openMeetingModal(m.id, m.date, m.title, m.type, m.sermon_title, m.memo, m.church, m.end_date, m.start_time, m.end_time, m.rrule_type, m.rrule_end_date, m.sermon_bible, m.sermon_tags);
+        } else {
+            console.warn("[DEBUG] openGlobalMeetingEditor - No meeting found for id:", id);
         }
     } catch(err) {
         console.error(err);
