@@ -4,6 +4,10 @@ let currentSermons = [];
 let sortKey = 'date';
 let sortDirection = 'desc'; // 'asc' or 'desc'
 
+// Old & New Testament book constants
+const OLD_TESTAMENT_BOOKS = ["창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기", "사무엘상", "사무엘하", "열왕기상", "열왕기하", "역대상", "역대하", "에스라", "느헤미야", "에스더", "욥기", "시편", "잠언", "전도서", "아가", "이사야", "예레미야", "예레미야애가", "에스겔", "다니엘", "호세아", "요엘", "아모스", "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기"];
+const NEW_TESTAMENT_BOOKS = ["마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", "고린도후서", "갈라디아서", "에베소서", "빌립보서", "골로새서", "데살로니가전서", "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", "야고보서", "베드로전서", "베드로후서", "요한1서", "요한2서", "요한3서", "유다서", "요한계시록"];
+
 document.addEventListener('DOMContentLoaded', async () => {
     await fetchStats();
     await fetchAttendanceCharts();
@@ -137,41 +141,9 @@ async function fetchStats() {
             }
         }
 
-        // Render Bible Pie Chart
-        if (data.bibleDist.length > 0) {
-            const canvasId = 'biblePieChart';
-            const existingChart = Chart.getChart(canvasId);
-            if (existingChart) {
-                existingChart.destroy();
-                window.myCharts = window.myCharts.filter(c => c !== existingChart);
-            }
-
-            const bibleChart = new Chart(document.getElementById(canvasId), {
-                type: 'doughnut',
-                data: {
-                    labels: data.bibleDist.map(b => b.book),
-                    datasets: [{
-                        data: data.bibleDist.map(b => b.count),
-                        backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#64748b']
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                usePointStyle: true,
-                                boxWidth: 8,
-                                font: { size: 11 },
-                                color: () => document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b'
-                            }
-                        }
-                    }
-                }
-            });
-            window.myCharts.push(bibleChart);
+        // Render Bible Bar Charts (New & Old Testament)
+        if (data.bibleDist && data.bibleDist.length > 0) {
+            renderBibleCharts(data.bibleDist);
         }
 
         // Render Sermon Log
@@ -862,4 +834,181 @@ function showDetailPanel(groupName, monthKey, monthLabel, allMeetings) {
     }
     
     openDetailPanel();
+}
+
+// Bible Sermons Modal Elements
+const bibleSermonsModal = document.getElementById('bibleSermonsModal');
+const bibleSermonsModalBackdrop = document.getElementById('bibleSermonsModalBackdrop');
+const closeBibleSermonsModal = document.getElementById('closeBibleSermonsModal');
+const closeBibleSermonsModalBtn = document.getElementById('closeBibleSermonsModalBtn');
+const bibleModalTitle = document.getElementById('bibleModalTitle');
+const bibleSermonsTableBody = document.getElementById('bibleSermonsTableBody');
+
+function openBibleModal(bookName, list) {
+    if (!bibleSermonsModal) return;
+    if (bibleModalTitle) bibleModalTitle.textContent = bookName;
+    if (bibleSermonsTableBody) {
+        bibleSermonsTableBody.innerHTML = '';
+        
+        if (list.length === 0) {
+            bibleSermonsTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 dark:text-slate-505 font-bold italic">설교 이력이 없습니다.</td></tr>`;
+        } else {
+            // Sort by date desc
+            const sortedList = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+            sortedList.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group";
+                
+                const d = new Date(s.date);
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const yy = String(d.getFullYear()).slice(-2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yy}.${mm}.${dd}(${days[d.getDay()]})`;
+
+                tr.onclick = () => {
+                    closeBibleModal();
+                    // Show detail panel
+                    const mockMeetingObj = {
+                        id: s.id,
+                        date: s.date,
+                        title: s.meeting_title,
+                        type: s.type,
+                        sermon_title: s.sermon_title,
+                        start_time: s.start_time,
+                        end_time: s.end_time
+                    };
+                    showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
+                    openDetailPanel();
+                };
+
+                tr.innerHTML = `
+                    <td class="px-3 py-2.5 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-bold">${dateStr}</td>
+                    <td class="px-3 py-2.5 font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${s.sermon_title || '(제목 없음)'}</td>
+                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 font-semibold">${s.meeting_title || s.type || ''}</td>
+                `;
+                bibleSermonsTableBody.appendChild(tr);
+            });
+        }
+    }
+
+    bibleSermonsModal.classList.remove('hidden');
+    setTimeout(() => {
+        const modalContent = bibleSermonsModal.querySelector('.bg-white, .dark\\:bg-\\[\\#131B2E\\]');
+        if (modalContent) {
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+        }
+    }, 10);
+}
+
+function closeBibleModal() {
+    if (!bibleSermonsModal) return;
+    const modalContent = bibleSermonsModal.querySelector('.bg-white, .dark\\:bg-\\[\\#131B2E\\]');
+    if (modalContent) {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+    }
+    setTimeout(() => {
+        bibleSermonsModal.classList.add('hidden');
+    }, 200);
+}
+
+if (closeBibleSermonsModal) closeBibleSermonsModal.onclick = closeBibleModal;
+if (closeBibleSermonsModalBtn) closeBibleSermonsModalBtn.onclick = closeBibleModal;
+if (bibleSermonsModalBackdrop) bibleSermonsModalBackdrop.onclick = closeBibleModal;
+
+function renderBibleCharts(bibleDist) {
+    // Separate New and Old Testament
+    const newBibleDist = bibleDist.filter(b => NEW_TESTAMENT_BOOKS.includes(b.book));
+    const oldBibleDist = bibleDist.filter(b => OLD_TESTAMENT_BOOKS.includes(b.book));
+
+    // Render function for each chart
+    const renderSingleBibleChart = (canvasId, wrapperId, dataList, themeColor) => {
+        const wrapper = document.getElementById(wrapperId);
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !wrapper) return;
+
+        // Destroy existing chart if any
+        const existingChart = Chart.getChart(canvasId);
+        if (existingChart) {
+            existingChart.destroy();
+            window.myCharts = window.myCharts.filter(c => c !== existingChart);
+        }
+
+        // Adjust wrapper width dynamically for horizontal scrolling
+        // If dataList length > 10, set wrapper width to length * 45px, otherwise 100%
+        if (dataList.length > 10) {
+            wrapper.style.width = `${dataList.length * 45}px`;
+        } else {
+            wrapper.style.width = '100%';
+        }
+
+        const labels = dataList.map(b => b.book);
+        const counts = dataList.map(b => b.count);
+
+        const chart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: themeColor,
+                    borderRadius: 6,
+                    maxBarThickness: 24
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (val) => val
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569',
+                            font: { weight: 'bold', size: 10 }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { 
+                            color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'
+                        },
+                        ticks: {
+                            color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569',
+                            precision: 0,
+                            font: { size: 10 }
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedBook = labels[index];
+                        const related = currentSermons.filter(s => s.sermon_bible === clickedBook);
+                        openBibleModal(clickedBook, related);
+                    }
+                }
+            }
+        });
+        window.myCharts.push(chart);
+    };
+
+    // Render New Testament Chart (Blue theme)
+    renderSingleBibleChart('newBibleChart', 'newBibleChartWrapper', newBibleDist, '#3b82f6');
+    // Render Old Testament Chart (Amber/Orange theme)
+    renderSingleBibleChart('oldBibleChart', 'oldBibleChartWrapper', oldBibleDist, '#f59e0b');
 }

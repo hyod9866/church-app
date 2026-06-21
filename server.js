@@ -1992,6 +1992,7 @@ app.get('/api/sermon-stats', async (req, res) => {
                 meeting_title: meeting.title || '',
                 type: meeting.type,
                 sermon_title: title,
+                sermon_bible: sermon_bible || '',
                 start_time: meeting.start_time,
                 end_time: meeting.end_time,
                 attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0

@@ -134,22 +134,45 @@
         </div>
 
         <!-- Sermon Insights -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Word Cloud -->
-            <div class="lg:col-span-2 bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5">
+            <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5 flex flex-col">
                 <h3 class="text-lg font-bold mb-2 flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <span class="text-blue-500">☁️</span> 설교 키워드 클라우드
                 </h3>
                 <p class="text-xs text-gray-500 dark:text-slate-400 mb-4">설교 제목과 모임 기록 내용에서 추출된 핵심 키워드입니다.</p>
-                <div id="wordCloudContainer"></div>
+                <div id="wordCloudContainer" class="flex-1 min-h-[300px]"></div>
             </div>
             <!-- Bible Distribution -->
-            <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5">
-                <h3 class="text-lg font-bold mb-2 flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5 space-y-6">
+                <h3 class="text-lg font-bold flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <span class="text-green-500">📖</span> 성경 본문 분포
                 </h3>
-                <div class="chart-container">
-                    <canvas id="biblePieChart"></canvas>
+                
+                <!-- New Testament Scroll Container -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">신약 분포</h4>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold">10개 초과 시 가로 스크롤 가능</span>
+                    </div>
+                    <div class="overflow-x-auto no-scrollbar border border-slate-100 dark:border-slate-800/60 rounded-xl p-2 bg-slate-50/50 dark:bg-[#0B0F19]/20">
+                        <div class="relative h-[180px]" id="newBibleChartWrapper" style="width: 100%; min-width: 100%;">
+                            <canvas id="newBibleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Old Testament Scroll Container -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <h4 class="text-xs font-black text-amber-600 dark:text-amber-500 uppercase tracking-wider">구약 분포</h4>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold">10개 초과 시 가로 스크롤 가능</span>
+                    </div>
+                    <div class="overflow-x-auto no-scrollbar border border-slate-100 dark:border-slate-800/60 rounded-xl p-2 bg-slate-50/50 dark:bg-[#0B0F19]/20">
+                        <div class="relative h-[180px]" id="oldBibleChartWrapper" style="width: 100%; min-width: 100%;">
+                            <canvas id="oldBibleChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,6 +296,43 @@
             </div>
             <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
                 <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500">Pastoral Ministry Program v1.2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bible Sermon History Modal -->
+    <div id="bibleSermonsModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="bibleSermonsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-xl rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[80vh]">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                    <span class="text-green-500">📖</span>
+                    <span id="bibleModalTitle" class="text-blue-600 dark:text-blue-400">성경책</span> 설교 이력
+                </h3>
+                <button id="closeBibleSermonsModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto no-scrollbar flex-1 space-y-3">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-xs text-left">
+                        <thead class="bg-slate-50 dark:bg-slate-800/40 text-gray-500 dark:text-slate-450 font-bold border-b border-gray-100 dark:border-slate-800/50">
+                            <tr>
+                                <th class="px-3 py-2 whitespace-nowrap">날짜</th>
+                                <th class="px-3 py-2">설교 제목</th>
+                                <th class="px-3 py-2">모임 구분</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bibleSermonsTableBody" class="divide-y divide-gray-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-350">
+                            <!-- JS에 의해 동적 생성됨 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 flex justify-end gap-2">
+                <button id="closeBibleSermonsModalBtn" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-705 dark:text-slate-250 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer">닫기</button>
             </div>
         </div>
     </div>
