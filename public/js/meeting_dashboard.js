@@ -547,19 +547,42 @@ async function fetchAttendanceCharts() {
             };
             
             // Calculate global average across all visible months
-            let globalTotalAtt = 0;
-            let globalGroupCount = 0;
-            targetKeys.forEach(mk => {
-                if (mk > currentMonthKey) return;
-                Object.keys(catData).forEach(group => {
-                    const d = catData[group][mk];
-                    if (d !== null && d.att > 0) {
-                        globalTotalAtt += d.att;
-                        globalGroupCount++;
-                    }
+            let globalAvg = null;
+            if (isStacked) {
+                // For stacked charts: average of monthly TOTALS (sum of all groups per month)
+                let monthlyTotals = [];
+                targetKeys.forEach(mk => {
+                    if (mk > currentMonthKey) return;
+                    let monthSum = 0;
+                    let hasData = false;
+                    Object.keys(catData).forEach(group => {
+                        const d = catData[group][mk];
+                        if (d !== null && d.att > 0) {
+                            monthSum += d.att;
+                            hasData = true;
+                        }
+                    });
+                    if (hasData) monthlyTotals.push(monthSum);
                 });
-            });
-            const globalAvg = globalGroupCount > 0 ? (globalTotalAtt / globalGroupCount) : null;
+                if (monthlyTotals.length > 0) {
+                    globalAvg = monthlyTotals.reduce((a, b) => a + b, 0) / monthlyTotals.length;
+                }
+            } else {
+                // For non-stacked charts: average of individual group data points
+                let globalTotalAtt = 0;
+                let globalGroupCount = 0;
+                targetKeys.forEach(mk => {
+                    if (mk > currentMonthKey) return;
+                    Object.keys(catData).forEach(group => {
+                        const d = catData[group][mk];
+                        if (d !== null && d.att > 0) {
+                            globalTotalAtt += d.att;
+                            globalGroupCount++;
+                        }
+                    });
+                });
+                globalAvg = globalGroupCount > 0 ? (globalTotalAtt / globalGroupCount) : null;
+            }
 
             const monthAverages = targetKeys.map(mk => {
                 if (mk > currentMonthKey) return null;
