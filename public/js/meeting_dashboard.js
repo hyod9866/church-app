@@ -409,6 +409,45 @@ async function fetchAttendanceCharts() {
         document.getElementById('kpiCounselings').textContent = counselings + '건';
         document.getElementById('kpiAttendance').textContent = '78%'; // Placeholder
         
+        // 누적 세로막대 상단에 총합 표시 플러그인
+        const stackedBarTotalPlugin = {
+            id: 'stackedBarTotal',
+            afterDatasetsDraw(chart) {
+                const { ctx, scales: { x, y } } = chart;
+                if (!x.options.stacked) return;
+
+                const numDataPoints = chart.data.labels.length;
+                const sums = Array(numDataPoints).fill(0);
+                
+                const visibleDatasets = chart.data.datasets.filter((ds, index) => {
+                    const meta = chart.getDatasetMeta(index);
+                    return meta.visible && ds.label !== '전체 평균' && ds.type !== 'line';
+                });
+
+                visibleDatasets.forEach(ds => {
+                    ds.data.forEach((val, i) => {
+                        if (val !== null && val !== undefined) {
+                            sums[i] += val;
+                        }
+                    });
+                });
+
+                ctx.save();
+                ctx.font = 'bold 10px ui-sans-serif, system-ui';
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                sums.forEach((sum, i) => {
+                    if (sum === 0) return;
+                    const xPos = x.getPixelForValue(chart.data.labels[i]);
+                    const yPos = y.getPixelForValue(sum) - 4;
+                    ctx.fillText(sum, xPos, yPos);
+                });
+                ctx.restore();
+            }
+        };
+
         const renderChart = (id, catData, targetMonths, targetKeys, isBar = true, kpiContainerId = null, alertContainerId = null, isStacked = false) => {
             const datasets = [];
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1'];
@@ -615,7 +654,9 @@ async function fetchAttendanceCharts() {
                     labels: targetMonths,
                     datasets: datasets
                 },
+                plugins: [stackedBarTotalPlugin],
                 options: { 
+
                     responsive: true, 
                     maintainAspectRatio: false,
                     layout: {
