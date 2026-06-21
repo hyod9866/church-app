@@ -192,14 +192,14 @@ function renderExtras() {
     const list = document.getElementById('extraAttendanceList');
     if (!list) return;
     if (!extraAttendees.length) { list.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p>'; return; }
-    list.innerHTML = extraAttendees.map(m => `<div class="attendance-row p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}" data-extra="true">
+    list.innerHTML = extraAttendees.map(m => `<div class="attendance-row p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}" data-extra="true">
         <div class="flex items-center gap-3">
             <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${m.is_present ? 'checked' : ''}>
-            <span class="font-bold text-emerald-900">${m.name}</span>
-            <span class="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-600">${m.district || ''}</span>
+            <span class="font-bold text-emerald-900 dark:text-emerald-300">${m.name}</span>
+            <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">${m.district || ''}</span>
             <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
         </div>
-        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-850 dark:text-slate-850 bg-white dark:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
+        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
     </div>`).join('');
 }
 
@@ -718,13 +718,13 @@ async function refreshAttendanceList() {
         const a = att.find(x => x.member_id === m.id);
         const isP = a ? a.is_present : false;
         const test = a ? (a.testimony_snapshot || '') : '';
-        return `<div class="attendance-row p-3 bg-white border rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}">
+        return `<div class="attendance-row p-3 bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}">
             <div class="flex items-center gap-3">
                 <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${isP ? 'checked' : ''}>
-                <span class="font-bold text-gray-800">${m.name}</span>
-                <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${m.district}</span>
+                <span class="font-bold text-gray-800 dark:text-slate-200">${m.name}</span>
+                <span class="text-[10px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-slate-400">${m.district}</span>
             </div>
-            <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-850 dark:text-slate-850 bg-white dark:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
+            <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
         </div>`;
     };
 
