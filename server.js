@@ -1713,6 +1713,53 @@ app.post('/api/attendance/toggle', async (req, res) => {
   }
 });
 
+app.post('/api/attendance/testimony', async (req, res) => {
+  const { member_id, meeting_id, testimony } = req.body;
+  try {
+    const { data: existing, error: selectErr } = await supabase
+      .from('attendance')
+      .select('id')
+      .eq('meeting_id', meeting_id)
+      .eq('member_id', member_id)
+      .maybeSingle();
+
+    if (selectErr) throw selectErr;
+
+    if (existing) {
+      const { error: updateErr } = await supabase
+        .from('attendance')
+        .update({ testimony_snapshot: testimony || null })
+        .eq('id', existing.id);
+      if (updateErr) throw updateErr;
+    } else {
+      const { data: member, error: memErr } = await supabase
+        .from('members')
+        .select('district, category')
+        .eq('id', member_id)
+        .single();
+        
+      if (memErr) throw memErr;
+
+      const { error: insertErr } = await supabase
+        .from('attendance')
+        .insert({
+          meeting_id,
+          member_id,
+          is_present: 0,
+          testimony_snapshot: testimony || null,
+          district_snapshot: member?.district || null,
+          category_snapshot: member?.category || null
+        });
+      if (insertErr) throw insertErr;
+    }
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    console.error('Testimony save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put('/api/meetings/:id', async (req, res) => {
   const { title, date, end_date, type, sermon_title, memo, church, start_time, end_time, sermon_bible, sermon_tags } = req.body;
   try {

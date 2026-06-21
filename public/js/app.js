@@ -726,7 +726,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td class="p-3 text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
                                 <td class="p-3 font-bold text-slate-800">${h.title}</td>
                                 <td class="p-3 text-center">${statusBadge}</td>
-                                <td class="p-3 text-slate-600 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed">${h.testimony_snapshot || '<span class="text-slate-350 italic">-</span>'}</td>
+                                <td class="p-3 text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}">
+                                    <div class="flex items-center justify-between gap-2 group w-full">
+                                        <span class="testimony-text flex-1">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
+                                        <span class="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] whitespace-nowrap">✏️ 수정</span>
+                                    </div>
+                                </td>
                             </tr>
                         `;
                     }).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
@@ -763,6 +768,64 @@ document.addEventListener('DOMContentLoaded', function() {
                                 btn.disabled = false;
                                 btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
                             }
+                        });
+                    });
+
+                    // 간증 인라인 편집 이벤트 바인딩
+                    historyTableBody.querySelectorAll('.testimony-cell').forEach(cell => {
+                        cell.addEventListener('click', function(e) {
+                            if (cell.querySelector('.testimony-edit-input')) return;
+                            if (e.target.closest('.save-testimony-btn') || e.target.closest('.cancel-testimony-btn')) return;
+
+                            const meetingId = cell.dataset.meetingId;
+                            const memberId = cell.dataset.memberId;
+                            const currentVal = cell.dataset.testimony || '';
+
+                            cell.innerHTML = `
+                                <div class="flex flex-col gap-1.5 w-full">
+                                    <textarea class="testimony-edit-input w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/25 focus:outline-none" rows="2">${currentVal}</textarea>
+                                    <div class="flex justify-end gap-1.5">
+                                        <button type="button" class="save-testimony-btn bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
+                                        <button type="button" class="cancel-testimony-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
+                                    </div>
+                                </div>
+                            `;
+
+                            const textarea = cell.querySelector('.testimony-edit-input');
+                            textarea.focus();
+                            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+                            cell.querySelector('.save-testimony-btn').addEventListener('click', async (evt) => {
+                                evt.stopPropagation();
+                                const newVal = textarea.value.trim();
+                                const saveBtn = cell.querySelector('.save-testimony-btn');
+                                saveBtn.disabled = true;
+                                saveBtn.textContent = '저장중...';
+
+                                try {
+                                    const response = await fetch('/api/attendance/testimony', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, testimony: newVal })
+                                    });
+
+                                    if (response.ok) {
+                                        openMemberHistoryModal(memberId);
+                                    } else {
+                                        alert('간증 저장에 실패했습니다.');
+                                        openMemberHistoryModal(memberId);
+                                    }
+                                } catch(err) {
+                                    console.error(err);
+                                    alert('간증 저장 중 에러가 발생했습니다.');
+                                    openMemberHistoryModal(memberId);
+                                }
+                            });
+
+                            cell.querySelector('.cancel-testimony-btn').addEventListener('click', (evt) => {
+                                evt.stopPropagation();
+                                openMemberHistoryModal(memberId);
+                            });
                         });
                     });
                 };
