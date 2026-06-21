@@ -74,6 +74,7 @@ function renderSermonTable() {
                 title: s.meeting_title,
                 type: s.type,
                 sermon_title: s.sermon_title,
+                sermon_tags: s.sermon_tags || '',
                 start_time: s.start_time,
                 end_time: s.end_time
             };
@@ -875,6 +876,7 @@ function openBibleModal(bookName, list) {
                         title: s.meeting_title,
                         type: s.type,
                         sermon_title: s.sermon_title,
+                        sermon_tags: s.sermon_tags || '',
                         start_time: s.start_time,
                         end_time: s.end_time
                     };

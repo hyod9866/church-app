@@ -1508,14 +1508,14 @@ app.get('/api/meetings', async (req, res) => {
       let cleanMemo = m.memo || '';
       
       if (cleanMemo.startsWith('{')) {
-          const firstLine = cleanMemo.split('\\n')[0];
+          const firstLine = cleanMemo.split(/\r?\n|\\n/)[0];
           try {
               if (firstLine.endsWith('}')) {
                   const meta = JSON.parse(firstLine);
                   if (meta.bible !== undefined || meta.tags !== undefined) {
                       sermon_bible = meta.bible || '';
                       sermon_tags = meta.tags || '';
-                      cleanMemo = cleanMemo.substring(firstLine.length).replace(/^\\n+/, '');
+                      cleanMemo = cleanMemo.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
                   }
               }
           } catch(e) {}
@@ -1974,7 +1974,7 @@ app.get('/api/sermon-stats', async (req, res) => {
             let cleanMemo = meeting.memo || '';
             
             if (cleanMemo.startsWith('{')) {
-                const firstLine = cleanMemo.split('\\n')[0];
+                const firstLine = cleanMemo.split(/\r?\n|\\n/)[0];
                 try {
                     if (firstLine.endsWith('}')) {
                         const meta = JSON.parse(firstLine);
@@ -1993,6 +1993,7 @@ app.get('/api/sermon-stats', async (req, res) => {
                 type: meeting.type,
                 sermon_title: title,
                 sermon_bible: sermon_bible || '',
+                sermon_tags: sermon_tags || '',
                 start_time: meeting.start_time,
                 end_time: meeting.end_time,
                 attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0
