@@ -78,13 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return '';
         const char = name.trim().charAt(0);
         const colors = [
-            'bg-blue-50 text-blue-600 border-blue-100/70',
-            'bg-indigo-50 text-indigo-600 border-indigo-100/70',
-            'bg-purple-50 text-purple-600 border-purple-100/70',
-            'bg-rose-50 text-rose-600 border-rose-100/70',
-            'bg-emerald-50 text-emerald-600 border-emerald-100/70',
-            'bg-amber-50 text-amber-600 border-amber-100/70',
-            'bg-sky-50 text-sky-600 border-sky-100/70'
+            'bg-blue-50 text-blue-600 border-blue-100/70 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/50',
+            'bg-indigo-50 text-indigo-600 border-indigo-100/70 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/50',
+            'bg-purple-50 text-purple-600 border-purple-100/70 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50',
+            'bg-rose-50 text-rose-600 border-rose-100/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50',
+            'bg-emerald-50 text-emerald-600 border-emerald-100/70 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50',
+            'bg-amber-50 text-amber-600 border-amber-100/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50',
+            'bg-sky-50 text-sky-600 border-sky-100/70 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50'
         ];
         // Simple hash for consistent color assignment
         let hash = 0;
@@ -96,25 +96,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getPositionBadgeHtml(position) {
-        if (!position || position === '-') return '<span class="text-gray-400 font-medium">-</span>';
-        let colorClass = 'bg-slate-50 text-slate-600 border-slate-200/60';
+        if (!position || position === '-') return '<span class="text-gray-400 dark:text-gray-600 font-medium">-</span>';
+        let colorClass = 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/80';
         if (position.includes('목사') || position.includes('전도사')) {
-            colorClass = 'bg-violet-50 text-violet-700 border-violet-200/60';
+            colorClass = 'bg-violet-50 text-violet-700 border-violet-200/60 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-900/50';
         } else if (position.includes('장로') || position.includes('권사')) {
-            colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60';
+            colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50';
         } else if (position.includes('집사')) {
-            colorClass = 'bg-sky-50 text-sky-700 border-sky-200/60';
+            colorClass = 'bg-sky-50 text-sky-700 border-sky-200/60 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50';
         }
         return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass}">${position}</span>`;
     }
 
     function getCategoryBadgeHtml(cat) {
-        if (!cat || cat === '-') return '<span class="text-gray-400 font-medium">-</span>';
-        let colorClass = 'bg-blue-50 text-blue-700 border-blue-200/60';
-        if (cat.includes('봉사회')) colorClass = 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
-        else if (cat.includes('어머니회')) colorClass = 'bg-rose-50 text-rose-700 border-rose-200/60';
-        else if (cat.includes('청년회') || cat.includes('대학부')) colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-        else if (cat.includes('중고등부') || cat.includes('초등부')) colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60';
+        if (!cat || cat === '-') return '<span class="text-gray-400 dark:text-gray-600 font-medium">-</span>';
+        let colorClass = 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/50';
+        if (cat.includes('봉사회')) colorClass = 'bg-indigo-50 text-indigo-700 border-indigo-200/60 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/50';
+        else if (cat.includes('어머니회')) colorClass = 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50';
+        else if (cat.includes('청년회') || cat.includes('대학부')) colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50';
+        else if (cat.includes('중고등부') || cat.includes('초등부')) colorClass = 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50';
         return `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colorClass}">${cat}</span>`;
     }
 
@@ -484,11 +484,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tblBg = isDark ? '#131B2E' : '#ffffff';
                 const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
                 const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
-                const theadText = isDark ? '#64748b' : '#64748b';
+                const theadText = isDark ? '#94a3b8' : '#64748b';
                 const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
-                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
-                const cellMonoText = isDark ? '#475569' : '#94a3b8';
-                const cellCountText = isDark ? '#94a3b8' : '#334155';
+                const cellNameText = isDark ? '#f8fafc' : '#0f172a';
+                const cellMonoText = isDark ? '#94a3b8' : '#94a3b8';
+                const cellCountText = isDark ? '#e2e8f0' : '#334155';
                 
                 tableListContainer.innerHTML = `
                     <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">
@@ -537,10 +537,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tblBg = isDark ? '#131B2E' : '#ffffff';
                 const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
                 const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
-                const theadText = isDark ? '#64748b' : '#64748b';
+                const theadText = isDark ? '#94a3b8' : '#64748b';
                 const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
-                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
-                const cellSubText = isDark ? '#475569' : '#64748b';
+                const cellNameText = isDark ? '#f8fafc' : '#0f172a';
+                const cellSubText = isDark ? '#94a3b8' : '#64748b';
                 
                 tableListContainer.innerHTML = `
                     <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">
@@ -584,13 +584,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tblBg = isDark ? '#131B2E' : '#ffffff';
                 const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
                 const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
-                const theadText = isDark ? '#64748b' : '#64748b';
+                const theadText = isDark ? '#94a3b8' : '#64748b';
                 const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
-                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
-                const cellMonoText = isDark ? '#475569' : '#64748b';
+                const cellNameText = isDark ? '#f8fafc' : '#0f172a';
+                const cellMonoText = isDark ? '#94a3b8' : '#64748b';
                 const emptyBg = isDark ? 'rgba(30,41,59,0.3)' : 'rgba(248,250,252,0.3)';
-                const emptyText = isDark ? '#475569' : '#94a3b8';
-                const emptyIcon = isDark ? '#334155' : '#cbd5e1';
+                const emptyText = isDark ? '#94a3b8' : '#94a3b8';
+                const emptyIcon = isDark ? '#cbd5e1' : '#cbd5e1';
                 
                 tableListContainer.innerHTML = `
                     <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">

@@ -425,13 +425,13 @@
                 </div>
 
                 <!-- Tabs Menu -->
-                <div class="border-b border-slate-200">
+                <div class="border-b border-slate-200 dark:border-slate-800">
                     <div class="flex gap-6 -mb-px">
                         <button id="tabOrgBtn" class="border-b-2 border-blue-600 text-blue-600 pb-3 px-1 text-sm font-black flex items-center gap-2">
                             <i class="fa-solid fa-users"></i> 조직 관리
                         </button>
-                        <button id="tabSermonBtn" class="border-b-2 border-transparent text-slate-500 hover:text-slate-800 pb-3 px-1 text-sm font-bold flex items-center gap-2 transition">
-                            <i class="fa-solid fa-microphone"></i> 외부설교 기록 <span id="sermonBadgeCount" class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold hidden border border-slate-200">0</span>
+                        <button id="tabSermonBtn" class="border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 pb-3 px-1 text-sm font-bold flex items-center gap-2 transition">
+                            <i class="fa-solid fa-microphone"></i> 외부설교 기록 <span id="sermonBadgeCount" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full font-bold hidden border border-slate-200 dark:border-slate-700">0</span>
                         </button>
                     </div>
                 </div>
@@ -440,34 +440,34 @@
                 <div id="tabOrgPanel" class="space-y-6">
                     <!-- Metrics Cards row -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
-                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-user-group"></i></div>
+                        <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-user-group"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">소속 성도 수</span>
-                                <span id="metricMemberCount" class="text-lg font-black text-slate-800">0명</span>
+                                <span class="text-[10px] font-black text-slate-400 dark:text-slate-550 block uppercase tracking-wider">소속 성도 수</span>
+                                <span id="metricMemberCount" class="text-lg font-black text-slate-800 dark:text-slate-200">0명</span>
                             </div>
                         </div>
-                        <div id="metricSubOrgCard" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
-                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-network-wired"></i></div>
+                        <div id="metricSubOrgCard" class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-network-wired"></i></div>
                             <div>
-                                <span id="metricSubOrgTitle" class="text-[10px] font-black text-slate-400 block uppercase tracking-wider font-bold">하위 교구</span>
-                                <span id="metricSubOrgCount" class="text-lg font-black text-slate-800">0개</span>
+                                <span id="metricSubOrgTitle" class="text-[10px] font-black text-slate-400 dark:text-slate-550 block uppercase tracking-wider font-bold">하위 교구</span>
+                                <span id="metricSubOrgCount" class="text-lg font-black text-slate-800 dark:text-slate-200">0개</span>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover-card-trigger">
-                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center gap-4 hover-card-trigger">
+                            <div class="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl text-xl flex items-center justify-center flex-shrink-0 shadow-inner"><i class="fa-solid fa-shield-halved"></i></div>
                             <div>
-                                <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider">직분자 비율</span>
-                                <span id="metricOfficerRatio" class="text-lg font-black text-slate-800">0%</span>
+                                <span class="text-[10px] font-black text-slate-400 dark:text-slate-550 block uppercase tracking-wider">직분자 비율</span>
+                                <span id="metricOfficerRatio" class="text-lg font-black text-slate-800 dark:text-slate-200">0%</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Inner actions and tables -->
-                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 id="tableSectionTitle" class="font-extrabold text-slate-800 text-sm">하위 조직 리스트</h3>
-                            <button id="addSubOrgBtn" class="bg-blue-600 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-md shadow-blue-100 hover:bg-blue-700 hover:shadow-none transition-all flex items-center gap-1.5">
+                    <div class="bg-white dark:bg-[#131B2E] rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/40">
+                            <h3 id="tableSectionTitle" class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">하위 조직 리스트</h3>
+                            <button id="addSubOrgBtn" class="bg-blue-600 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-md shadow-blue-100 dark:shadow-none hover:bg-blue-700 hover:shadow-none transition-all flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus text-[10px]"></i> 하위 조직 추가
                             </button>
                         </div>
