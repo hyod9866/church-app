@@ -514,7 +514,7 @@ async function fetchAttendanceCharts() {
                 });
 
                 ctx.save();
-                ctx.font = 'bold 10px ui-sans-serif, system-ui';
+                ctx.font = 'bold 11px ui-sans-serif, system-ui';
                 ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
@@ -782,7 +782,7 @@ async function fetchAttendanceCharts() {
                             offset: isStacked ? 0 : -2,
                             font: {
                                 weight: 'bold',
-                                size: isStacked ? 9 : 10
+                                size: 11
                             },
                             formatter: Math.round
                         },
@@ -820,7 +820,10 @@ async function fetchAttendanceCharts() {
                                 color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                             },
                             ticks: {
-                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'
+                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569',
+                                font: {
+                                    size: 11
+                                }
                             }
                         },
                         y: {
@@ -828,7 +831,10 @@ async function fetchAttendanceCharts() {
                             beginAtZero: true,
                             ticks: { 
                                 precision: 0,
-                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'
+                                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569',
+                                font: {
+                                    size: 11
+                                }
                             },
                             grid: {
                                 color: () => document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'

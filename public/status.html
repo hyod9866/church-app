@@ -108,13 +108,18 @@
         }
         
         /* 트리 노드 다크모드 */
-        .dark #treeContainer .text-gray-800 {
+        .dark #treeContainer .text-gray-800,
+        .dark #treeContainer .text-gray-700 {
+            color: #f1f5f9 !important;
+        }
+        .dark #treeContainer .text-gray-600 {
             color: #cbd5e1 !important;
         }
         .dark #treeContainer .text-gray-500 {
             color: #94a3b8 !important;
         }
-        .dark #treeContainer .hover\:bg-gray-50:hover {
+        .dark #treeContainer .hover\:bg-gray-50:hover,
+        .dark #treeContainer .hover\:bg-gray-100:hover {
             background-color: rgba(30, 41, 59, 0.5) !important;
         }
         .dark .tree-node-active {
@@ -206,11 +211,9 @@
                     </span>
                 </h1>
             </a>
-            <div class="flex gap-1.5 items-center">
-                <!-- Share localStorage org states -->
-                <select id="headerChurchSelect" class="bg-blue-700/80 dark:bg-slate-800 dark:border-slate-700/50 dark:text-slate-200 text-[10px] md:text-xs font-bold rounded-lg border border-blue-500/30 px-1.5 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-white/20 text-white max-w-[100px] md:max-w-none transition duration-200"></select>
-                <select id="headerParishSelect" class="bg-blue-700/80 dark:bg-slate-800 dark:border-slate-700/50 dark:text-slate-200 text-[10px] md:text-xs font-bold rounded-lg border border-blue-500/30 px-1.5 py-1 outline-none cursor-pointer focus:ring-1 focus:ring-white/20 text-white max-w-[100px] md:max-w-none transition duration-200"></select>
-            </div>
+            <!-- 헤더 셀렉터 숨김 (JS 호환 유지용 hidden 요소) -->
+            <select id="headerChurchSelect" class="hidden"></select>
+            <select id="headerParishSelect" class="hidden"></select>
         </div>
         <div class="flex items-center gap-1.5 min-w-0">
             <div class="flex gap-2 overflow-x-auto no-scrollbar items-center pr-1">

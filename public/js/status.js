@@ -127,21 +127,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Load & Prepare Data ---
     async function initData() {
         try {
+            // 강효근 프로필과 기본 데이터를 병렬로 모두 가져옴
+            const [profileRes, parishesRes, districtsRes, meetingsData] = await Promise.all([
+                fetch('/api/users/default-profile'),
+                fetch('/api/parishes?church_id=all'),
+                fetch('/api/districts?parish_id=all'),
+                fetchMeetings()
+            ]);
+
             churches = await fetchChurches();
-            
-            // 모든 교구 정보를 일괄 조회
-            const parishesRes = await fetch('/api/parishes?church_id=all');
             parishes = await parishesRes.json();
-            
-            // 모든 구역 정보를 일괄 조회
-            const districtsRes = await fetch('/api/districts?parish_id=all');
             districts = await districtsRes.json();
-            
-            // 외부설교 일정
-            const meetings = await fetchMeetings();
-            allSermons = meetings.filter(m => m.type === '외부설교');
-            
+            allSermons = meetingsData.filter(m => m.type === '외부설교');
+
+            const profile = await profileRes.json();
+            console.log('[AutoSelect] User Profile:', profile);
+
             renderTree();
+
+            // 강효근의 현재 소속 교회 자동 선택
+            if (profile && profile.church) {
+                const targetChurch = churches.find(c => c.name.trim() === profile.church.trim());
+                console.log('[AutoSelect] Target Church:', targetChurch);
+
+                if (targetChurch) {
+                    // renderTree()가 동기적으로 DOM을 생성했으므로 바로 선택 처리
+                    const subContainer = treeContainer.querySelector(`#sub-c-${targetChurch.id}`);
+                    const chevron = treeContainer.querySelector(`#chevron-c-${targetChurch.id}`);
+
+                    // 대시보드 상세 패널 활성화
+                    await selectNode('church', targetChurch.id, targetChurch.name, null);
+
+                    // 하위 교구 트리 펼치기
+                    if (subContainer && chevron) {
+                        subContainer.classList.remove('hidden');
+                        chevron.classList.add('rotate-90');
+                        renderParishNodes(targetChurch.id, subContainer);
+                    }
+                }
+            }
         } catch (err) {
             console.error('Data Loading Error:', err);
             treeContainer.innerHTML = `<div class="text-red-500 font-bold p-4 text-center text-xs">오류가 발생했습니다: ${err.message}</div>`;
