@@ -1083,7 +1083,15 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                         ${m.sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
                     </div>
                 ` : ''}
-                ${m.memo ? `<div class="mb-4 bg-slate-50 dark:bg-[#172237]/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-850/50"><h4 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">메모</h4><p class="text-base font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${m.memo}</p></div>` : ''}
+                ${m.memo ? `
+                <div class="mb-4">
+                    <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        메모
+                    </h4>
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${m.memo}</p>
+                </div>
+                ` : ''}
                 
                 <div class="mb-4">
                     <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
