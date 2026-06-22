@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
         dayMaxEvents: true,
-        eventOrder: ['order', 'start_time', 'title'],
+        eventOrder: ['-allDay', 'order', 'start_time', 'title'],
         selectable: true,
         selectMirror: true,
         selectLongPressDelay: 1000,
@@ -202,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         textColor: tc, 
                         borderColor: br,
                         order: ord,
+                        allDay: isAllDay,
                         classNames: t.includes('구원기념일') ? ['salvation-event'] : []
                     };
 
