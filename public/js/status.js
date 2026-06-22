@@ -480,30 +480,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 const subCount = churchParishes.length;
                 metricSubOrgCount.textContent = `${subCount}개`;
                 
+                const isDark = document.documentElement.classList.contains('dark');
+                const tblBg = isDark ? '#131B2E' : '#ffffff';
+                const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
+                const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
+                const theadText = isDark ? '#64748b' : '#64748b';
+                const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
+                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
+                const cellMonoText = isDark ? '#475569' : '#94a3b8';
+                const cellCountText = isDark ? '#94a3b8' : '#334155';
+                
                 tableListContainer.innerHTML = `
-                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
-                        <table class="w-full text-xs text-left border-collapse bg-white">
+                    <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">
+                        <table style="width:100%;font-size:0.75rem;text-align:left;border-collapse:collapse;background-color:${tblBg};">
                             <thead>
-                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                    <th class="p-3.5">교구 명칭</th>
-                                    <th class="p-3.5">교구 코드</th>
-                                    <th class="p-3.5 text-right">구역 수</th>
-                                    <th class="p-3.5 text-center w-14">관리</th>
+                                <tr style="background-color:${theadBg};border-bottom:1px solid ${tblBorder};color:${theadText};font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:10px;">
+                                    <th style="padding:0.875rem;">교구 명칭</th>
+                                    <th style="padding:0.875rem;">교구 코드</th>
+                                    <th style="padding:0.875rem;text-align:right;">구역 수</th>
+                                    <th style="padding:0.875rem;text-align:center;width:3.5rem;">관리</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody>
                                 ${churchParishes.map(p => {
                                     const dCount = districts.filter(d => d.parish_id === p.id).length;
                                     return `
-                                        <tr class="hover:bg-slate-50/50 cursor-pointer transition-colors duration-150" onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
-                                            <td class="p-3.5 font-bold text-slate-900 flex items-center gap-2">
-                                                <i class="fa-solid fa-people-roof text-indigo-500 text-[13px]"></i>
+                                        <tr style="border-top:1px solid ${rowDivider};cursor:pointer;transition:background 0.15s;" 
+                                            onmouseover="this.style.backgroundColor='${isDark ? 'rgba(30,41,59,0.4)' : 'rgba(248,250,252,0.6)'}'"
+                                            onmouseout="this.style.backgroundColor=''"
+                                            onclick="selectNode('parish', ${p.id}, '${p.name}', ${id})">
+                                            <td style="padding:0.875rem;font-weight:700;color:${cellNameText};display:flex;align-items:center;gap:0.5rem;">
+                                                <i class="fa-solid fa-people-roof" style="color:#6366f1;font-size:13px;"></i>
                                                 <span>${p.name}</span>
                                             </td>
-                                            <td class="p-3.5 font-semibold text-slate-400 font-mono">${p.parish_no || '-'}번 교구</td>
-                                            <td class="p-3.5 text-right text-slate-700 font-bold">${dCount}개 구역</td>
-                                            <td class="p-3.5 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('parish', ${p.id}, '${p.name}')">
-                                                <button class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition flex items-center justify-center mx-auto"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                                            <td style="padding:0.875rem;font-weight:600;color:${cellMonoText};font-family:monospace;">${p.parish_no || '-'}번 교구</td>
+                                            <td style="padding:0.875rem;text-align:right;color:${cellCountText};font-weight:700;">${dCount}개 구역</td>
+                                            <td style="padding:0.875rem;text-align:center;" onclick="event.stopPropagation(); deleteNodeDirectly('parish', ${p.id}, '${p.name}')">
+                                                <button style="width:1.75rem;height:1.75rem;border-radius:0.5rem;color:#f43f5e;display:flex;align-items:center;justify-content:center;margin:auto;transition:background 0.15s;border:none;background:transparent;cursor:pointer;"
+                                                    onmouseover="this.style.backgroundColor='${isDark ? 'rgba(244,63,94,0.15)' : 'rgba(255,228,230,0.8)'}'"
+                                                    onmouseout="this.style.backgroundColor='transparent'">
+                                                    <i class="fa-solid fa-trash-can" style="font-size:11px;"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     `;
@@ -516,27 +533,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 const subDists = districts.filter(d => d.parish_id === id);
                 metricSubOrgCount.textContent = `${subDists.length}개`;
                 
+                const isDark = document.documentElement.classList.contains('dark');
+                const tblBg = isDark ? '#131B2E' : '#ffffff';
+                const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
+                const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
+                const theadText = isDark ? '#64748b' : '#64748b';
+                const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
+                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
+                const cellSubText = isDark ? '#475569' : '#64748b';
+                
                 tableListContainer.innerHTML = `
-                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
-                        <table class="w-full text-xs text-left border-collapse bg-white">
+                    <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">
+                        <table style="width:100%;font-size:0.75rem;text-align:left;border-collapse:collapse;background-color:${tblBg};">
                             <thead>
-                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                    <th class="p-3.5">구역 명칭</th>
-                                    <th class="p-3.5 text-right">등록 인원</th>
-                                    <th class="p-3.5 text-center w-14">관리</th>
+                                <tr style="background-color:${theadBg};border-bottom:1px solid ${tblBorder};color:${theadText};font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:10px;">
+                                    <th style="padding:0.875rem;">구역 명칭</th>
+                                    <th style="padding:0.875rem;text-align:right;">등록 인원</th>
+                                    <th style="padding:0.875rem;text-align:center;width:3.5rem;">관리</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody>
                                 ${subDists.map(d => {
                                     return `
-                                        <tr class="hover:bg-slate-50/50 cursor-pointer transition-colors duration-150" onclick="selectNode('district', ${d.id}, '${d.name}', ${id})">
-                                            <td class="p-3.5 font-bold text-slate-900 flex items-center gap-2">
-                                                <i class="fa-solid fa-house-chimney text-emerald-500 text-[12px]"></i>
+                                        <tr style="border-top:1px solid ${rowDivider};cursor:pointer;transition:background 0.15s;"
+                                            onmouseover="this.style.backgroundColor='${isDark ? 'rgba(30,41,59,0.4)' : 'rgba(248,250,252,0.6)'}'"
+                                            onmouseout="this.style.backgroundColor=''"
+                                            onclick="selectNode('district', ${d.id}, '${d.name}', ${id})">
+                                            <td style="padding:0.875rem;font-weight:700;color:${cellNameText};display:flex;align-items:center;gap:0.5rem;">
+                                                <i class="fa-solid fa-house-chimney" style="color:#10b981;font-size:12px;"></i>
                                                 <span>${d.name}</span>
                                             </td>
-                                            <td class="p-3.5 text-right text-slate-500 font-medium">조회 가능</td>
-                                            <td class="p-3.5 text-center" onclick="event.stopPropagation(); deleteNodeDirectly('district', ${d.id}, '${d.name}')">
-                                                <button class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition flex items-center justify-center mx-auto"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                                            <td style="padding:0.875rem;text-align:right;color:${cellSubText};font-weight:500;">조회 가능</td>
+                                            <td style="padding:0.875rem;text-align:center;" onclick="event.stopPropagation(); deleteNodeDirectly('district', ${d.id}, '${d.name}')">
+                                                <button style="width:1.75rem;height:1.75rem;border-radius:0.5rem;color:#f43f5e;display:flex;align-items:center;justify-content:center;margin:auto;transition:background 0.15s;border:none;background:transparent;cursor:pointer;"
+                                                    onmouseover="this.style.backgroundColor='${isDark ? 'rgba(244,63,94,0.15)' : 'rgba(255,228,230,0.8)'}'"
+                                                    onmouseout="this.style.backgroundColor='transparent'">
+                                                    <i class="fa-solid fa-trash-can" style="font-size:11px;"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     `;
@@ -547,37 +580,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             } else {
                 // 구역 상세: 소속 성도 명단 테이블화 (Premium HRM 스타일)
+                const isDark = document.documentElement.classList.contains('dark');
+                const tblBg = isDark ? '#131B2E' : '#ffffff';
+                const tblBorder = isDark ? '#1e293b' : '#f1f5f9';
+                const theadBg = isDark ? 'rgba(30,41,59,0.5)' : 'rgba(248,250,252,0.8)';
+                const theadText = isDark ? '#64748b' : '#64748b';
+                const rowDivider = isDark ? '#1e293b' : '#f1f5f9';
+                const cellNameText = isDark ? '#e2e8f0' : '#0f172a';
+                const cellMonoText = isDark ? '#475569' : '#64748b';
+                const emptyBg = isDark ? 'rgba(30,41,59,0.3)' : 'rgba(248,250,252,0.3)';
+                const emptyText = isDark ? '#475569' : '#94a3b8';
+                const emptyIcon = isDark ? '#334155' : '#cbd5e1';
+                
                 tableListContainer.innerHTML = `
-                    <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
-                        <table class="w-full text-xs text-left border-collapse bg-white whitespace-nowrap">
+                    <div style="overflow:hidden;border-radius:0.75rem;border:1px solid ${tblBorder};">
+                        <table style="width:100%;font-size:0.75rem;text-align:left;border-collapse:collapse;background-color:${tblBg};white-space:nowrap;">
                             <thead>
-                                <tr class="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                    <th class="p-3.5">성명</th>
-                                    <th class="p-3.5">소속회</th>
-                                    <th class="p-3.5">생년</th>
-                                    <th class="p-3.5">직분</th>
-                                    <th class="p-3.5">상태</th>
+                                <tr style="background-color:${theadBg};border-bottom:1px solid ${tblBorder};color:${theadText};font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:10px;">
+                                    <th style="padding:0.875rem;">성명</th>
+                                    <th style="padding:0.875rem;">소속회</th>
+                                    <th style="padding:0.875rem;">생년</th>
+                                    <th style="padding:0.875rem;">직분</th>
+                                    <th style="padding:0.875rem;">상태</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody>
                                 ${members.map(m => {
+                                    const statusStyle = m.status === 'active'
+                                        ? (isDark ? 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);' : 'background:rgba(209,250,229,0.8);color:#065f46;border:1px solid rgba(167,243,208,0.5);')
+                                        : (isDark ? 'background:rgba(244,63,94,0.15);color:#fb7185;border:1px solid rgba(244,63,94,0.3);' : 'background:rgba(255,228,230,0.8);color:#9f1239;border:1px solid rgba(253,164,175,0.5);');
                                     return `
-                                        <tr class="hover:bg-slate-50/30 transition-colors duration-150">
-                                            <td class="p-3.5 font-bold text-slate-950 flex items-center gap-2.5">
+                                        <tr style="border-top:1px solid ${rowDivider};transition:background 0.15s;"
+                                            onmouseover="this.style.backgroundColor='${isDark ? 'rgba(30,41,59,0.3)' : 'rgba(248,250,252,0.5)'}'"
+                                            onmouseout="this.style.backgroundColor=''"
+                                        >
+                                            <td style="padding:0.875rem;font-weight:700;color:${cellNameText};display:flex;align-items:center;gap:0.625rem;">
                                                 ${getAvatarHtml(m.name)}
                                                 <span>${m.name}</span>
                                             </td>
-                                            <td class="p-3.5">${getCategoryBadgeHtml(m.category)}</td>
-                                            <td class="p-3.5 text-slate-500 font-semibold font-mono text-[11px]">${m.birth_year || '-'}년</td>
-                                            <td class="p-3.5">${getPositionBadgeHtml(m.position)}</td>
-                                            <td class="p-3.5">
-                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${m.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' : 'bg-rose-50 text-rose-700 border-rose-200/50'}">
+                                            <td style="padding:0.875rem;">${getCategoryBadgeHtml(m.category)}</td>
+                                            <td style="padding:0.875rem;color:${cellMonoText};font-weight:600;font-family:monospace;font-size:11px;">${m.birth_year || '-'}년</td>
+                                            <td style="padding:0.875rem;">${getPositionBadgeHtml(m.position)}</td>
+                                            <td style="padding:0.875rem;">
+                                                <span style="padding:0.125rem 0.5rem;border-radius:9999px;font-size:10px;font-weight:700;${statusStyle}">
                                                     ${m.status === 'active' ? '교제중' : '쉬는중'}
                                                 </span>
                                             </td>
                                         </tr>
                                     `;
-                                }).join('') || '<tr><td colspan="5" class="p-8 text-center text-slate-400 italic font-medium bg-slate-50/30"><i class="fa-solid fa-user-slash text-lg mb-2 block text-slate-300"></i>등록된 성도가 없습니다.</td></tr>'}
+                                }).join('') || `<tr><td colspan="5" style="padding:2rem;text-align:center;color:${emptyText};font-style:italic;font-weight:500;background-color:${emptyBg};"><i class="fa-solid fa-user-slash" style="font-size:1.125rem;display:block;margin-bottom:0.5rem;color:${emptyIcon};"></i>등록된 성도가 없습니다.</td></tr>`}
                             </tbody>
                         </table>
                     </div>
