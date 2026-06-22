@@ -1887,6 +1887,12 @@ app.get('/api/visitation/status', async (req, res) => {
             .in('type', ['심방', '상담']);
         if (meetErr) throw meetErr;
 
+        const { data: cRecords, error: cRecErr } = await supabase
+            .from('member_records')
+            .select('member_id, date, status, remark')
+            .eq('status', 'COUNSELING');
+        if (cRecErr) throw cRecErr;
+
         const meetingMap = {};
         if (meetings) {
           meetings.forEach(m => { meetingMap[m.id] = m; });
@@ -1915,6 +1921,23 @@ app.get('/api/visitation/status', async (req, res) => {
             }
         });
 
+        // member_records의 상담 데이터도 병합
+        if (cRecords) {
+            cRecords.forEach(r => {
+                if (!memberVisitations[r.member_id]) {
+                    memberVisitations[r.member_id] = [];
+                }
+                memberVisitations[r.member_id].push({
+                    id: 'c_' + r.date + '_' + Math.random().toString(36).substring(2, 7),
+                    title: '상담',
+                    date: r.date,
+                    sermon_title: null,
+                    memo: r.remark,
+                    type: '상담'
+                });
+            });
+        }
+
         const result = members.map(m => {
             const visits = memberVisitations[m.id] || [];
             visits.sort((a, b) => b.date.localeCompare(a.date));
@@ -1940,6 +1963,108 @@ app.get('/api/visitation/status', async (req, res) => {
         console.error('Visitation status error:', err);
         res.status(500).json({ error: err.message });
     }
+app.post('/api/visitation/counseling', async (req, res) => {
+  const { member_id, name, date, counseling_memo, remark_memo, church, parish, district } = req.body;
+  if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
+  if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
+
+  try {
+    let finalMemberId = member_id;
+
+    // 1. 성도 조회 또는 신규 생성
+    if (!finalMemberId) {
+      // 신규 등록
+      const insertData = {
+        name: name.trim(),
+        church: church ? church.trim() : '교회정보없음',
+        parish: parish ? parish.trim() : '교구정보없음',
+        district: district ? district.trim() : '구역정보없음',
+        category: '봉사회',
+        status: 'active'
+      };
+
+      const { data: newMem, error: insErr } = await supabase
+        .from('members')
+        .insert(insertData)
+        .select('id')
+        .single();
+
+      if (insErr) throw insErr;
+      finalMemberId = newMem.id;
+
+      // 신규 등록 시 소속이 있는 경우에만 CHURCH_IN 삽입
+      if (church || parish || district) {
+        const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
+        const { error: recErr } = await supabase
+          .from('member_records')
+          .insert({
+            member_id: finalMemberId,
+            date: date,
+            status: 'CHURCH_IN',
+            remark: remarkStr
+          });
+        if (recErr) throw recErr;
+      }
+    } else {
+      // 기존 성도 소속 변경 감지 및 동기화
+      const { data: curMem, error: curMemErr } = await supabase
+        .from('members')
+        .select('church, parish, district')
+        .eq('id', finalMemberId)
+        .single();
+
+      if (curMemErr) throw curMemErr;
+
+      // 소속 중 하나라도 입력된 정보와 다른지 비교 (비어있지 않은 정보 기준)
+      const isChurchDiff = church && church.trim() !== (curMem.church || '').trim();
+      const isParishDiff = parish && parish.trim() !== (curMem.parish || '').trim();
+      const isDistrictDiff = district && district.trim() !== (curMem.district || '').trim();
+
+      if (isChurchDiff || isParishDiff || isDistrictDiff) {
+        const newChurch = church ? church.trim() : (curMem.church || '교회정보없음');
+        const newParish = parish ? parish.trim() : (curMem.parish || '교구정보없음');
+        const newDistrict = district ? district.trim() : (curMem.district || '구역정보없음');
+
+        const remarkStr = `${newChurch} > ${newParish} > ${newDistrict}`;
+        
+        // 소속 변경 이력 추가
+        const { error: recMoveErr } = await supabase
+          .from('member_records')
+          .insert({
+            member_id: finalMemberId,
+            date: date,
+            status: 'CHURCH_MOVE',
+            remark: remarkStr
+          });
+        if (recMoveErr) throw recMoveErr;
+      }
+    }
+
+    // 2. 상담 이력(COUNSELING) 삽입
+    let remarkText = counseling_memo ? `[상담] ${counseling_memo.trim()}` : '[상담] 내용 없음';
+    if (remark_memo && remark_memo.trim()) {
+      remarkText += ` (비고: ${remark_memo.trim()})`;
+    }
+
+    const { error: counselErr } = await supabase
+      .from('member_records')
+      .insert({
+        member_id: finalMemberId,
+        date: date,
+        status: 'COUNSELING',
+        remark: remarkText
+      });
+
+    if (counselErr) throw counselErr;
+
+    // 3. 프로필 소속 정보 최종 얼라인 동기화
+    await syncMemberProfileFromRecords(finalMemberId);
+
+    res.json({ success: true, member_id: finalMemberId });
+  } catch (err) {
+    console.error('Save counseling error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/members/filter', async (req, res) => {

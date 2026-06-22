@@ -35,12 +35,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFilters() {
         const district = districtFilter.value;
         const sort = sortOption.value;
+        const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
         let filtered = allStatus.filter(s => {
-            if (district === '전체') return true;
-            const memberDistNum = String(s.district || '').replace(/[^0-9]/g, '');
-            const filterDistNum = String(district).replace(/[^0-9]/g, '');
-            return memberDistNum === filterDistNum && memberDistNum !== '';
+            // 1. 구역 필터링
+            if (district !== '전체') {
+                const memberDistNum = String(s.district || '').replace(/[^0-9]/g, '');
+                const filterDistNum = String(district).replace(/[^0-9]/g, '');
+                if (memberDistNum !== filterDistNum || memberDistNum === '') return false;
+            }
+
+            // 2. 통합 검색 필터링
+            if (query) {
+                const nameMatch = (s.name || '').toLowerCase().includes(query);
+                const dateMatch = (s.last_visitation || '').includes(query);
+                const memoMatch = (s.last_memo || '').toLowerCase().includes(query);
+                const sermonMatch = (s.last_sermon || '').toLowerCase().includes(query);
+                const positionMatch = (s.position || '').toLowerCase().includes(query);
+                const categoryMatch = (s.category || '').toLowerCase().includes(query);
+                const districtTextMatch = (s.district || '').toLowerCase().includes(query);
+
+                if (!nameMatch && !dateMatch && !memoMatch && !sermonMatch && !positionMatch && !categoryMatch && !districtTextMatch) {
+                    return false;
+                }
+            }
+
+            return true;
         });
 
         // Sorting
@@ -152,6 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     districtFilter.addEventListener('change', applyFilters);
     sortOption.addEventListener('change', applyFilters);
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
 
     // --- Member Detail Modal Logic (Read-Only) ---
     const RECORD_STATUS_MAP = { 
@@ -166,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'CHURCH_IN': '교회 전입',
         'CHURCH_MOVE': '교회 이동',
         'PARISH_MOVE': '교구 이동',
+        'COUNSELING': '상담',
         'ETC': '기타' 
     };
 
@@ -603,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Visitation Memos
-            const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
+            const visMemos = history.filter(h => h.type === '심방');
             const visSec = document.getElementById('visitationHistorySection'), visList = document.getElementById('visitationMemoList');
             if (visMemos.length) { 
                 if (visSec) visSec.classList.remove('hidden'); 
@@ -611,22 +636,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     visList.innerHTML = visMemos.map(h => {
                         const memoVal = h.memo ? h.memo.trim() : '';
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
-                        const isCounseling = h.type === '상담';
                         
                         let contentHTML = '';
                         if (memoVal) {
                             contentHTML += `
                                 <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
+                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">✍️ 메모</span>
                                     <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
                                 </div>
                             `;
                         }
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
-                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
-                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="bg-blue-50/50 border-blue-100/30 p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">🎙️ 심방 간증</span>
+                                    <p class="text-xs text-blue-900 whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
@@ -634,9 +658,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
-                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
-                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
-                        const titleText = isCounseling ? '상담 기록' : '심방 기록';
+                        const cardBg = 'bg-teal-50 border-teal-100 dark:bg-slate-800/40 dark:border-slate-700/60';
+                        const textCol = 'text-teal-800 border-teal-200/30 dark:text-slate-300 dark:border-slate-700/30';
+                        const titleText = '심방 기록';
 
                         return `
                             <div class="${cardBg} p-4 rounded-xl border shadow-sm flex flex-col gap-2">
@@ -650,7 +674,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } 
             else {
-                if (visList) visList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">기록이 없습니다.</p>';
+                if (visList) visList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">심방 기록이 없습니다.</p>';
+            }
+
+            // Counseling Memos (개인 상담 기록 탭)
+            const counselingList = document.getElementById('counselingMemoList');
+            const cMemos = records.filter(r => r.status === 'COUNSELING');
+            if (counselingList) {
+                if (cMemos.length) {
+                    counselingList.innerHTML = cMemos.map(r => {
+                        const memoText = r.remark || '';
+                        
+                        return `
+                            <div class="bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2">
+                                <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1 flex justify-between items-center">
+                                    <span>📅 ${r.date} 개인 상담</span>
+                                </div>
+                                <div class="mb-2 bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <p class="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${memoText}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    counselingList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">상담 기록이 없습니다.</p>';
+                }
             }
 
             // Personal Records (수직 타임라인 디자인 적용)
@@ -905,6 +953,247 @@ document.addEventListener('DOMContentLoaded', () => {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 저장하기
             `;
+        }
+    });
+
+    // --- New Counseling Modal Logic (새 상담 등록) ---
+    const newCounselingModal = document.getElementById('newCounselingModal');
+    const openNewCounselingBtn = document.getElementById('openNewCounselingBtn');
+    const closeNewCounselingModal = document.getElementById('closeNewCounselingModal');
+    const cancelNewCounselingBtn = document.getElementById('cancelNewCounselingBtn');
+    const saveNewCounselingBtn = document.getElementById('saveNewCounselingBtn');
+
+    const counselingName = document.getElementById('counselingName');
+    const counselingNameSuggestions = document.getElementById('counselingNameSuggestions');
+    const counselingMemberId = document.getElementById('counselingMemberId');
+    const newMemberBadgeContainer = document.getElementById('newMemberBadgeContainer');
+
+    const counselingChurch = document.getElementById('counselingChurch');
+    const counselingParish = document.getElementById('counselingParish');
+    const counselingDistrict = document.getElementById('counselingDistrict');
+
+    // 모달 열기
+    if (openNewCounselingBtn) {
+        openNewCounselingBtn.addEventListener('click', async () => {
+            document.getElementById('newCounselingForm').reset();
+            counselingMemberId.value = '';
+            newMemberBadgeContainer.classList.add('hidden');
+            counselingNameSuggestions.classList.add('hidden');
+            
+            // 디폴트 오늘 날짜
+            document.getElementById('counselingDate').value = new Date().toISOString().split('T')[0];
+
+            // 드롭다운 초기화
+            counselingParish.innerHTML = '<option value="">교구 선택</option>';
+            counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+            counselingParish.disabled = true;
+            counselingDistrict.disabled = true;
+
+            // 교회 목록 가져오기
+            await loadChurches();
+
+            newCounselingModal.classList.remove('hidden');
+        });
+    }
+
+    // 모달 닫기
+    const closeNewCounseling = () => {
+        newCounselingModal.classList.add('hidden');
+        counselingNameSuggestions.classList.add('hidden');
+    };
+
+    if (closeNewCounselingModal) closeNewCounselingModal.addEventListener('click', closeNewCounseling);
+    if (cancelNewCounselingBtn) cancelNewCounselingBtn.addEventListener('click', closeNewCounseling);
+
+    // 교회 데이터 로드
+    async function loadChurches() {
+        try {
+            const res = await fetch('/api/churches/all');
+            const churches = await res.json();
+            counselingChurch.innerHTML = '<option value="">교회 선택</option>' + 
+                churches.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
+        } catch (e) {
+            console.error('Error loading churches:', e);
+        }
+    }
+
+    // 교회 선택 변경 시 교구 리스트 로드
+    counselingChurch.addEventListener('change', async () => {
+        const selectedOpt = counselingChurch.options[counselingChurch.selectedIndex];
+        const churchId = selectedOpt.dataset.id;
+
+        counselingParish.innerHTML = '<option value="">교구 선택</option>';
+        counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+        counselingDistrict.disabled = true;
+
+        if (!churchId) {
+            counselingParish.disabled = true;
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/parishes?church_id=${churchId}`);
+            const parishes = await res.json();
+            counselingParish.innerHTML = '<option value="">교구 선택</option>' +
+                parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+            counselingParish.disabled = false;
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    // 교구 선택 변경 시 구역 리스트 로드
+    counselingParish.addEventListener('change', async () => {
+        const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
+        const parishId = selectedOpt.dataset.id;
+
+        counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+
+        if (!parishId) {
+            counselingDistrict.disabled = true;
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/districts?parish_id=${parishId}`);
+            const districts = await res.json();
+            counselingDistrict.innerHTML = '<option value="">구역 선택</option>' +
+                districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            counselingDistrict.disabled = false;
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    // 실시간 성도 이름 자동완성 검색
+    counselingName.addEventListener('input', async () => {
+        const val = counselingName.value.trim();
+        if (!val) {
+            counselingNameSuggestions.classList.add('hidden');
+            counselingMemberId.value = '';
+            newMemberBadgeContainer.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/members/filter?q=${encodeURIComponent(val)}`);
+            const suggestions = await res.json();
+
+            if (suggestions.length > 0) {
+                counselingNameSuggestions.innerHTML = suggestions.map(s => `
+                    <div class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800 flex justify-between items-center" 
+                         data-id="${s.id}" data-name="${s.name}" data-church="${s.church || ''}" data-parish="${s.parish || ''}" data-district="${s.district || ''}">
+                        <span>${s.name} <span class="text-xs font-medium text-slate-400 flex items-center gap-1">(${s.position || '성도'})</span></span>
+                        <span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold">${s.church || '교회정보없음'}</span>
+                    </div>
+                `).join('');
+                counselingNameSuggestions.classList.remove('hidden');
+            } else {
+                counselingNameSuggestions.classList.add('hidden');
+            }
+            
+            // 입력창과 정확히 매칭되는 사람이 없으면 신규 성도 뱃지 노출
+            const exactMatch = suggestions.find(s => s.name === val);
+            if (!exactMatch) {
+                counselingMemberId.value = '';
+                newMemberBadgeContainer.classList.remove('hidden');
+            } else {
+                newMemberBadgeContainer.classList.add('hidden');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    // 자동완성 아이템 클릭 시 바인딩
+    counselingNameSuggestions.addEventListener('click', async (e) => {
+        const item = e.target.closest('[data-id]');
+        if (!item) return;
+
+        const id = item.dataset.id;
+        const name = item.dataset.name;
+        const church = item.dataset.church;
+        const parish = item.dataset.parish;
+        const district = item.dataset.district;
+
+        counselingName.value = name;
+        counselingMemberId.value = id;
+        counselingNameSuggestions.classList.add('hidden');
+        newMemberBadgeContainer.classList.add('hidden');
+
+        // 소속 정보 자동 셋팅
+        if (church && church !== '교회정보없음') {
+            await loadChurches();
+            counselingChurch.value = church;
+            counselingChurch.dispatchEvent(new Event('change'));
+
+            // 약간의 지연 후에 교구/구역 선택값 지정
+            setTimeout(async () => {
+                if (parish && parish !== '교구정보없음') {
+                    counselingParish.value = parish;
+                    counselingParish.dispatchEvent(new Event('change'));
+                    
+                    setTimeout(() => {
+                        if (district && district !== '구역정보없음') {
+                            counselingDistrict.value = district;
+                        }
+                    }, 300);
+                }
+            }, 300);
+        }
+    });
+
+    // 클릭 외 다른 영역 누르면 자동완성 닫기
+    document.addEventListener('click', (e) => {
+        if (!counselingName.contains(e.target) && !counselingNameSuggestions.contains(e.target)) {
+            counselingNameSuggestions.classList.add('hidden');
+        }
+    });
+
+    // 상담 기록 저장하기
+    saveNewCounselingBtn.addEventListener('click', async () => {
+        const name = counselingName.value.trim();
+        const memberId = counselingMemberId.value;
+        const church = counselingChurch.value;
+        const parish = counselingParish.value;
+        const district = counselingDistrict.value;
+        const date = document.getElementById('counselingDate').value;
+        const counseling_memo = document.getElementById('counselingMemoContent').value.trim();
+        const remark_memo = document.getElementById('counselingRemark').value.trim();
+
+        if (!name) return alert('상담 대상자 이름을 입력하세요.');
+        if (!date) return alert('상담 날짜를 입력하세요.');
+        if (!counseling_memo) return alert('상담 내용을 입력하세요.');
+
+        saveNewCounselingBtn.disabled = true;
+        saveNewCounselingBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> 저장 중...';
+
+        try {
+            const res = await fetch('/api/visitation/counseling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: memberId ? parseInt(memberId) : null,
+                    name,
+                    date,
+                    counseling_memo,
+                    remark_memo,
+                    church: church || null,
+                    parish: parish || null,
+                    district: district || null
+                })
+            });
+
+            if (!res.ok) throw new Error('상담 기록 저장 실패');
+            
+            closeNewCounseling();
+            loadStatus(); // 화면 목록 및 카운트 새로고침
+        } catch (err) {
+            console.error(err);
+            alert('상담 기록 저장 중 오류가 발생했습니다.');
+        } finally {
+            saveNewCounselingBtn.disabled = false;
+            saveNewCounselingBtn.innerHTML = '<i class="fa-solid fa-check"></i> 상담 저장하기';
         }
     });
 });
