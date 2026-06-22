@@ -156,7 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const chevron = treeContainer.querySelector(`#chevron-c-${targetChurch.id}`);
 
                     // 대시보드 상세 패널 활성화
-                    await selectNode('church', targetChurch.id, targetChurch.name, null);
+                    await selectNode('church', targetChurch.id, targetChurch.name, null, false);
+
+                    // 최초 히스토리 상태를 replaceState로 등록
+                    history.replaceState({ type: 'church', id: targetChurch.id, name: targetChurch.name, parentId: null }, '', `?type=church&id=${targetChurch.id}`);
 
                     // 하위 교구 트리 펼치기
                     if (subContainer && chevron) {
@@ -364,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Select Node Actions ---
-    async function selectNode(type, id, name, parentId) {
+    async function selectNode(type, id, name, parentId, shouldPushHistory = true) {
         selectedNode = { type, id, name, parentId };
         
         // UI Visual Update (Re-apply active background highlighting)
@@ -381,6 +384,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set Header labels
         nodeTitle.textContent = name;
         nodeTypeBadge.textContent = type === 'church' ? '교회' : type === 'parish' ? '교구' : '구역';
+
+        if (shouldPushHistory) {
+            history.pushState({ type, id, name, parentId }, '', `?type=${type}&id=${id}`);
+        }
         
         if (type === 'church') {
             nodeParentHierarchy.textContent = '';
@@ -960,6 +967,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(err => {
                     console.error('Copy failed:', err);
                 });
+        }
+    });
+
+    // --- Popstate listener for browser history (Back button support) ---
+    window.addEventListener('popstate', async (event) => {
+        if (event.state && event.state.type) {
+            const { type, id, name, parentId } = event.state;
+            
+            // 노드 선택 (추가로 history에 pushState하지 않음)
+            await selectNode(type, id, name, parentId, false);
+            
+            // 트리가 닫혀있다면 부모 노드들을 순차적으로 열어서 동기화
+            if (type === 'parish' && parentId) {
+                const subContainer = document.getElementById(`sub-c-${parentId}`);
+                const chevron = document.getElementById(`chevron-c-${parentId}`);
+                if (subContainer && subContainer.classList.contains('hidden')) {
+                    subContainer.classList.remove('hidden');
+                    chevron?.classList.add('rotate-90');
+                    await renderParishNodes(parentId, subContainer);
+                }
+            } else if (type === 'district' && parentId) {
+                const parish = parishes.find(p => p.id === parentId);
+                if (parish) {
+                    const churchId = parish.church_id;
+                    // 부모 교회 노드 펼치기
+                    const cSubContainer = document.getElementById(`sub-c-${churchId}`);
+                    const cChevron = document.getElementById(`chevron-c-${churchId}`);
+                    if (cSubContainer && cSubContainer.classList.contains('hidden')) {
+                        cSubContainer.classList.remove('hidden');
+                        cChevron?.classList.add('rotate-90');
+                        await renderParishNodes(churchId, cSubContainer);
+                    }
+                    // 부모 교구 노드 펼치기
+                    const pSubContainer = document.getElementById(`sub-p-${parentId}`);
+                    const pChevron = document.getElementById(`chevron-p-${parentId}`);
+                    if (pSubContainer && pSubContainer.classList.contains('hidden')) {
+                        pSubContainer.classList.remove('hidden');
+                        pChevron?.classList.add('rotate-90');
+                        await renderDistrictNodes(parentId, pSubContainer);
+                    }
+                }
+            }
         }
     });
 
