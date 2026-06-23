@@ -2084,6 +2084,29 @@ app.post('/api/visitation/counseling', async (req, res) => {
 // NEW: 상담 관리 전용 API  (meetings + attendance 기반, member_records 병합)
 // ─────────────────────────────────────────────────────────
 
+// 상담 본문 및 해시태그를 정교하게 파싱해주는 공통 자가치유 헬퍼 함수
+function parseCounselingContent(rawText) {
+  let text = rawText || '';
+  
+  // 1. 모든 [상담] 접두사 제거
+  text = text.replace(/\[상담\]/g, '').trim();
+  
+  // 2. 전체 텍스트에서 해시태그(#\S+) 추출
+  const tagRegex = /#\S+/g;
+  const tagsFound = text.match(tagRegex) || [];
+  
+  // 중복 태그 제거
+  const uniqueTags = Array.from(new Set(tagsFound));
+  
+  // 3. 본문에서 해시태그 제거 및 줄바꿈/공백 정리
+  let cleanContent = text.replace(tagRegex, '').trim();
+  
+  // 4. 추출한 태그들을 공백으로 연결
+  const tagsStr = uniqueTags.join(' ');
+  
+  return { tags: tagsStr, content: cleanContent };
+}
+
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
 app.get('/api/counseling', async (req, res) => {
   try {
@@ -2131,13 +2154,13 @@ app.get('/api/counseling', async (req, res) => {
       const meet = meetingMap[a.meeting_id];
       if (!meet) return;
       if (!memberCounselingMap[a.member_id]) memberCounselingMap[a.member_id] = [];
-      let tags = '', content = a.testimony_snapshot || '';
-      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
-      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+      
+      const parsed = parseCounselingContent(a.testimony_snapshot);
+      
       memberCounselingMap[a.member_id].push({
         date: meet.date,
-        content,
-        tags,
+        content: parsed.content,
+        tags: parsed.tags,
         source: 'meeting',
         session_id: `m_${a.meeting_id}`,
         meeting_id: a.meeting_id,
@@ -2148,14 +2171,13 @@ app.get('/api/counseling', async (req, res) => {
     // member_records 기반 (레거시 상담 등록)
     (cRecords || []).forEach(r => {
       if (!memberCounselingMap[r.member_id]) memberCounselingMap[r.member_id] = [];
-      // remark에서 태그 파싱
-      let tags = '', content = r.remark || '';
-      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
-      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+      
+      const parsed = parseCounselingContent(r.remark);
+      
       memberCounselingMap[r.member_id].push({
         date: r.date,
-        content,
-        tags,
+        content: parsed.content,
+        tags: parsed.tags,
         source: 'record',
         session_id: `r_${r.id}`,
         record_id: r.id
@@ -2222,13 +2244,13 @@ app.get('/api/counseling/:memberId', async (req, res) => {
       (attData || []).forEach(a => {
         const meet = meetingMap[a.meeting_id];
         if (!meet) return;
-        let tags = '', content = a.testimony_snapshot || '';
-        const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
-        if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+        
+        const parsed = parseCounselingContent(a.testimony_snapshot);
+        
         sessions.push({
           date: meet.date,
-          content,
-          tags,
+          content: parsed.content,
+          tags: parsed.tags,
           source: 'meeting',
           session_id: `m_${a.meeting_id}`,
           meeting_id: a.meeting_id
@@ -2245,15 +2267,12 @@ app.get('/api/counseling/:memberId', async (req, res) => {
     if (cRecErr) throw cRecErr;
 
     (cRecords || []).forEach(r => {
-      let tags = '', content = r.remark || '';
-      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
-      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
-      // [상담] 접두사 제거
-      content = content.replace(/^\[상담\]\s*/, '');
+      const parsed = parseCounselingContent(r.remark);
+      
       sessions.push({
         date: r.date,
-        content,
-        tags,
+        content: parsed.content,
+        tags: parsed.tags,
         source: 'record',
         session_id: `r_${r.id}`,
         record_id: r.id
