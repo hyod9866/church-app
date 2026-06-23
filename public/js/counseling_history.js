@@ -1021,4 +1021,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    const editMemberBtn = document.getElementById('editMemberBtn');
+    if (editMemberBtn) {
+        editMemberBtn.addEventListener('click', () => {
+            if (currentMemberData && currentMemberData.id) {
+                window.location.href = `/member_management.html?openId=${currentMemberData.id}&edit=true`;
+            }
+        });
+    }
 });

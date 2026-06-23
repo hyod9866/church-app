@@ -2583,8 +2583,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // URL 파라미터 체크 및 모달 자동 오픈
             const urlParams = new URLSearchParams(window.location.search);
             const openId = urlParams.get('openId');
+            const shouldEdit = urlParams.get('edit') === 'true';
             if (openId) {
-                openMemberHistoryModal(parseInt(openId));
+                const parsedId = parseInt(openId);
+                if (shouldEdit) {
+                    openMemberHistoryModal(parsedId).then(() => {
+                        memberHistoryModal.classList.add('hidden');
+                        openAddModal(true);
+                    });
+                } else {
+                    openMemberHistoryModal(parsedId);
+                }
             }
         });
     });
