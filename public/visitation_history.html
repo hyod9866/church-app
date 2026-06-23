@@ -702,19 +702,19 @@
                     <div>
                         <span class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-2">소속 정보 (선택 사항)</span>
                         <div class="grid grid-cols-3 gap-2">
-                            <div>
-                                <select id="counselingChurch" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                                    <option value="">교회 선택</option>
-                                    <!-- Dynamic content -->
-                                </select>
+                            <!-- 교회 자동완성 검색 -->
+                            <div class="relative">
+                                <input type="hidden" id="counselingChurchId" value="">
+                                <input type="text" id="counselingChurchInput" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="교회 검색..." autocomplete="off">
+                                <div id="counselingChurchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto hidden"></div>
                             </div>
                             <div>
-                                <select id="counselingParish" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
+                                <select id="counselingParish" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
                                     <option value="">교구 선택</option>
                                 </select>
                             </div>
                             <div>
-                                <select id="counselingDistrict" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
+                                <select id="counselingDistrict" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
                                     <option value="">구역 선택</option>
                                 </select>
                             </div>
