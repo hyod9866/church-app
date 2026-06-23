@@ -2090,7 +2090,7 @@ app.get('/api/counseling', async (req, res) => {
     // 1. members 전체 조회
     const { data: members, error: memErr } = await supabase
       .from('members')
-      .select('id, name, district, category, position, family_relation, bs, church, parish')
+      .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date')
       .eq('status', 'active');
     if (memErr) throw memErr;
 
@@ -2131,10 +2131,13 @@ app.get('/api/counseling', async (req, res) => {
       const meet = meetingMap[a.meeting_id];
       if (!meet) return;
       if (!memberCounselingMap[a.member_id]) memberCounselingMap[a.member_id] = [];
+      let tags = '', content = a.testimony_snapshot || '';
+      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
+      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
       memberCounselingMap[a.member_id].push({
         date: meet.date,
-        content: a.testimony_snapshot || '',
-        tags: '',
+        content,
+        tags,
         source: 'meeting',
         session_id: `m_${a.meeting_id}`,
         meeting_id: a.meeting_id,
@@ -2175,6 +2178,7 @@ app.get('/api/counseling', async (req, res) => {
           bs: m.bs,
           church: m.church,
           parish: m.parish,
+          salvation_date: m.salvation_date,
           counseling_count: sessions.length,
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,

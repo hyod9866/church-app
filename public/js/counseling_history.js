@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/counseling');
             allStatus = await response.json();
+            updateDashboard(allStatus);
             applyFilters();
         } catch (error) {
             console.error('Error loading counseling status:', error);
@@ -1094,6 +1095,146 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 counselEditMemberSubmitBtn.disabled = false;
                 counselEditMemberSubmitBtn.textContent = '수정 완료';
+            }
+        });
+    }
+
+    // ──────────────────────────────────────────────────
+    // 대시보드 업데이트 & 접기/펼치기 토글 로직
+    // ──────────────────────────────────────────────────
+    function updateDashboard(data) {
+        if (!data || data.length === 0) {
+            document.getElementById('monthlyCounselCount').textContent = '0 건';
+            document.getElementById('totalCounselCount').textContent = '0 건';
+            document.getElementById('memberTargetRatioText').textContent = '0 / 0';
+            document.getElementById('memberRatioBar').style.width = '0%';
+            document.getElementById('targetRatioBar').style.width = '0%';
+            document.getElementById('churchRatioText').textContent = '0 / 0';
+            document.getElementById('seoulChurchRatioBar').style.width = '0%';
+            document.getElementById('otherChurchRatioBar').style.width = '0%';
+            document.getElementById('topTagsContainer').innerHTML = '<p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>';
+            return;
+        }
+
+        // 1. 당월 및 누적 상담 건수 계산
+        let totalCount = 0;
+        let monthlyCount = 0;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const currentYM = `${year}-${month}`; // "2026-06"
+
+        data.forEach(s => {
+            totalCount += (s.counseling_count || 0);
+            if (s.last_counseling_date && s.last_counseling_date.startsWith(currentYM)) {
+                monthlyCount++;
+            }
+        });
+
+        document.getElementById('monthlyCounselCount').textContent = `${monthlyCount} 건`;
+        document.getElementById('totalCounselCount').textContent = `${totalCount} 건`;
+
+        // 2. 성도 vs 전도대상 비율 게이지 (salvation_date 유무 기준)
+        const memberCount = data.filter(s => s.salvation_date && s.salvation_date.trim() !== '').length;
+        const targetCount = data.length - memberCount;
+        const totalPeople = data.length || 1;
+
+        const memberPct = Math.round((memberCount / totalPeople) * 100);
+        const targetPct = 100 - memberPct;
+
+        document.getElementById('memberTargetRatioText').textContent = `${memberCount}명 (${memberPct}%) / ${targetCount}명 (${targetPct}%)`;
+        document.getElementById('memberRatioBar').style.width = `${memberPct}%`;
+        document.getElementById('targetRatioBar').style.width = `${targetPct}%`;
+
+        // 3. 서울중앙 vs 타교회/모름 비율 게이지
+        const seoulCount = data.filter(s => s.church === '서울중앙교회').length;
+        const otherCount = data.length - seoulCount;
+
+        const seoulPct = Math.round((seoulCount / totalPeople) * 100);
+        const otherPct = 100 - seoulPct;
+
+        document.getElementById('churchRatioText').textContent = `${seoulCount}명 (${seoulPct}%) / ${otherCount}명 (${otherPct}%)`;
+        document.getElementById('seoulChurchRatioBar').style.width = `${seoulPct}%`;
+        document.getElementById('otherChurchRatioBar').style.width = `${otherPct}%`;
+
+        // 4. 최다 상담 주제 TOP 10 집계 및 렌더링
+        const tagCounts = {};
+        data.forEach(s => {
+            if (s.last_counseling_tags) {
+                const tags = s.last_counseling_tags.split(/\s+/).filter(t => t.startsWith('#'));
+                tags.forEach(t => {
+                    const cleanTag = t.substring(1);
+                    if (cleanTag) {
+                        tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        const sortedTags = Object.entries(tagCounts)
+            .map(([tag, count]) => ({ tag, count }))
+            .sort((a, b) => b.count - a.count);
+
+        const top10 = sortedTags.slice(0, 10);
+        const topTagsContainer = document.getElementById('topTagsContainer');
+
+        if (top10.length === 0) {
+            topTagsContainer.innerHTML = '<p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>';
+        } else {
+            const maxTagCount = top10[0].count || 1;
+            topTagsContainer.innerHTML = top10.map(item => {
+                const pct = Math.round((item.count / maxTagCount) * 100);
+                return `
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-[10px] font-bold">
+                            <span class="text-slate-700 dark:text-slate-300">#${item.tag}</span>
+                            <span class="text-indigo-600 dark:text-indigo-400 font-extrabold">${item.count}건</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden flex">
+                            <div class="bg-indigo-500 dark:bg-indigo-400 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // 대시보드 접기/펼치기 토글
+    const toggleDashboardBtn = document.getElementById('toggleDashboardBtn');
+    const counselingDashboard = document.getElementById('counselingDashboard');
+    const dashboardToggleText = document.getElementById('dashboardToggleText');
+    const dashboardToggleIcon = document.getElementById('dashboardToggleIcon');
+
+    if (toggleDashboardBtn && counselingDashboard) {
+        // 초기 상태 로드
+        const isCollapsed = localStorage.getItem('counseling_dashboard_collapsed') === 'true';
+        if (isCollapsed) {
+            counselingDashboard.style.display = 'none';
+            if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 펼치기';
+            if (dashboardToggleIcon) {
+                dashboardToggleIcon.classList.remove('fa-chevron-up');
+                dashboardToggleIcon.classList.add('fa-chevron-down');
+            }
+        }
+
+        toggleDashboardBtn.addEventListener('click', () => {
+            const isCurrentlyHidden = counselingDashboard.style.display === 'none';
+            if (!isCurrentlyHidden) {
+                counselingDashboard.style.display = 'none';
+                if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 펼치기';
+                if (dashboardToggleIcon) {
+                    dashboardToggleIcon.classList.remove('fa-chevron-up');
+                    dashboardToggleIcon.classList.add('fa-chevron-down');
+                }
+                localStorage.setItem('counseling_dashboard_collapsed', 'true');
+            } else {
+                counselingDashboard.style.display = '';
+                if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 접기';
+                if (dashboardToggleIcon) {
+                    dashboardToggleIcon.classList.remove('fa-chevron-down');
+                    dashboardToggleIcon.classList.add('fa-chevron-up');
+                }
+                localStorage.setItem('counseling_dashboard_collapsed', 'false');
             }
         });
     }
