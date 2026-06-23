@@ -232,14 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         });
-    }digo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
-                                추가 상담 등록
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
     }
 
     if (sortOption) sortOption.addEventListener('change', applyFilters);
