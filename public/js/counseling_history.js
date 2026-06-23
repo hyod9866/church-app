@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-bold">달력</span>' 
                             : '<span class="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold">직접등록</span>';
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
                                     <div class="flex items-center gap-2">
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
@@ -418,12 +418,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             const currentDate = currentDateMatch ? currentDateMatch[0] : '';
                             const remarkTextPara = card.querySelector('.counsel-remark-text');
                             const currentRemark = remarkTextPara.textContent.trim();
+                            const currentTags = card.dataset.tags || '';
 
                             bodyArea.innerHTML = `
                                 <div class="flex flex-col gap-2 w-full">
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
                                         <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 태그 (공백 구분, 예: #진로 #구원확신)</label>
+                                        <input type="text" class="counsel-edit-tags w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentTags}" placeholder="예: #구원확신 #진로">
                                     </div>
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
@@ -444,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             saveBtn.addEventListener('click', async () => {
                                 const newDate = bodyArea.querySelector('.counsel-edit-date').value;
                                 const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
+                                const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
                                 if (!newDate) return alert('날짜를 입력해주세요.');
                                 saveBtn.disabled = true;
                                 saveBtn.textContent = '저장중...';
@@ -451,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const res = await fetch(`/api/counseling/${sessionId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ date: newDate, content: newContent, tags: '', member_id: parseInt(memberId) })
+                                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_id: parseInt(memberId) })
                                     });
                                     if (res.ok) {
                                         openMemberHistoryModal(id);
