@@ -13,10 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return [...relationsArray].sort((a, b) => priority(a) - priority(b));
     }
 
-    const visitationList = document.getElementById('visitationList');
-    const districtFilter = document.getElementById('districtFilter');
+    const counselingList = document.getElementById('counselingList');
     const sortOption = document.getElementById('sortOption');
-    const visitationCount = document.getElementById('visitationCount');
+    const counselingCount = document.getElementById('counselingCount');
 
     let allStatus = [];
     let currentMemberData = null;
@@ -24,32 +23,26 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadStatus() {
         try {
             const response = await fetch('/api/visitation/status');
-            allStatus = await response.json();
+            const data = await response.json();
+            // 상담 이력이 1회 이상 존재하는 대상자만 관리 대상으로 정의
+            allStatus = data.filter(s => s.counseling_count > 0);
             applyFilters();
         } catch (error) {
-            console.error('Error loading visitation status:', error);
-            visitationList.innerHTML = '<p class="text-red-500 text-center py-20 font-bold">데이터를 불러오지 못했습니다.</p>';
+            console.error('Error loading counseling status:', error);
+            counselingList.innerHTML = '<p class="text-red-500 text-center py-20 font-bold">데이터를 불러오지 못했습니다.</p>';
         }
     }
 
     function applyFilters() {
-        const district = districtFilter.value;
         const sort = sortOption.value;
         const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
         let filtered = allStatus.filter(s => {
-            // 1. 구역 필터링
-            if (district !== '전체') {
-                const memberDistNum = String(s.district || '').replace(/[^0-9]/g, '');
-                const filterDistNum = String(district).replace(/[^0-9]/g, '');
-                if (memberDistNum !== filterDistNum || memberDistNum === '') return false;
-            }
-
-            // 2. 통합 검색 필터링
+            // 통합 검색 필터링 (상담 날짜, 상담 메모 내용 중심)
             if (query) {
                 const nameMatch = (s.name || '').toLowerCase().includes(query);
-                const dateMatch = (s.last_visitation_date || '').includes(query);
-                const memoMatch = (s.last_visitation_memo || '').toLowerCase().includes(query);
+                const dateMatch = (s.last_counseling_date || '').includes(query);
+                const memoMatch = (s.last_counseling_memo || '').toLowerCase().includes(query);
                 const positionMatch = (s.position || '').toLowerCase().includes(query);
                 const categoryMatch = (s.category || '').toLowerCase().includes(query);
                 const districtTextMatch = (s.district || '').toLowerCase().includes(query);
@@ -58,34 +51,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     return false;
                 }
             }
-
             return true;
         });
 
         // Sorting
         filtered.sort((a, b) => {
             if (sort === 'name') return a.name.localeCompare(b.name);
-            if (sort === 'last_visitation') {
-                if (!a.last_visitation_date) return 1;
-                if (!b.last_visitation_date) return -1;
-                return new Date(b.last_visitation_date) - new Date(a.last_visitation_date);
+            if (sort === 'last_counseling') {
+                if (!a.last_counseling_date) return 1;
+                if (!b.last_counseling_date) return -1;
+                return new Date(b.last_counseling_date) - new Date(a.last_counseling_date);
             }
-            if (sort === 'oldest') {
-                if (!a.last_visitation_date) return -1;
-                if (!b.last_visitation_date) return 1;
-                return new Date(a.last_visitation_date) - new Date(b.last_visitation_date);
+            if (sort === 'oldest_counseling') {
+                if (!a.last_counseling_date) return -1;
+                if (!b.last_counseling_date) return 1;
+                return new Date(a.last_counseling_date) - new Date(b.last_counseling_date);
             }
-            if (sort === 'visited_first') {
-                if (a.last_visitation_date && !b.last_visitation_date) return -1;
-                if (!a.last_visitation_date && b.last_visitation_date) return 1;
-                return a.name.localeCompare(b.name);
-            }
-            if (sort === 'not_visited_first') {
-                if (!a.last_visitation_date && b.last_visitation_date) return -1;
-                if (a.last_visitation_date && !b.last_visitation_date) return 1;
-                return a.name.localeCompare(b.name);
-            }
-            if (sort === 'count') return b.visitation_count - a.visitation_count;
+            if (sort === 'count') return b.counseling_count - a.counseling_count;
             return 0;
         });
 
@@ -93,51 +75,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderList(data) {
-        visitationCount.textContent = `총 ${data.length}명 관리 중`;
+        counselingCount.textContent = `총 ${data.length}명 상담 대상자`;
         
         if (data.length === 0) {
-            visitationList.innerHTML = '<p class="text-gray-500 text-center py-20 font-medium">조회된 성도가 없습니다.</p>';
+            counselingList.innerHTML = '<p class="text-gray-500 text-center py-20 font-medium">상담 이력이 존재하는 대상자가 없습니다.</p>';
             return;
         }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        visitationList.innerHTML = data.map(member => {
+        counselingList.innerHTML = data.map(member => {
             let statusHtml = '';
             let detailHtml = '';
             let daysDiff = null;
 
-            if (member.last_visitation_date) {
-                const lastDate = new Date(member.last_visitation_date);
+            if (member.last_counseling_date) {
+                const lastDate = new Date(member.last_counseling_date);
                 lastDate.setHours(0, 0, 0, 0);
                 daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
                 
                 statusHtml = `
                     <div class="flex items-center gap-2">
-                        <span class="text-teal-600 dark:text-teal-400 font-bold text-sm">${member.last_visitation_date}</span>
-                        <span class="text-[10px] bg-teal-50 dark:bg-teal-950/40 text-teal-650 dark:text-teal-400 px-2 py-0.5 rounded border border-teal-100 dark:border-teal-900/40 font-bold">${daysDiff}일 전(심방)</span>
+                        <span class="text-indigo-600 dark:text-indigo-400 font-bold text-sm">${member.last_counseling_date}</span>
+                        <span class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>
                     </div>
                 `;
 
-                if (member.last_visitation_memo) {
+                if (member.last_counseling_memo) {
                     detailHtml = `
                         <div class="mt-2 p-2 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs">
-                            <div class="text-gray-500 dark:text-slate-400 italic">📝 ${member.last_visitation_memo}</div>
+                            <div class="text-gray-500 dark:text-slate-400 italic">📝 ${member.last_counseling_memo}</div>
                         </div>
                     `;
                 }
             } else {
-                statusHtml = `<span class="text-red-400 font-bold text-sm italic">심방 기록 없음</span>`;
+                statusHtml = `<span class="text-red-400 font-bold text-sm italic">상담 기록 없음</span>`;
             }
 
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
 
             return `
-                <div class="bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-blue-300 transition-colors">
+                <div class="bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
+                            <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category}</span>
                         </div>
@@ -146,11 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${detailHtml}
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
-                        <div class="text-xs font-bold text-gray-400">누적 심방 <span class="text-blue-600 dark:text-blue-400 font-black">${member.visitation_count}</span>회</div>
+                        <div class="text-xs font-bold text-gray-400">누적 상담 <span class="text-indigo-600 dark:text-indigo-400 font-black">${member.counseling_count}</span>회</div>
                         <div class="flex flex-col gap-1">
-                            <button onclick="openRecordPanel(${member.id}, '${member.name}', '심방')" 
-                                    class="bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 dark:hover:text-white transition-colors whitespace-nowrap">
-                                심방 기록 작성
+                            <button onclick="openNewCounselingWithMember('${member.name}', ${member.id})" 
+                                    class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
+                                추가 상담 등록
                             </button>
                         </div>
                     </div>
@@ -159,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    districtFilter.addEventListener('change', applyFilters);
     sortOption.addEventListener('change', applyFilters);
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -199,8 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.openMemberHistoryModal = async function(id) {
         try {
-            // 탭 상태 리셋 (출석 탭 활성화)
-            const defaultTabBtn = document.querySelector('.member-tab-btn[data-tab="attendance"]');
+            // 상담 탭 디폴트 활성화
+            const defaultTabBtn = document.querySelector('.member-tab-btn[data-tab="counseling"]');
             if (defaultTabBtn) defaultTabBtn.click();
 
             const res = await fetch(`/api/members/${id}/history`); 
@@ -211,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const recRes = await fetch(`/api/members/${id}/records`);
             const records = await recRes.json();
             
-            // Calculate current position and service from history records
             let calculatedPosArray = [];
             let calculatedSvcArray = [];
             
@@ -236,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
             
-            // 가족관계 대화형 카드 생성 (클릭 시 순간이동)
             const fDispHTML = fEnt.map(e => {
                 const match = e.match(/^(.+?)\(/);
                 const name = match ? match[1].trim() : e.trim();
@@ -290,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 </div>
                 <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">가족 관계 <span class="text-[9px] text-slate-400 font-normal ml-1">(이름을 누르면 프로필로 바로 전환됩니다)</span></span>
+                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">가족 관계</span>
                     <div class="flex flex-wrap gap-1.5 mt-1">
                         ${fDispHTML}
                     </div>
@@ -378,242 +357,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cat = getMeetingCategory(h.type);
                 stats.all.count++;
                 if (h.is_present) stats.all.present++;
-                
                 stats[cat].count++;
                 if (h.is_present) stats[cat].present++;
             });
 
             const getRate = (s) => s.count > 0 ? Math.round((s.present / s.count) * 100) : 0;
 
-            const attendanceTabContainer = document.getElementById('tabContent_attendance');
-            if (attendanceTabContainer) {
-                attendanceTabContainer.innerHTML = `
-                    <div class="mb-5 grid grid-cols-4 gap-3">
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-blue-500 bg-blue-50/20 ring-2 ring-blue-100/50" data-filter="all">
-                            <span class="text-xl md:text-2xl mb-0.5">📊</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">전체 모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.all)}%</span>
-                                <span class="text-xs md:text-sm font-extrabold text-blue-600">(${stats.all.present}/${stats.all.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="district">
-                            <span class="text-xl md:text-2xl mb-0.5">🏠</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">구역모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.district)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.district.present}/${stats.district.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="group">
-                            <span class="text-xl md:text-2xl mb-0.5">👥</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">조모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.group)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.group.present}/${stats.group.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="other">
-                            <span class="text-xl md:text-2xl mb-0.5">⛪</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">교구/기타</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.other)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.other.present}/${stats.other.count}회)</span>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div class="mb-6">
-                        <h4 class="font-extrabold mb-4 text-slate-800 border-l-4 border-emerald-600 pl-3 flex justify-between items-center text-sm md:text-base">
-                            <span id="attListTitle" class="font-black text-slate-800">전체 출석 히스토리</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs md:text-sm font-semibold text-slate-500">선택 출석률</span>
-                                <span id="memberAttendanceStats" class="text-xs md:text-sm font-black text-blue-700 bg-blue-50/80 border border-blue-150 px-3 py-1 rounded-full shadow-sm">${getRate(stats.all)}% (${stats.all.present}/${stats.all.count})</span>
-                            </div>
-                        </h4>
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <table class="w-full text-sm text-left border-collapse bg-white">
-                                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
-                                    <tr>
-                                        <th class="py-2 px-2.5 w-[110px] border-r text-center">날짜</th>
-                                        <th class="py-2 px-2.5 min-w-[150px] border-r text-center">모임정보</th>
-                                        <th class="py-2 px-2.5 text-center w-[90px] border-r">출석 여부</th>
-                                        <th class="py-2 px-2.5 text-center">간증</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-
-                const renderAttendanceRows = (filterType) => {
-                    const historyTableBody = document.getElementById('historyTableBody');
-                    if (!historyTableBody) return;
-
-                    const listTitle = document.getElementById('attListTitle');
-                    const statsLabel = document.getElementById('memberAttendanceStats');
-                    
-                    const listMap = {
-                        all: '전체 출석 히스토리',
-                        district: '🏠 구역모임 히스토리',
-                        group: '👥 조모임 히스토리',
-                        other: '⛪ 기타/교구모임 히스토리'
-                    };
-                    if (listTitle) listTitle.textContent = listMap[filterType];
-                    if (statsLabel) {
-                        const s = stats[filterType];
-                        statsLabel.textContent = `${getRate(s)}% (${s.present}/${s.count})`;
-                    }
-
-                    const displayHistory = filterType === 'all' 
-                        ? filteredHistory 
-                        : filteredHistory.filter(h => getMeetingCategory(h.type) === filterType);
-
-                    historyTableBody.innerHTML = displayHistory.map(h => {
-                        const statusBadge = `
-                            <button type="button" class="toggle-attendance-btn inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border transition duration-150 active:scale-95 cursor-pointer ${h.is_present ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-present="${h.is_present ? 1 : 0}">
-                                ${h.is_present ? '출석' : '결석'}
-                            </button>
-                        `;
-
-                        return `
-                            <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
-                                <td class="py-1 px-2.5 text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
-                                <td class="py-1 px-2.5 font-bold text-slate-800">${h.title}</td>
-                                <td class="py-1 px-2.5 text-center">${statusBadge}</td>
-                                <td class="py-1 px-2.5 text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}">
-                                    <div class="flex items-center justify-between gap-2 group w-full">
-                                        <span class="testimony-text flex-1">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
-                                        <span class="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] whitespace-nowrap">✏️ 수정</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
-
-                    // 출석 토글 이벤트 바인딩
-                    historyTableBody.querySelectorAll('.toggle-attendance-btn').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            e.preventDefault();
-                            const meetingId = btn.dataset.meetingId;
-                            const memberId = btn.dataset.memberId;
-                            const currentPresent = parseInt(btn.dataset.present);
-                            const newPresent = currentPresent === 1 ? 0 : 1;
-
-                            btn.disabled = true;
-                            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-1"></i> 저장`;
-
-                            try {
-                                const response = await fetch('/api/attendance/toggle', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, is_present: newPresent })
-                                });
-
-                                if (response.ok) {
-                                    openMemberHistoryModal(memberId);
-                                } else {
-                                    alert('출석 상태 변경에 실패했습니다.');
-                                    btn.disabled = false;
-                                    btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
-                                }
-                            } catch (err) {
-                                console.error('Toggle error:', err);
-                                alert('서버 오류로 인해 실패했습니다.');
-                                btn.disabled = false;
-                                btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
-                            }
-                        });
-                    });
-
-                    // 간증 인라인 편집 이벤트 바인딩
-                    historyTableBody.querySelectorAll('.testimony-cell').forEach(cell => {
-                        cell.addEventListener('click', function(e) {
-                            if (cell.querySelector('.testimony-edit-input')) return;
-                            if (e.target.closest('.save-testimony-btn') || e.target.closest('.cancel-testimony-btn')) return;
-
-                            const meetingId = cell.dataset.meetingId;
-                            const memberId = cell.dataset.memberId;
-                            const currentVal = cell.dataset.testimony || '';
-
-                            cell.innerHTML = `
-                                <div class="flex flex-col gap-1.5 w-full">
-                                    <textarea class="testimony-edit-input w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/25 focus:outline-none" rows="2">${currentVal}</textarea>
-                                    <div class="flex justify-end gap-1.5">
-                                        <button type="button" class="save-testimony-btn bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
-                                        <button type="button" class="cancel-testimony-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
-                                    </div>
-                                </div>
-                            `;
-
-                            const textarea = cell.querySelector('.testimony-edit-input');
-                            textarea.focus();
-                            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-                            cell.querySelector('.save-testimony-btn').addEventListener('click', async (evt) => {
-                                evt.stopPropagation();
-                                const newVal = textarea.value.trim();
-                                const saveBtn = cell.querySelector('.save-testimony-btn');
-                                saveBtn.disabled = true;
-                                saveBtn.textContent = '저장중...';
-
-                                try {
-                                    const response = await fetch('/api/attendance/testimony', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, testimony: newVal })
-                                    });
-
-                                    if (response.ok) {
-                                        openMemberHistoryModal(memberId);
-                                    } else {
-                                        alert('간증 저장에 실패했습니다.');
-                                        openMemberHistoryModal(memberId);
-                                    }
-                                } catch(err) {
-                                    console.error(err);
-                                    alert('간증 저장 중 에러가 발생했습니다.');
-                                    openMemberHistoryModal(memberId);
-                                }
-                            });
-
-                            cell.querySelector('.cancel-testimony-btn').addEventListener('click', (evt) => {
-                                evt.stopPropagation();
-                                openMemberHistoryModal(memberId);
-                            });
-                        });
-                    });
-                };
-
-                renderAttendanceRows('all');
-
-                const cards = attendanceTabContainer.querySelectorAll('.att-filter-card');
-                cards.forEach(card => {
-                    card.addEventListener('click', () => {
-                        cards.forEach(c => {
-                            c.classList.remove('border-blue-500', 'bg-blue-50/20', 'ring-2', 'ring-blue-100/50');
-                            c.classList.add('border-slate-200', 'hover:border-slate-300', 'hover:bg-slate-50/30');
-                            
-                            const countSpan = c.querySelector('span:nth-child(4)');
-                            if (countSpan) {
-                                countSpan.classList.remove('text-blue-600');
-                                countSpan.classList.add('text-slate-500');
-                            }
-                        });
-                        card.classList.add('border-blue-500', 'bg-blue-50/20', 'ring-2', 'ring-blue-100/50');
-                        card.classList.remove('border-slate-200', 'hover:border-slate-300', 'hover:bg-slate-50/30');
-
-                        const countSpan = card.querySelector('span:nth-child(4)');
-                        if (countSpan) {
-                            countSpan.classList.remove('text-slate-500');
-                            countSpan.classList.add('text-blue-600');
-                        }
-
-                        const filter = card.dataset.filter;
-                        renderAttendanceRows(filter);
-                    });
-                });
+            // Attendance Rows Rendering
+            const historyTableBody = document.getElementById('historyTableBody');
+            if (historyTableBody) {
+                const memberAttendanceStats = document.getElementById('memberAttendanceStats');
+                if (memberAttendanceStats) {
+                    memberAttendanceStats.textContent = `${getRate(stats.all)}% (${stats.all.present}/${stats.all.count})`;
+                }
+                historyTableBody.innerHTML = filteredHistory.map(h => `
+                    <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
+                        <td class="py-1.5 px-2.5 text-slate-500 font-medium text-center">${h.date}</td>
+                        <td class="py-1.5 px-2.5 font-bold text-slate-800">${h.title}</td>
+                        <td class="py-1.5 px-2.5 text-center font-bold ${h.is_present ? 'text-emerald-600' : 'text-rose-500'}">${h.is_present ? '출석' : '결석'}</td>
+                        <td class="py-1.5 px-2.5 text-slate-600 text-xs">${h.testimony_snapshot || '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
             }
 
             // Visitation Memos
@@ -647,14 +411,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
-                        const cardBg = 'bg-teal-50 border-teal-100 dark:bg-slate-800/40 dark:border-slate-700/60';
-                        const textCol = 'text-teal-800 border-teal-200/30 dark:text-slate-300 dark:border-slate-700/30';
-                        const titleText = '심방 기록';
-
                         return `
-                            <div class="${cardBg} p-4 rounded-xl border shadow-sm flex flex-col gap-2">
-                                <div class="text-xs font-black ${textCol} border-b pb-1 flex justify-between items-center">
-                                    <span>📅 ${h.date} ${titleText}</span>
+                            <div class="bg-teal-50 border-teal-100 dark:bg-slate-800/40 dark:border-slate-700/60 p-4 rounded-xl border shadow-sm flex flex-col gap-2">
+                                <div class="text-xs font-black text-teal-805 border-teal-200/30 dark:text-slate-350 dark:border-slate-700/30 border-b pb-1">
+                                    <span>📅 ${h.date} 심방 기록</span>
                                 </div>
                                 ${contentHTML}
                             </div>
@@ -667,13 +427,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Counseling Memos (개인 상담 기록 탭)
-            const counselingList = document.getElementById('counselingMemoList');
+            const counselingMemoList = document.getElementById('counselingMemoList');
             const cMemos = records.filter(r => r.status === 'COUNSELING');
-            if (counselingList) {
+            if (counselingMemoList) {
                 if (cMemos.length) {
-                    counselingList.innerHTML = cMemos.map(r => {
+                    counselingMemoList.innerHTML = cMemos.map(r => {
                         const memoText = r.remark || '';
-                        
                         return `
                             <div class="bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1 flex justify-between items-center">
@@ -686,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         `;
                     }).join('');
                 } else {
-                    counselingList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">상담 기록이 없습니다.</p>';
+                    counselingMemoList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">상담 기록이 없습니다.</p>';
                 }
             }
 
@@ -767,18 +526,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 탭 버튼 클릭 이벤트 바인딩
     document.querySelectorAll('.member-tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // 모든 탭 버튼 비활성화
             document.querySelectorAll('.member-tab-btn').forEach(b => {
                 b.classList.remove('active', 'border-blue-600', 'text-blue-600');
                 b.classList.add('text-slate-500', 'border-transparent');
             });
-            // 클릭한 탭 버튼 활성화
             btn.classList.add('active', 'border-blue-600', 'text-blue-600');
             btn.classList.remove('text-slate-500', 'border-transparent');
 
-            // 모든 탭 콘텐츠 숨김
             document.querySelectorAll('.member-tab-content').forEach(c => c.classList.add('hidden'));
-            // 해당하는 탭 콘텐츠 표시
             const targetTab = btn.dataset.tab;
             const targetContent = document.getElementById(`tabContent_${targetTab}`);
             if (targetContent) targetContent.classList.remove('hidden');
@@ -832,9 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentMemberData = updatedData;
                 document.getElementById('testimonyViewMode').textContent = text || '내용 없음';
                 window.toggleTestimonyEdit(false);
-                if (typeof loadStatus === 'function') {
-                    loadStatus();
-                }
+                loadStatus();
             } else {
                 alert('저장에 실패했습니다.');
             }
@@ -846,103 +599,323 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadStatus();
 
-    // --- Record Side Panel Logic ---
-    const recordSidePanel = document.getElementById('recordSidePanel');
-    const recordPanelContent = document.getElementById('recordPanelContent');
-    const recordPanelBackdrop = document.getElementById('recordPanelBackdrop');
-    const closeRecordPanelBtn = document.getElementById('closeRecordPanelBtn');
-    const cancelRecordBtn = document.getElementById('cancelRecordBtn');
-    const saveRecordBtn = document.getElementById('saveRecordBtn');
+    // --- New Counseling Modal Logic (새 상담 등록) ---
+    const newCounselingModal = document.getElementById('newCounselingModal');
+    const openNewCounselingBtn = document.getElementById('openNewCounselingBtn');
+    const closeNewCounselingModal = document.getElementById('closeNewCounselingModal');
+    const cancelNewCounselingBtn = document.getElementById('cancelNewCounselingBtn');
+    const saveNewCounselingBtn = document.getElementById('saveNewCounselingBtn');
 
-    window.openRecordPanel = (memberId, memberName, type) => {
-        document.getElementById('recordMemberId').value = memberId;
-        document.getElementById('recordType').value = type;
-        
-        document.getElementById('recordPanelTitle').textContent = `${type} 기록 작성`;
-        document.getElementById('recordPanelSubtitle').textContent = `성도: ${memberName}`;
-        
-        document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
-        document.getElementById('recordMemo').value = '';
+    const counselingName = document.getElementById('counselingName');
+    const counselingNameSuggestions = document.getElementById('counselingNameSuggestions');
+    const counselingMemberId = document.getElementById('counselingMemberId');
+    const newMemberBadgeContainer = document.getElementById('newMemberBadgeContainer');
 
-        recordSidePanel.classList.remove('hidden');
-        // Trigger reflow
-        void recordSidePanel.offsetWidth;
-        recordPanelBackdrop.classList.add('opacity-100');
-        recordPanelContent.classList.remove('translate-x-full');
+    const counselingChurchId = document.getElementById('counselingChurchId');
+    const counselingChurchInput = document.getElementById('counselingChurchInput');
+    const counselingChurchSuggestions = document.getElementById('counselingChurchSuggestions');
+    const counselingParish = document.getElementById('counselingParish');
+    const counselingDistrict = document.getElementById('counselingDistrict');
+
+    let allChurches = [];
+
+    window.openNewCounselingWithMember = (memberName, memberId) => {
+        openNewCounselingBtn.click();
+        
+        // 특정 회원 지정해서 자동완성 처리
+        setTimeout(async () => {
+            counselingName.value = memberName;
+            counselingName.dispatchEvent(new Event('input'));
+            
+            // 자동 선택 수행
+            counselingMemberId.value = memberId;
+            newMemberBadgeContainer.classList.add('hidden');
+            
+            // 기존 회원 소속 정보 조회 및 바인딩
+            const targetMember = allStatus.find(s => s.id === memberId);
+            if (targetMember && targetMember.church && targetMember.church !== '교회정보없음') {
+                counselingChurchInput.value = targetMember.church;
+                const matchedChurch = allChurches.find(c => c.name.trim() === targetMember.church.trim());
+                if (matchedChurch) {
+                    counselingChurchId.value = matchedChurch.id;
+                    await loadParishes(matchedChurch.id);
+                    if (targetMember.parish && targetMember.parish !== '교구정보없음') {
+                        counselingParish.value = targetMember.parish;
+                        const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
+                        const parishId = selectedOpt ? selectedOpt.dataset.id : null;
+                        if (parishId) {
+                            await loadDistricts(parishId);
+                            if (targetMember.district && targetMember.district !== '구역정보없음') {
+                                counselingDistrict.value = targetMember.district;
+                            }
+                        }
+                    }
+                }
+            }
+        }, 100);
     };
 
-    const closeRecordPanel = () => {
-        recordPanelBackdrop.classList.remove('opacity-100');
-        recordPanelContent.classList.add('translate-x-full');
-        setTimeout(() => {
-            recordSidePanel.classList.add('hidden');
-        }, 300);
+    if (openNewCounselingBtn) {
+        openNewCounselingBtn.addEventListener('click', async () => {
+            document.getElementById('newCounselingForm').reset();
+            counselingMemberId.value = '';
+            counselingChurchId.value = '';
+            newMemberBadgeContainer.classList.add('hidden');
+            counselingNameSuggestions.classList.add('hidden');
+            counselingChurchSuggestions.classList.add('hidden');
+            document.getElementById('counselingDate').value = new Date().toISOString().split('T')[0];
+
+            counselingParish.innerHTML = '<option value="">교구 선택</option>';
+            counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+            counselingParish.disabled = true;
+            counselingDistrict.disabled = true;
+
+            await loadChurches();
+            newCounselingModal.classList.remove('hidden');
+        });
+    }
+
+    const closeNewCounseling = () => {
+        newCounselingModal.classList.add('hidden');
+        counselingNameSuggestions.classList.add('hidden');
+        counselingChurchSuggestions.classList.add('hidden');
     };
 
-    closeRecordPanelBtn.addEventListener('click', closeRecordPanel);
-    cancelRecordBtn.addEventListener('click', closeRecordPanel);
-    recordPanelBackdrop.addEventListener('click', closeRecordPanel);
+    if (closeNewCounselingModal) closeNewCounselingModal.addEventListener('click', closeNewCounseling);
+    if (cancelNewCounselingBtn) cancelNewCounselingBtn.addEventListener('click', closeNewCounseling);
 
-    saveRecordBtn.addEventListener('click', async () => {
-        const memberId = document.getElementById('recordMemberId').value;
-        const type = document.getElementById('recordType').value;
-        const date = document.getElementById('recordDate').value;
-        const memo = document.getElementById('recordMemo').value.trim();
-
-        if (!date) return alert('날짜를 선택해주세요.');
-
-        saveRecordBtn.disabled = true;
-        saveRecordBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> 저장 중...';
-
+    async function loadChurches() {
         try {
-            // 1. Create meeting
-            const memberName = document.getElementById('recordPanelSubtitle').textContent.replace('성도: ', '');
-            const title = `${memberName} ${type}`;
-            
-            const meetRes = await fetch('/api/meetings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title,
-                    date,
-                    type,
-                    memo
-                })
-            });
-            
-            if (!meetRes.ok) throw new Error('모임 생성 실패');
-            const { id: meetingId } = await meetRes.json();
+            const res = await fetch('/api/churches/all');
+            allChurches = await res.json();
+        } catch (e) {
+            console.error('Error loading churches:', e);
+        }
+    }
 
-            // 2. Create attendance
-            const attData = [{
-                member_id: parseInt(memberId),
-                is_present: 1,
-                testimony_snapshot: memo
-            }];
-            
-            const attRes = await fetch('/api/attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    meeting_id: meetingId,
-                    attendance_data: attData
-                })
-            });
+    counselingChurchInput.addEventListener('input', () => {
+        const val = counselingChurchInput.value.trim().toLowerCase();
+        counselingChurchId.value = '';
 
-            if (!attRes.ok) throw new Error('출석 기록 생성 실패');
+        counselingParish.innerHTML = '<option value="">교구 선택</option>';
+        counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+        counselingParish.disabled = true;
+        counselingDistrict.disabled = true;
 
-            closeRecordPanel();
-            loadStatus(); // Reload data to update counts and UI
-        } catch (error) {
-            console.error(error);
-            alert('기록 저장 중 오류가 발생했습니다.');
-        } finally {
-            saveRecordBtn.disabled = false;
-            saveRecordBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                저장하기
-            `;
+        if (!val) {
+            counselingChurchSuggestions.classList.add('hidden');
+            return;
+        }
+
+        const filtered = allChurches.filter(c => c.name.toLowerCase().includes(val));
+        if (filtered.length > 0) {
+            counselingChurchSuggestions.innerHTML = filtered.map(c => `
+                <div class="church-search-item p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800" 
+                     data-id="${c.id}" data-name="${c.name}">
+                    ${c.name}
+                </div>
+            `).join('');
+            counselingChurchSuggestions.classList.remove('hidden');
+        } else {
+            counselingChurchSuggestions.innerHTML = '<div class="p-3 text-xs text-slate-500 italic">검색 결과가 없습니다.</div>';
+            counselingChurchSuggestions.classList.remove('hidden');
         }
     });
 
+    counselingChurchSuggestions.addEventListener('click', async (e) => {
+        const item = e.target.closest('.church-search-item');
+        if (!item) return;
+
+        const id = item.dataset.id;
+        const name = item.dataset.name;
+
+        counselingChurchInput.value = name;
+        counselingChurchId.value = id;
+        counselingChurchSuggestions.classList.add('hidden');
+
+        await loadParishes(id);
+    });
+
+    async function loadParishes(churchId) {
+        counselingParish.innerHTML = '<option value="">교구 선택</option>';
+        counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+        counselingDistrict.disabled = true;
+
+        if (!churchId) {
+            counselingParish.disabled = true;
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/parishes?church_id=${churchId}`);
+            const parishes = await res.json();
+            counselingParish.innerHTML = '<option value="">교구 선택</option>' +
+                parishes.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+            counselingParish.disabled = false;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadDistricts(parishId) {
+        counselingDistrict.innerHTML = '<option value="">구역 선택</option>';
+
+        if (!parishId) {
+            counselingDistrict.disabled = true;
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/districts?parish_id=${parishId}`);
+            const districts = await res.json();
+            counselingDistrict.innerHTML = '<option value="">구역 선택</option>' +
+                districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            counselingDistrict.disabled = false;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    counselingParish.addEventListener('change', async () => {
+        const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
+        const parishId = selectedOpt.dataset.id;
+        await loadDistricts(parishId);
+    });
+
+    counselingName.addEventListener('input', async () => {
+        const val = counselingName.value.trim();
+        if (!val) {
+            counselingNameSuggestions.classList.add('hidden');
+            counselingMemberId.value = '';
+            newMemberBadgeContainer.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/members/filter?q=${encodeURIComponent(val)}`);
+            const suggestions = await res.json();
+
+            if (suggestions.length > 0) {
+                counselingNameSuggestions.innerHTML = suggestions.map(s => `
+                    <div class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800 flex justify-between items-center" 
+                         data-id="${s.id}" data-name="${s.name}" data-church="${s.church || ''}" data-parish="${s.parish || ''}" data-district="${s.district || ''}">
+                        <span>${s.name} <span class="text-xs font-medium text-slate-400 flex items-center gap-1">(${s.position || '성도'})</span></span>
+                        <span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold">${s.church || '교회정보없음'}</span>
+                    </div>
+                `).join('');
+                counselingNameSuggestions.classList.remove('hidden');
+            } else {
+                counselingNameSuggestions.classList.add('hidden');
+            }
+            
+            const exactMatch = suggestions.find(s => s.name === val);
+            if (!exactMatch) {
+                counselingMemberId.value = '';
+                newMemberBadgeContainer.classList.remove('hidden');
+            } else {
+                newMemberBadgeContainer.classList.add('hidden');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    counselingNameSuggestions.addEventListener('click', async (e) => {
+        const item = e.target.closest('[data-id]');
+        if (!item) return;
+
+        const id = item.dataset.id;
+        const name = item.dataset.name;
+        const church = item.dataset.church;
+        const parish = item.dataset.parish;
+        const district = item.dataset.district;
+
+        counselingName.value = name;
+        counselingMemberId.value = id;
+        counselingNameSuggestions.classList.add('hidden');
+        newMemberBadgeContainer.classList.add('hidden');
+
+        if (church && church !== '교회정보없음') {
+            await loadChurches();
+            counselingChurchInput.value = church;
+            const matchedChurch = allChurches.find(c => c.name.trim() === church.trim());
+            const churchId = matchedChurch ? matchedChurch.id : null;
+            counselingChurchId.value = churchId || '';
+
+            if (churchId) {
+                await loadParishes(churchId);
+                setTimeout(async () => {
+                    if (parish && parish !== '교구정보없음') {
+                        counselingParish.value = parish;
+                        const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
+                        const parishId = selectedOpt ? selectedOpt.dataset.id : null;
+
+                        if (parishId) {
+                            await loadDistricts(parishId);
+                            setTimeout(() => {
+                                if (district && district !== '구역정보없음') {
+                                    counselingDistrict.value = district;
+                                }
+                            }, 300);
+                        }
+                    }
+                }, 300);
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (counselingName && !counselingName.contains(e.target) && !counselingNameSuggestions.contains(e.target)) {
+            counselingNameSuggestions.classList.add('hidden');
+        }
+        if (counselingChurchInput && !counselingChurchInput.contains(e.target) && !counselingChurchSuggestions.contains(e.target)) {
+            counselingChurchSuggestions.classList.add('hidden');
+        }
+    });
+
+    saveNewCounselingBtn.addEventListener('click', async () => {
+        const name = counselingName.value.trim();
+        const memberId = counselingMemberId.value;
+        const church = counselingChurchInput.value.trim();
+        const parish = counselingParish.value;
+        const district = counselingDistrict.value;
+        const date = document.getElementById('counselingDate').value;
+        const counseling_memo = document.getElementById('counselingMemoContent').value.trim();
+        const remark_memo = document.getElementById('counselingRemark').value.trim();
+
+        if (!name) return alert('상담 대상자 이름을 입력하세요.');
+        if (!date) return alert('상담 날짜를 입력하세요.');
+        if (!counseling_memo) return alert('상담 내용을 입력하세요.');
+
+        saveNewCounselingBtn.disabled = true;
+        saveNewCounselingBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> 저장 중...';
+
+        try {
+            const res = await fetch('/api/visitation/counseling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: memberId ? parseInt(memberId) : null,
+                    name,
+                    date,
+                    counseling_memo,
+                    remark_memo,
+                    church: church || null,
+                    parish: parish || null,
+                    district: district || null
+                })
+            });
+
+            if (!res.ok) throw new Error('상담 기록 저장 실패');
+            
+            closeNewCounseling();
+            loadStatus();
+        } catch (err) {
+            console.error(err);
+            alert('상담 기록 저장 중 오류가 발생했습니다.');
+        } finally {
+            saveNewCounselingBtn.disabled = false;
+            saveNewCounselingBtn.innerHTML = '<i class="fa-solid fa-check"></i> 상담 저장하기';
+        }
+    });
 });

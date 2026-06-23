@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>심방 관리</title>
+    <title>상담 관리</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -54,62 +54,44 @@
             box-shadow: none !important;
         }
         
-        /* 심방 리스트 카드 다크모드 */
-        .dark #visitationList > div {
+        /* 리스트 카드 다크모드 */
+        .dark #counselingList > div {
             background-color: #131B2E !important;
             border-color: #1e293b !important;
         }
-        .dark #visitationList > div:hover {
-            border-color: #3b82f6 !important;
+        .dark #counselingList > div:hover {
+            border-color: #818cf8 !important;
         }
-        .dark #visitationList .text-blue-600 {
-            color: #60a5fa !important;
+        .dark #counselingList .text-indigo-600 {
+            color: #818cf8 !important;
         }
-        .dark #visitationList .text-blue-600:hover {
-            color: #93c5fd !important;
+        .dark #counselingList .text-indigo-600:hover {
+            color: #a5b4fc !important;
         }
-        .dark #visitationList .text-gray-400 {
+        .dark #counselingList .text-gray-400 {
             color: #64748b !important;
         }
-        .dark #visitationList .text-gray-500 {
+        .dark #counselingList .text-gray-500 {
             color: #94a3b8 !important;
         }
-        .dark #visitationList .bg-gray-100 {
+        .dark #counselingList .bg-gray-100 {
             background-color: #0B0F19 !important;
             color: #94a3b8 !important;
         }
-        .dark #visitationList .bg-gray-50 {
+        .dark #counselingList .bg-gray-55 {
             background-color: #0B0F19 !important;
             border-color: #1e293b !important;
         }
-        .dark #visitationList .text-gray-700 {
+        .dark #counselingList .text-gray-700 {
             color: #cbd5e1 !important;
         }
-        .dark #visitationList .bg-blue-50 {
-            background-color: rgba(30, 58, 138, 0.25) !important;
-            color: #60a5fa !important;
-        }
-        .dark #visitationList .bg-blue-50:hover {
-            background-color: #3b82f6 !important;
-            color: white !important;
-        }
-        .dark #visitationList .bg-purple-50 {
-            background-color: rgba(147, 51, 234, 0.2) !important;
-            color: #c084fc !important;
-        }
-        .dark #visitationList .bg-purple-50:hover {
-            background-color: #a855f7 !important;
-            color: white !important;
-        }
-        .dark #visitationList .bg-indigo-50 {
+        .dark #counselingList .bg-indigo-50 {
             background-color: rgba(79, 70, 229, 0.2) !important;
             color: #818cf8 !important;
-            border-color: rgba(79, 70, 229, 0.1) !important;
         }
-        .dark #visitationList .bg-teal-50 {
-            background-color: rgba(13, 148, 136, 0.2) !important;
-            color: #2dd4bf !important;
-            border-color: rgba(13, 148, 136, 0.1) !important;
+        .dark #counselingList .bg-indigo-50:hover {
+            background-color: #6366f1 !important;
+            color: white !important;
         }
         
         /* 상세 모달 다크모드 */
@@ -167,8 +149,8 @@
             border-right-color: #1e293b !important;
         }
         
-        /* 심방 기록 카드 */
-        .dark #visitationMemoList > div {
+        /* 상담 기록 카드 */
+        .dark #counselingMemoList > div {
             background-color: #131B2E !important;
             border-color: #1e293b !important;
         }
@@ -221,51 +203,6 @@
         .dark #memberBasicInfo .bg-slate-50\/50 .text-slate-700 {
             color: #f8fafc !important;
         }
-        .dark #memberBasicInfo .bg-slate-50\/50 span.truncate {
-            color: #f8fafc !important;
-        }
-        .dark #memberBasicInfo .bg-slate-50\/50 span.truncate:hover {
-            color: #60a5fa !important;
-        }
-        .dark #memberBasicInfo .bg-slate-50\/50 .text-[9px].text-slate-400 {
-            color: #94a3b8 !important;
-        }
-        
-        /* 봉사 내역 카드 */
-        .dark #memberBasicInfo .bg-blue-50\/40 {
-            background-color: rgba(30, 58, 138, 0.25) !important;
-            border-color: rgba(59, 130, 246, 0.3) !important;
-        }
-        .dark #memberBasicInfo .bg-blue-50\/40 .text-blue-700 {
-            color: #93c5fd !important;
-        }
-        .dark #memberBasicInfo .bg-blue-50\/40 .text-blue-900 {
-            color: #60a5fa !important;
-        }
-        
-        /* 간증 및 메모 카드 */
-        .dark #memberBasicInfo .bg-yellow-50\/30 {
-            background-color: rgba(245, 158, 11, 0.1) !important;
-            border-color: rgba(245, 158, 11, 0.25) !important;
-        }
-        .dark #memberBasicInfo .bg-yellow-50\/30 .text-yellow-700 {
-            color: #fde047 !important;
-        }
-        .dark #memberBasicInfo #testimonyViewMode {
-            color: #cbd5e1 !important;
-        }
-        
-        /* 가족관계 뱃지 링크 */
-        .dark #memberBasicInfo .bg-blue-50.text-blue-700 {
-            background-color: #1e293b !important;
-            color: #60a5fa !important;
-            border-color: #3b82f6 !important;
-        }
-        .dark #memberBasicInfo .bg-slate-100.text-slate-700 {
-            background-color: #1e293b !important;
-            color: #cbd5e1 !important;
-            border-color: #334155 !important;
-        }
         
         /* 출석 탭 내 필터 카드 버튼 */
         .dark .att-filter-card {
@@ -281,89 +218,6 @@
             border-color: #3b82f6 !important;
             background-color: rgba(30, 58, 138, 0.3) !important;
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
-        }
-        .dark .att-filter-card .text-slate-400 {
-            color: #94a3b8 !important;
-        }
-        .dark .att-filter-card .text-slate-800 {
-            color: #f8fafc !important;
-        }
-        .dark .att-filter-card .text-blue-600 {
-            color: #60a5fa !important;
-        }
-        .dark .att-filter-card .text-slate-550, .dark .att-filter-card .text-slate-500 {
-            color: #cbd5e1 !important;
-        }
-        .dark #attListTitle {
-            color: #f8fafc !important;
-        }
-        .dark #memberAttendanceStats {
-            background-color: rgba(30, 58, 138, 0.3) !important;
-            border-color: rgba(59, 130, 246, 0.4) !important;
-            color: #60a5fa !important;
-        }
-        
-        /* 가족 관계 선택 모달 다크모드 가독성 */
-        .dark #familyRelationSelectModal .bg-white {
-            background-color: #131B2E !important;
-            border-color: #1e293b !important;
-            color: #f8fafc !important;
-        }
-        .dark #familyRelationSelectModal .bg-blue-50 {
-            background-color: rgba(37, 99, 235, 0.15) !important;
-            border-color: rgba(37, 99, 235, 0.3) !important;
-            color: #60a5fa !important;
-        }
-        .dark #familyRelationSelectModal .bg-blue-50:hover {
-            background-color: rgba(37, 99, 235, 0.25) !important;
-        }
-        .dark #familyRelationSelectModal .bg-emerald-50 {
-            background-color: rgba(16, 185, 129, 0.15) !important;
-            border-color: rgba(16, 185, 129, 0.3) !important;
-            color: #34d399 !important;
-        }
-        .dark #familyRelationSelectModal .bg-emerald-50:hover {
-            background-color: rgba(16, 185, 129, 0.25) !important;
-        }
-        .dark #familyRelationSelectModal .bg-amber-50 {
-            background-color: rgba(245, 158, 11, 0.15) !important;
-            border-color: rgba(245, 158, 11, 0.3) !important;
-            color: #fbbf24 !important;
-        }
-        .dark #familyRelationSelectModal .bg-amber-50:hover {
-            background-color: rgba(245, 158, 11, 0.25) !important;
-        }
-        .dark #familyRelationSelectModal .bg-slate-50 {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-            color: #cbd5e1 !important;
-        }
-        .dark #familyRelationSelectModal .bg-slate-50:hover {
-            background-color: #243249 !important;
-        }
-        .dark #familyRelationSelectModal .text-slate-450 {
-            color: #94a3b8 !important;
-        }
-        /* 간증 편집 인라인 입력창 시안성 개선 */
-        .testimony-edit-input {
-            background-color: #ffffff !important;
-            color: #1e293b !important;
-            border: 1.5px solid #cbd5e1 !important;
-        }
-        .testimony-edit-input:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
-            outline: none !important;
-        }
-        .dark .testimony-edit-input {
-            background-color: #1e293b !important;
-            color: #f8fafc !important;
-            border: 1.5px solid #334155 !important;
-        }
-        .dark .testimony-edit-input:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
-            outline: none !important;
         }
     </style>
 </head>
@@ -395,14 +249,14 @@
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                     출석 현황
                 </a>
-                <!-- 심방 관리 (Active) -->
-                <a href="/visitation_history.html" class="bg-white text-blue-700 dark:bg-blue-600 dark:text-white dark:border-blue-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                <!-- 심방 관리 -->
+                <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                     심방 관리
                 </a>
-                <!-- 상담 관리 -->
-                <a href="/counseling_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                <!-- 상담 관리 (Active) -->
+                <a href="/counseling_history.html" class="bg-white text-indigo-700 dark:bg-indigo-600 dark:text-white dark:border-indigo-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                     상담 관리
                 </a>
                 <!-- 설교 현황 -->
@@ -410,77 +264,73 @@
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                     설교 현황
                 </a>
-
-                <!-- 모임 현황 (New Dashboard) -->
+                <!-- 모임 현황 -->
                 <a href="/meeting_dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                     모임 현황
                 </a>
             </div>
-            <!-- 설정 버튼 (톱니바퀴) -->
+            <!-- 설정 버튼 -->
             <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 p-2 rounded-lg transition whitespace-nowrap flex items-center justify-center shrink-0 cursor-pointer ml-1" title="설정">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </button>
         </div>
     </header>
 
-    <!-- Nav (Legacy title kept for visual but simplified) -->
+    <!-- Nav -->
     <nav class="bg-white border-b shadow-sm sticky top-[60px] z-40">
         <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <h2 class="text-xl font-black text-gray-800">심방 관리</h2>
+                <h2 class="text-xl font-black text-gray-800">상담 관리</h2>
             </div>
             <div class="flex items-center gap-2">
-                <span id="visitationCount" class="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1 rounded-full">로딩 중...</span>
+                <span id="counselingCount" class="text-xs font-bold bg-indigo-100 text-indigo-650 px-3 py-1 rounded-full">로딩 중...</span>
             </div>
         </div>
     </nav>
+    
     <main class="max-w-5xl mx-auto px-4 py-6">
         <!-- Filters -->
         <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm mb-6 border border-gray-200 dark:border-slate-800 flex flex-wrap gap-4 items-end">
             <!-- 통합 검색창 -->
-            <div class="flex-[2] min-w-[260px]">
-                <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">통합 검색 (이름, 날짜, 키워드)</label>
+            <div class="flex-[3] min-w-[260px]">
+                <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">통합 검색 (이름, 날짜, 상담 키워드)</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </span>
-                    <input type="text" id="searchInput" class="w-full border border-gray-200 dark:border-slate-700/60 rounded-lg pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:ring-blue-500 focus:border-blue-500 focus:outline-none" placeholder="이름, 날짜(YYYY-MM-DD), 상담 키워드 검색...">
+                    <input type="text" id="searchInput" class="w-full border border-gray-200 dark:border-slate-700/60 rounded-lg pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" placeholder="이름, 날짜(YYYY-MM-DD), 상담 키워드 검색...">
                 </div>
             </div>
-            <div class="flex-1 min-w-[160px]">
-                <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">구역 선택</label>
-                <select id="districtFilter" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:border-slate-700/60 dark:text-slate-200">
-                    <option value="전체">전체 구역</option>
-                    <option value="581">581구역</option>
-                    <option value="582">582구역</option>
-                    <option value="583">583구역</option>
-                </select>
-            </div>
-            <div class="flex-1 min-w-[160px]">
+            <!-- 정렬 옵션 -->
+            <div class="flex-1 min-w-[180px]">
                 <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">정렬</label>
-                <select id="sortOption" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:border-slate-700/60 dark:text-slate-200">
-                    <option value="oldest" selected>오래된 심방순 (관리 필요 우선)</option>
+                <select id="sortOption" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700/60 dark:text-slate-200">
+                    <option value="last_counseling" selected>최근 상담순 (가장 최근부터)</option>
+                    <option value="oldest_counseling">오래된 상담순</option>
                     <option value="name">이름순 (가나다)</option>
-                    <option value="last_visitation">최근 심방순 (가장 최근부터)</option>
-                    <option value="visited_first">기록 있는 분 먼저</option>
-                    <option value="not_visited_first">기록 없는 분 먼저</option>
-                    <option value="count">심방 횟수순</option>
+                    <option value="count">상담 횟수순</option>
                 </select>
             </div>
-
+            <!-- + 새 상담 등록 버튼 -->
+            <div class="shrink-0">
+                <button id="openNewCounselingBtn" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-black shadow-md flex items-center justify-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    새 상담 등록
+                </button>
+            </div>
         </div>
 
         <!-- List Container -->
-        <div id="visitationList" class="space-y-4">
+        <div id="counselingList" class="space-y-4">
             <!-- Content will be injected by JS -->
             <div class="flex justify-center py-20">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-650"></div>
             </div>
         </div>
     </main>
 
-    <!-- Member History Modal (Copied from index.html / member_management.html, adjusted for read-only) -->
+    <!-- Member History Modal (Read-only Detail view) -->
     <div id="memberHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-2 md:p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh] border border-slate-100">
             <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-5 flex justify-between items-center shadow-md">
@@ -491,39 +341,23 @@
             </div>
             
             <div class="p-5 md:p-6 overflow-y-auto flex-1 bg-slate-50/50 no-scrollbar">
-                <!-- 프로필 헤로 영역 -->
+                <!-- 프로필 히어로 영역 -->
                 <div id="memberBasicInfo" class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200"></div>
                 
                 <!-- HRM 탭 바 -->
                 <div class="flex border-b border-slate-200 mb-6 gap-2">
-                    <button type="button" class="member-tab-btn active px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 outline-none" data-tab="attendance">출석 히스토리</button>
+                    <button type="button" class="member-tab-btn active px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 outline-none" data-tab="counseling">상담 기록</button>
                     <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="visitation">심방 기록</button>
-                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="counseling">상담 기록</button>
+                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="attendance">출석 히스토리</button>
                     <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="records">인적사항 기록</button>
                 </div>
 
                 <!-- 탭 콘텐츠 영역 -->
-                <div id="tabContent_attendance" class="member-tab-content">
-                    <div class="mb-6">
-                        <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-emerald-600 pl-2.5 flex justify-between items-center text-sm">
-                            <span>출석 히스토리</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs font-bold text-slate-500">참석률</span>
-                                <span id="memberAttendanceStats" class="font-black text-blue-655"></span>
-                            </div>
-                        </h4>
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <table class="w-full text-sm text-left border-collapse bg-white">
-                                <thead class="bg-slate-50 text-slate-650 text-[11px] uppercase tracking-wider font-black border-b border-slate-200">
-                                    <tr>
-                                        <th class="py-1.5 px-2.5 text-[10px] w-[100px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="date">날짜 <span class="sort-icon"></span></th>
-                                        <th class="py-1.5 px-2.5 text-[10px] min-w-[140px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="title">모임정보 <span class="sort-icon"></span></th>
-                                        <th class="py-1.5 px-2.5 text-[10px] text-center w-[60px] cursor-pointer hover:bg-slate-100 transition sort-header border-r" data-sort="isPresent">출석 <span class="sort-icon"></span></th>
-                                        <th class="py-1.5 px-2.5 text-[10px] cursor-pointer hover:bg-slate-100 transition sort-header" data-sort="memo">간증 <span class="sort-icon"></span></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
-                            </table>
+                <div id="tabContent_counseling" class="member-tab-content">
+                    <div id="counselingHistorySection" class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-500 pl-2.5 text-sm">개인 상담 기록</h4>
+                        <div id="counselingMemoList" class="space-y-3">
+                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>
                         </div>
                     </div>
                 </div>
@@ -537,11 +371,27 @@
                     </div>
                 </div>
 
-                <div id="tabContent_counseling" class="member-tab-content hidden">
-                    <div id="counselingHistorySection" class="mb-6">
-                        <h4 class="font-extrabold mb-3 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-500 pl-2.5 text-sm">개인 상담 기록</h4>
-                        <div id="counselingMemoList" class="space-y-3">
-                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>
+                <div id="tabContent_attendance" class="member-tab-content hidden">
+                    <div class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-emerald-600 pl-2.5 flex justify-between items-center text-sm">
+                            <span>출석 히스토리</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-500">참석률</span>
+                                <span id="memberAttendanceStats" class="font-black text-blue-655"></span>
+                            </div>
+                        </h4>
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <table class="w-full text-sm text-left border-collapse bg-white">
+                                <thead class="bg-slate-50 text-slate-650 text-[11px] uppercase tracking-wider font-black border-b border-slate-200">
+                                    <tr>
+                                        <th class="py-1.5 px-2.5 text-[10px] w-[100px] border-r">날짜</th>
+                                        <th class="py-1.5 px-2.5 text-[10px] min-w-[140px] border-r">모임정보</th>
+                                        <th class="py-1.5 px-2.5 text-[10px] text-center w-[60px] border-r">출석</th>
+                                        <th class="py-1.5 px-2.5 text-[10px]">간증</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -549,9 +399,7 @@
                 <div id="tabContent_records" class="member-tab-content hidden">
                     <div class="mb-4">
                         <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-blue-600 pl-2.5 text-sm">인적사항 기록</h4>
-                        <div id="timelineContainer" class="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm hidden mb-4">
-                            <!-- JS dynamic vertical timeline -->
-                        </div>
+                        <div id="timelineContainer" class="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm hidden mb-4"></div>
                         <div id="tableRecordContainer" class="max-h-[300px] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-sm no-scrollbar">
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-slate-50 text-slate-655 text-[11px] uppercase tracking-wider font-black sticky top-0 border-b border-slate-200">
@@ -574,11 +422,9 @@
         </div>
     </div>
 
-    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
-        <!-- Backdrop -->
         <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <!-- Modal Content -->
         <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-sm rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
             <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
@@ -614,57 +460,93 @@
         </div>
     </div>
 
-    <!-- Record Side Panel -->
-    <div id="recordSidePanel" class="fixed inset-0 z-[200] hidden">
-        <!-- Backdrop -->
-        <div id="recordPanelBackdrop" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0"></div>
-        
-        <!-- Panel -->
-        <div id="recordPanelContent" class="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-[#0B0F19] shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
-            <!-- Header -->
-            <div class="p-5 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-                <div>
-                    <h3 id="recordPanelTitle" class="text-lg font-black tracking-tight">기록 작성</h3>
-                    <p id="recordPanelSubtitle" class="text-xs text-slate-300 font-medium mt-0.5"></p>
-                </div>
-                <button id="closeRecordPanelBtn" class="text-slate-300 hover:text-white transition-colors">
+    <!-- New Counseling Modal (새 상담 등록) -->
+    <div id="newCounselingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[150] p-4">
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800/80">
+            <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white p-5 flex justify-between items-center shadow-md">
+                <h3 class="text-lg font-black tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-comments"></i>
+                    새 상담 기록 등록
+                </h3>
+                <button id="closeNewCounselingModal" class="text-indigo-200 hover:text-white transition-colors duration-150">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
-            <!-- Body -->
-            <div class="flex-1 overflow-y-auto p-5 md:p-6 bg-slate-50/50 dark:bg-[#131B2E]/50">
-                <form id="recordForm" class="space-y-5">
-                    <input type="hidden" id="recordMemberId">
-                    <input type="hidden" id="recordType">
+            <div class="p-5 md:p-6 overflow-y-auto flex-1 space-y-4 no-scrollbar">
+                <form id="newCounselingForm" class="space-y-4">
+                    <input type="hidden" id="counselingMemberId" value="">
                     
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">날짜</label>
-                        <input type="date" id="recordDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200" required>
+                    <!-- 이름 입력 및 자동완성 -->
+                    <div class="relative">
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">상담 대상자 이름 *</label>
+                        <input type="text" id="counselingName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" placeholder="이름을 입력하세요..." required autocomplete="off">
+                        <div id="counselingNameSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
                     </div>
 
+                    <!-- 신규 성도 여부 알림 뱃지 -->
+                    <div id="newMemberBadgeContainer" class="hidden">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-lg border border-amber-200/50 dark:border-amber-900/50">
+                            <i class="fa-solid fa-circle-info"></i>
+                            DB에 등록되지 않은 신규 성도입니다. 상담 저장 시 자동으로 등록됩니다.
+                        </span>
+                    </div>
+
+                    <!-- 소속 (선택 사항) -->
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">메모 / 기록 내용</label>
-                        <textarea id="recordMemo" rows="8" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-y text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="기록할 내용을 입력하세요..."></textarea>
+                        <span class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-2">소속 정보 (선택 사항)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <!-- 교회 자동완성 검색 -->
+                            <div class="relative">
+                                <input type="hidden" id="counselingChurchId" value="">
+                                <input type="text" id="counselingChurchInput" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="교회 검색..." autocomplete="off">
+                                <div id="counselingChurchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto hidden"></div>
+                            </div>
+                            <div>
+                                <select id="counselingParish" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
+                                    <option value="">교구 선택</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="counselingDistrict" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" disabled>
+                                    <option value="">구역 선택</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 상담 날짜 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">상담 날짜 *</label>
+                        <input type="date" id="counselingDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" required>
+                    </div>
+
+                    <!-- 상담 내용 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">상담 내용 *</label>
+                        <textarea id="counselingMemoContent" rows="5" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="상담한 핵심 내용을 작성하세요..." required></textarea>
+                    </div>
+
+                    <!-- 비고 / 메모 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">비고 / 기타 메모</label>
+                        <input type="text" id="counselingRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="기타 특이사항이나 비고를 입력하세요...">
                     </div>
                 </form>
             </div>
             
-            <!-- Footer -->
-            <div class="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-[#0B0F19] flex gap-3">
-                <button type="button" id="cancelRecordBtn" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">취소</button>
-                <button type="button" id="saveRecordBtn" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-md flex justify-center items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    저장하기
+            <div class="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-[#131B2E]/60 flex gap-3">
+                <button type="button" id="cancelNewCounselingBtn" class="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">취소</button>
+                <button type="button" id="saveNewCounselingBtn" class="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-md flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-check"></i>
+                    상담 저장하기
                 </button>
             </div>
         </div>
     </div>
 
-
-
     <!-- Scripts -->
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/visitation_history.js?v=reduce-padding-v1"></script>
+    <script src="/js/counseling_history.js?v=initial-release"></script>
 </body>
 </html>

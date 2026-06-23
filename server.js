@@ -1943,6 +1943,11 @@ app.get('/api/visitation/status', async (req, res) => {
             visits.sort((a, b) => b.date.localeCompare(a.date));
 
             const lastVisit = visits[0];
+            const counselingVisits = visits.filter(v => v.type === '상담');
+            const visitationVisits = visits.filter(v => v.type === '심방');
+            const lastCounseling = counselingVisits[0];
+            const lastVisitation = visitationVisits[0];
+
             return {
                 id: m.id,
                 name: m.name,
@@ -1952,6 +1957,12 @@ app.get('/api/visitation/status', async (req, res) => {
                 family_relation: m.family_relation,
                 last_visitation: lastVisit ? lastVisit.date : null,
                 total_count: visits.length,
+                counseling_count: counselingVisits.length,
+                visitation_count: visitationVisits.length,
+                last_counseling_date: lastCounseling ? lastCounseling.date : null,
+                last_counseling_memo: lastCounseling ? lastCounseling.memo : null,
+                last_visitation_date: lastVisitation ? lastVisitation.date : null,
+                last_visitation_memo: lastVisitation ? lastVisitation.memo : null,
                 last_sermon: lastVisit ? lastVisit.sermon_title : null,
                 last_memo: lastVisit ? lastVisit.memo : null,
                 last_type: lastVisit ? lastVisit.type : null
