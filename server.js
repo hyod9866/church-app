@@ -2109,6 +2109,7 @@ function parseCounselingContent(rawText) {
 
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
 app.get('/api/counseling', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     // 1. members 전체 조회
     const { data: members, error: memErr } = await supabase
@@ -2218,6 +2219,7 @@ app.get('/api/counseling', async (req, res) => {
 
 // GET /api/counseling/:memberId — 특정 성도의 상담 이력 전체 (날짜 역순)
 app.get('/api/counseling/:memberId', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const { memberId } = req.params;
   try {
     // meetings(type='상담') 기반 attendance

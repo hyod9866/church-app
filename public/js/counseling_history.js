@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ──────────────────────────────────────────────────
     async function loadStatus() {
         try {
-            const response = await fetch('/api/counseling');
+            const response = await fetch('/api/counseling?_t=' + Date.now(), { cache: 'no-store' });
             allStatus = await response.json();
             updateDashboard(allStatus);
             applyFilters();
@@ -353,9 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (defaultTabBtn) defaultTabBtn.click();
 
             const [historyRes, recRes, counselingRes] = await Promise.all([
-                fetch(`/api/members/${id}/history`),
-                fetch(`/api/members/${id}/records`),
-                fetch(`/api/counseling/${id}`)
+                fetch(`/api/members/${id}/history?_t=` + Date.now(), { cache: 'no-store' }),
+                fetch(`/api/members/${id}/records?_t=` + Date.now(), { cache: 'no-store' }),
+                fetch(`/api/counseling/${id}?_t=` + Date.now(), { cache: 'no-store' })
             ]);
             const { member, history, family } = await historyRes.json();
             const records = await recRes.json();
