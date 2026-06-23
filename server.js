@@ -2400,6 +2400,105 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
   }
 });
 
+// DELETE /api/counseling/:sessionId — 개별 상담 삭제
+app.delete('/api/counseling/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    if (sessionId.startsWith('m_')) {
+      // meetings + attendance 방식
+      const meetingId = sessionId.replace('m_', '');
+      
+      // 1. attendance에서 해당 meeting_id 기록 삭제
+      const { error: attErr } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('meeting_id', meetingId);
+      if (attErr) throw attErr;
+
+      // 2. meetings에서 해당 id 일정 삭제
+      const { error: meetErr } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meetingId);
+      if (meetErr) throw meetErr;
+
+    } else if (sessionId.startsWith('r_')) {
+      // member_records 방식 (레거시)
+      const recordId = sessionId.replace('r_', '');
+      const { error: recErr } = await supabase
+        .from('member_records')
+        .delete()
+        .eq('id', recordId);
+      if (recErr) throw recErr;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/counseling/:sessionId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/counseling/member/:memberId — 특정 성도의 모든 상담 이력 삭제
+app.delete('/api/counseling/member/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  try {
+    // 1. member_records 테이블에서 status='COUNSELING'인 레코드 일괄 삭제
+    const { error: recErr } = await supabase
+      .from('member_records')
+      .delete()
+      .eq('member_id', memberId)
+      .eq('status', 'COUNSELING');
+    if (recErr) throw recErr;
+
+    // 2. meetings(type='상담')에 연계된 attendance 찾아서 해당 meetings 삭제
+    const { data: meetings, error: meetGetErr } = await supabase
+      .from('meetings')
+      .select('id')
+      .eq('type', '상담');
+    if (meetGetErr) throw meetGetErr;
+
+    const counselingMeetingIds = (meetings || []).map(m => m.id);
+
+    if (counselingMeetingIds.length > 0) {
+      // 해당 성도의 attendance 행 조회 (개인상담 일정만)
+      const { data: attRows, error: attGetErr } = await supabase
+        .from('attendance')
+        .select('meeting_id')
+        .eq('member_id', memberId)
+        .in('meeting_id', counselingMeetingIds);
+      if (attGetErr) throw attGetErr;
+
+      const targetMeetingIds = (attRows || []).map(a => a.meeting_id);
+      
+      if (targetMeetingIds.length > 0) {
+        // attendance 내역 삭제
+        const { error: attDelErr } = await supabase
+          .from('attendance')
+          .delete()
+          .eq('member_id', memberId)
+          .in('meeting_id', targetMeetingIds);
+        if (attDelErr) throw attDelErr;
+
+        // 관련 meetings 일정 삭제
+        const { error: meetDelErr } = await supabase
+          .from('meetings')
+          .delete()
+          .in('id', targetMeetingIds);
+        if (meetDelErr) throw meetDelErr;
+      }
+    }
+
+    // 3. 프로필 소속 정보 동기화 (상담 기록 삭제에 따른 카운트 정합성 등)
+    await syncMemberProfileFromRecords(memberId);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/counseling/member/:memberId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/members/filter', async (req, res) => {
     const { q } = req.query;
     try {

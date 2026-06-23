@@ -114,9 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (member.last_counseling_content || tagsHtml) {
                     detailHtml = `
                         <div class="main-counsel-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative" data-session-id="${member.last_counseling_session_id || ''}" data-member-id="${member.id}" data-date="${member.last_counseling_date}" data-tags="${member.last_counseling_tags || ''}">
-                            <div class="absolute right-2 top-2">
+                            <div class="absolute right-2 top-2 flex gap-2">
                                 <button type="button" class="edit-main-counsel-btn text-[10px] font-bold text-indigo-650 dark:text-indigo-400 hover:text-indigo-850 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer">
                                     <i class="fa-regular fa-pen-to-square"></i> 수정
+                                </button>
+                                <button type="button" class="delete-main-counsel-btn text-[10px] font-bold text-rose-600 dark:text-rose-450 hover:text-rose-800 dark:hover:text-rose-300 transition-colors flex items-center gap-0.5 cursor-pointer">
+                                    <i class="fa-regular fa-trash-can"></i> 삭제
                                 </button>
                             </div>
                             <div class="main-counsel-body">
@@ -151,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button onclick="openNewCounselingWithMember('${member.name}', ${member.id}, '${member.category || ''}', '${member.bs || ''}')" 
                                     class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
                                   추가 상담 등록
+                            </button>
+                            <button onclick="deleteMemberAllCounseling('${member.name}', ${member.id})" 
+                                    class="border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-rose-600 hover:text-white dark:hover:bg-rose-500 dark:hover:text-white transition-colors whitespace-nowrap">
+                                  상담 이력 전체 삭제
                             </button>
                         </div>
                     </div>
@@ -316,8 +323,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             });
+
+            // 메인 리스트에서 직접 상담 삭제
+            counselingList.querySelectorAll('.delete-main-counsel-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const card = e.target.closest('.main-counsel-card');
+                    if (!card) return;
+                    const sessionId = card.dataset.sessionId;
+                    if (!sessionId) return;
+                    
+                    if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
+                        try {
+                            const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                            if (res.ok) {
+                                loadStatus();
+                            } else {
+                                alert('삭제에 실패했습니다.');
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            alert('서버 오류로 인해 삭제에 실패했습니다.');
+                        }
+                    }
+                });
+            });
         });
     }
+
+    window.deleteMemberAllCounseling = async function(name, memberId) {
+        const msg = `${name} 성도의 모든 상담 기록(달력 일정 및 직접 등록된 기록)이 영구 삭제되며, 상담 목록에서 완전히 제외됩니다.\n\n정말 삭제하시겠습니까?`;
+        if (confirm(msg)) {
+            try {
+                const res = await fetch(`/api/counseling/member/${memberId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadStatus();
+                } else {
+                    alert('전체 삭제에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('서버 오류로 인해 삭제에 실패했습니다.');
+            }
+        }
+    };
 
     if (sortOption) sortOption.addEventListener('change', applyFilters);
     const searchInput = document.getElementById('searchInput');
@@ -559,9 +607,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
                                         ${sourceLabel}
                                     </div>
-                                    <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
-                                        <i class="fa-regular fa-pen-to-square"></i> 수정
-                                    </button>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                                            <i class="fa-regular fa-pen-to-square"></i> 수정
+                                        </button>
+                                        <button type="button" class="delete-counsel-btn text-rose-600 dark:text-rose-450 hover:text-rose-800 dark:hover:text-rose-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                                            <i class="fa-regular fa-trash-can"></i> 삭제
+                                        </button>
+                                    </div>
                                 </div>
                                 ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
                                 <div class="counsel-body-area bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
@@ -576,7 +629,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         const sessionId = card.dataset.sessionId;
                         const memberId = card.dataset.memberId;
                         const editBtn = card.querySelector('.edit-counsel-btn');
+                        const deleteBtn = card.querySelector('.delete-counsel-btn');
                         const bodyArea = card.querySelector('.counsel-body-area');
+
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', async () => {
+                                if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
+                                    try {
+                                        const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                                        if (res.ok) {
+                                            openMemberHistoryModal(id);
+                                            loadStatus();
+                                        } else {
+                                            alert('삭제에 실패했습니다.');
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert('서버 오류로 인해 삭제에 실패했습니다.');
+                                    }
+                                }
+                            });
+                        }
 
                         editBtn.addEventListener('click', () => {
                             if (card.querySelector('.counsel-edit-textarea')) return;
