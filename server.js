@@ -1963,6 +1963,8 @@ app.get('/api/visitation/status', async (req, res) => {
         console.error('Visitation status error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
 app.post('/api/visitation/counseling', async (req, res) => {
   const { member_id, name, date, counseling_memo, remark_memo, church, parish, district } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
