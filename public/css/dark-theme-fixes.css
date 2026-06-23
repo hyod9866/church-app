@@ -1,0 +1,472 @@
+/**
+ * Global dark-mode contrast fixes — does NOT affect light mode.
+ * Loaded on all app pages; scoped under .dark / html.dark
+ */
+
+/* ── Base readability ── */
+.dark body {
+    color: #e2e8f0;
+}
+
+.dark nav {
+    background-color: #131B2E !important;
+    border-color: #334155 !important;
+}
+
+.dark nav h2,
+.dark nav .text-gray-800 {
+    color: #f1f5f9 !important;
+}
+
+.dark main .text-gray-800,
+.dark .text-gray-800:not(header *) {
+    color: #e2e8f0 !important;
+}
+
+.dark label.text-gray-400,
+.dark .text-gray-400:not(header *):not(.fa *) {
+    color: #94a3b8 !important;
+}
+
+.dark .text-gray-500 {
+    color: #94a3b8 !important;
+}
+
+.dark .text-gray-600 {
+    color: #cbd5e1 !important;
+}
+
+.dark .text-gray-700 {
+    color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500:not(header *) {
+    color: #94a3b8 !important;
+}
+
+.dark .text-slate-600 {
+    color: #cbd5e1 !important;
+}
+
+.dark .text-slate-700 {
+    color: #e2e8f0 !important;
+}
+
+.dark .text-slate-800 {
+    color: #f1f5f9 !important;
+}
+
+.dark .hover\:text-slate-700:hover {
+    color: #e2e8f0 !important;
+}
+
+/* ── Invalid / custom Tailwind color tokens (CDN has no definition) ── */
+.dark .text-slate-250 { color: #64748b !important; }
+.dark .text-slate-350 { color: #94a3b8 !important; }
+.dark .text-slate-450 { color: #94a3b8 !important; }
+.dark .text-slate-550 { color: #94a3b8 !important; }
+.dark .text-slate-650 { color: #cbd5e1 !important; }
+.dark .text-slate-655 { color: #cbd5e1 !important; }
+.dark .text-slate-750 { color: #e2e8f0 !important; }
+.dark .text-slate-850 { color: #f1f5f9 !important; }
+
+.dark .text-indigo-650 { color: #a5b4fc !important; }
+.dark .text-indigo-850 { color: #c7d2fe !important; }
+
+.dark .text-blue-650 { color: #93c5fd !important; }
+.dark .text-blue-655 { color: #93c5fd !important; }
+.dark .text-blue-805 { color: #bfdbfe !important; }
+.dark .text-blue-850 { color: #bfdbfe !important; }
+
+.dark .text-rose-450 { color: #fb7185 !important; }
+.dark .text-rose-805 { color: #fecdd3 !important; }
+
+.dark .text-teal-805 { color: #5eead4 !important; }
+.dark .text-teal-700 { color: #2dd4bf !important; }
+
+.dark .text-emerald-450 { color: #34d399 !important; }
+.dark .text-emerald-805 { color: #a7f3d0 !important; }
+
+.dark .text-amber-805 { color: #fcd34d !important; }
+.dark .text-orange-850 { color: #fdba74 !important; }
+.dark .text-yellow-450 { color: #facc15 !important; }
+
+.dark .text-gray-550 { color: #94a3b8 !important; }
+.dark .text-gray-650 { color: #cbd5e1 !important; }
+
+.dark .border-slate-250,
+.dark .border-slate-850 { border-color: #334155 !important; }
+.dark .border-blue-250 { border-color: #1e40af !important; }
+
+.dark .border-indigo-650,
+.dark .border-indigo-850 { border-color: #6366f1 !important; }
+
+.dark .bg-slate-750 { background-color: #1e293b !important; }
+.dark .bg-gray-55 { background-color: #0B0F19 !important; }
+
+.dark .border-indigo-650 { border-color: #6366f1 !important; }
+
+/* Badge / pill backgrounds in dark */
+.dark .bg-indigo-100.text-indigo-650,
+.dark #counselingCount {
+    background-color: rgba(79, 70, 229, 0.25) !important;
+    color: #a5b4fc !important;
+}
+
+.dark .bg-blue-50\/70,
+.dark .text-blue-650 {
+    background-color: rgba(30, 58, 138, 0.3) !important;
+    color: #93c5fd !important;
+}
+
+.dark .border-indigo-650 {
+    border-color: #6366f1 !important;
+}
+
+/* Spinner */
+.dark .border-indigo-650 {
+    border-color: #818cf8 !important;
+}
+
+/* Section headings without dark: variant */
+.dark h4.text-teal-700,
+.dark .text-teal-700 {
+    color: #2dd4bf !important;
+}
+
+.dark h4.text-indigo-700:not(.dark\:text-indigo-400) {
+    color: #a5b4fc !important;
+}
+
+.dark .text-blue-805 {
+    color: #93c5fd !important;
+}
+
+/* ── Cards, panels, filters (scoped — header nav pills excluded) ── */
+.dark main .bg-white,
+.dark nav + main .bg-white,
+.dark #memberHistoryModal .bg-white,
+.dark #counselEditMemberModal .bg-white,
+.dark #newCounselingModal .bg-white,
+.dark #settingsModal .bg-white,
+.dark #familyRelationSelectModal .bg-white,
+.dark .member-tab-content .bg-white,
+.dark #counselingList .bg-white,
+.dark #visitationList .bg-white,
+.dark #memberList .bg-white,
+.dark #sermonList .bg-white {
+    background-color: #131B2E !important;
+}
+
+.dark .bg-slate-50:not(header *),
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/40,
+.dark .bg-slate-100:not(header *) {
+    background-color: #1e293b !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-gray-100,
+.dark .border-gray-200 {
+    border-color: #334155 !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #334155 !important;
+}
+
+.dark .border-dashed {
+    border-color: #475569 !important;
+}
+
+/* ── Tables ── */
+.dark thead.bg-slate-50,
+.dark thead.bg-gray-50 {
+    background-color: #172237 !important;
+}
+
+.dark thead.text-slate-650,
+.dark thead.text-slate-655 {
+    color: #cbd5e1 !important;
+}
+
+.dark tbody td {
+    color: #cbd5e1 !important;
+}
+
+.dark tbody tr:hover {
+    background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark table.bg-white {
+    background-color: #131B2E !important;
+}
+
+/* ── Modals ── */
+.dark #memberHistoryModal > .bg-white,
+.dark #counselEditMemberModal > .bg-white,
+.dark #newCounselingModal > .bg-white {
+    background-color: #131B2E !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+.dark #memberHistoryModal .bg-slate-50\/50,
+.dark #memberHistoryModal .bg-slate-50 {
+    background-color: #0B0F19 !important;
+}
+
+.dark #memberHistoryModal .border-slate-100,
+.dark #memberHistoryModal .border-slate-200 {
+    border-color: #334155 !important;
+}
+
+.dark .member-tab-btn:not(.active) {
+    color: #94a3b8 !important;
+}
+
+.dark .member-tab-btn:not(.active):hover {
+    color: #e2e8f0 !important;
+}
+
+.dark .member-tab-btn.active {
+    color: #60a5fa !important;
+    border-color: #60a5fa !important;
+}
+
+.dark #memberHistoryModal thead {
+    background-color: #172237 !important;
+}
+
+.dark #memberHistoryModal thead th {
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+.dark #memberHistoryModal tbody td {
+    color: #94a3b8 !important;
+    border-color: #334155 !important;
+}
+
+.dark #memberHistoryModal .bg-slate-50.p-4 {
+    background-color: #172237 !important;
+    border-color: #334155 !important;
+}
+
+/* Timeline / record cards in modals */
+.dark #timelineContainer,
+.dark #tableRecordContainer {
+    background-color: #131B2E !important;
+    border-color: #334155 !important;
+}
+
+.dark #timelineContainer .text-slate-800 {
+    color: #f1f5f9 !important;
+}
+
+.dark #timelineContainer .text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+.dark #timelineContainer .border-slate-100 {
+    border-color: #334155 !important;
+}
+
+/* Timeline badge blocks — keep hue but readable on dark */
+.dark #timelineContainer .bg-emerald-50,
+.dark #timelineContainer .text-emerald-800 {
+    background-color: rgba(6, 78, 59, 0.35) !important;
+    color: #6ee7b7 !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark #timelineContainer .bg-rose-50,
+.dark #timelineContainer .text-rose-800 {
+    background-color: rgba(136, 19, 55, 0.35) !important;
+    color: #fda4af !important;
+    border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.dark #timelineContainer .bg-teal-50,
+.dark #timelineContainer .text-teal-805 {
+    background-color: rgba(19, 78, 74, 0.35) !important;
+    color: #5eead4 !important;
+    border-color: rgba(20, 184, 166, 0.3) !important;
+}
+
+.dark #timelineContainer .bg-orange-50\/70,
+.dark #timelineContainer .text-orange-850 {
+    background-color: rgba(124, 45, 18, 0.35) !important;
+    color: #fdba74 !important;
+    border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+.dark #timelineContainer .bg-blue-50,
+.dark #timelineContainer .text-blue-805 {
+    background-color: rgba(30, 58, 138, 0.35) !important;
+    color: #93c5fd !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark #timelineContainer .bg-amber-50,
+.dark #timelineContainer .text-amber-805 {
+    background-color: rgba(120, 53, 15, 0.35) !important;
+    color: #fcd34d !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* ── Form controls (pages missing per-page dark rules) ── */
+.dark select:not([class*="dark:"]),
+.dark input[type="text"]:not([class*="dark:"]),
+.dark input[type="number"]:not([class*="dark:"]),
+.dark input[type="date"]:not([class*="dark:"]),
+.dark textarea:not([class*="dark:"]) {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+    color: #f1f5f9 !important;
+}
+
+.dark select option {
+    background-color: #131B2E !important;
+    color: #e2e8f0 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: #64748b !important;
+}
+
+.dark #counselEditMemberModal input,
+.dark #counselEditMemberModal select,
+.dark #counselEditMemberModal textarea {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+.dark #counselEditMemberModal label {
+    color: #94a3b8 !important;
+}
+
+/* ── Attendance filter cards ── */
+.dark .att-filter-card {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+.dark .att-filter-card:hover {
+    background-color: #243249 !important;
+    border-color: #64748b !important;
+}
+
+.dark .att-filter-card.border-blue-500 {
+    border-color: #3b82f6 !important;
+    background-color: rgba(30, 58, 138, 0.35) !important;
+}
+
+/* ── District badge colors (getDC) ── */
+.dark .bg-blue-100.text-blue-800 { background-color: rgba(30, 58, 138, 0.4) !important; color: #93c5fd !important; border-color: #1e40af !important; }
+.dark .bg-green-100.text-green-800 { background-color: rgba(20, 83, 45, 0.4) !important; color: #86efac !important; border-color: #166534 !important; }
+.dark .bg-purple-100.text-purple-800 { background-color: rgba(88, 28, 135, 0.4) !important; color: #d8b4fe !important; border-color: #6b21a8 !important; }
+.dark .bg-amber-100.text-amber-800 { background-color: rgba(120, 53, 15, 0.4) !important; color: #fcd34d !important; border-color: #92400e !important; }
+.dark .bg-gray-100.text-gray-400 { background-color: #1e293b !important; color: #94a3b8 !important; border-color: #475569 !important; }
+
+/* ── List cards (counseling, visitation, member) ── */
+.dark .main-counsel-card,
+.dark .bg-gray-50.rounded-lg {
+    background-color: #0B0F19 !important;
+    border-color: #334155 !important;
+}
+
+.dark .bg-gray-50 .text-gray-500 {
+    color: #94a3b8 !important;
+}
+
+/* ── Visitation / counseling cards in JS ── */
+.dark .bg-teal-50.border-teal-100 {
+    background-color: rgba(19, 78, 74, 0.25) !important;
+    border-color: rgba(20, 184, 166, 0.3) !important;
+}
+
+.dark .text-teal-805 {
+    color: #5eead4 !important;
+}
+
+.dark .bg-indigo-50.border-indigo-100 {
+    background-color: rgba(49, 46, 129, 0.25) !important;
+    border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* ── Settings modal ── */
+.dark #settingsModal .hover\:text-slate-650:hover {
+    color: #e2e8f0 !important;
+}
+
+/* ── Sermon / meeting dashboard specifics ── */
+.dark .bg-slate-50.hover\:bg-slate-100,
+.dark .bg-slate-50\/50.hover\:bg-slate-100 {
+    background-color: #131B2E !important;
+}
+
+.dark .bg-slate-50.hover\:bg-slate-100:hover {
+    background-color: #1e293b !important;
+}
+
+.dark .hover\:bg-slate-50\/50:hover {
+    background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+    background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+/* ── Empty states ── */
+.dark .text-slate-400.italic {
+    color: #64748b !important;
+}
+
+/* ── Index calendar / FC overrides ── */
+.dark .fc {
+    color: #e2e8f0 !important;
+}
+
+.dark .fc-col-header-cell-cushion,
+.dark .fc-daygrid-day-number,
+.dark .fc-list-day-text,
+.dark .fc-list-day-side-text {
+    color: #cbd5e1 !important;
+}
+
+.dark .fc-theme-standard td,
+.dark .fc-theme-standard th {
+    border-color: #334155 !important;
+}
+
+.dark .fc-theme-standard .fc-scrollgrid {
+    border-color: #334155 !important;
+}
+
+.dark .fc-daygrid-day.fc-day-today {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+/* ── Status page metric cards ── */
+.dark .bg-white.p-4.rounded-xl.shadow-sm,
+.dark .bg-white.p-5.rounded-2xl,
+.dark .bg-white.p-6.rounded-2xl {
+    background-color: #131B2E !important;
+    border: 1px solid #334155 !important;
+    box-shadow: none !important;
+}
+
+/* ── Scrollbar (subtle) ── */
+.dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
