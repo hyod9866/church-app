@@ -470,3 +470,81 @@
 .dark ::-webkit-scrollbar-thumb:hover {
     background: #64748b;
 }
+
+/* ── 출석 현황 (dashboard) — 성도명·소속 컬럼 ── */
+.dark #attendanceTable .member-info .text-blue-800 {
+    color: #93c5fd !important;
+}
+
+.dark #attendanceTable .member-info .text-blue-800:hover {
+    color: #bfdbfe !important;
+}
+
+.dark #attendanceTable .member-info .text-green-800 {
+    color: #86efac !important;
+}
+
+.dark #attendanceTable .member-info .text-gray-650,
+.dark #attendanceTable .member-info .text-gray-500 {
+    color: #cbd5e1 !important;
+}
+
+.dark #attendanceTable .member-info .text-blue-600 {
+    color: #60a5fa !important;
+}
+
+.dark #attendanceTable .member-info .text-red-600 {
+    color: #f87171 !important;
+}
+
+.dark #attendanceTable .member-info .text-green-600 {
+    color: #4ade80 !important;
+}
+
+.dark #attendanceTable .member-info .text-amber-600 {
+    color: #fbbf24 !important;
+}
+
+.dark #attendanceTable .member-info .text-gray-400 {
+    color: #94a3b8 !important;
+}
+
+.dark #attendanceTable .member-info .bg-blue-100 {
+    background-color: rgba(30, 58, 138, 0.45) !important;
+}
+
+.dark #attendanceTable .member-info .text-blue-700 {
+    color: #93c5fd !important;
+}
+
+.dark #attendanceTable .member-info .bg-pink-100 {
+    background-color: rgba(131, 24, 67, 0.4) !important;
+}
+
+.dark #attendanceTable .member-info .text-pink-700 {
+    color: #f9a8d4 !important;
+}
+
+.dark #attendanceTable .member-info .bg-emerald-100 {
+    background-color: rgba(6, 78, 59, 0.45) !important;
+}
+
+.dark #attendanceTable .member-info .text-emerald-800 {
+    color: #6ee7b7 !important;
+}
+
+.dark #attendanceTable .member-info .border-emerald-200 {
+    border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.dark #attendanceTable .member-info .bg-yellow-100 {
+    background-color: rgba(120, 53, 15, 0.45) !important;
+}
+
+.dark #attendanceTable .member-info .text-yellow-800 {
+    color: #fde047 !important;
+}
+
+.dark #attendanceTable .member-info .border-yellow-200 {
+    border-color: rgba(234, 179, 8, 0.35) !important;
+}
