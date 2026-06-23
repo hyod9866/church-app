@@ -166,6 +166,37 @@
             border-color: #1e293b !important;
         }
         
+        /* 간증 편집 textarea 다크모드 및 시안성 패치 */
+        .dark #testimonyTextarea {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        .dark #testimonyTextarea:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        /* 상담관리 내 성도 정보 수정 모달 다크모드 대응 */
+        .dark #counselEditMemberModal .bg-white {
+            background-color: #131B2E !important;
+            border-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        .dark #counselEditMemberModal input, 
+        .dark #counselEditMemberModal select, 
+        .dark #counselEditMemberModal textarea {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        .dark #counselEditMemberModal input:focus, 
+        .dark #counselEditMemberModal select:focus, 
+        .dark #counselEditMemberModal textarea:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+        }
+        
         /* 상세 모달 다크모드 가독성 극대화 */
         .dark #memberHistoryModal .bg-white {
             background-color: #131B2E !important;
@@ -415,6 +446,69 @@
             <div class="bg-slate-50 p-4 border-t border-slate-100 flex justify-end gap-3">
                 <button id="editMemberBtn" class="px-8 py-3 text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all rounded-xl font-bold shadow-md text-sm">정보 수정</button>
                 <button id="closeHistoryModalBtn" class="px-8 py-3 text-white bg-slate-800 hover:bg-slate-900 active:scale-[0.98] transition-all rounded-xl font-bold shadow-md text-sm">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Counsel Edit Member Modal (즉석 성도 정보 수정) -->
+    <div id="counselEditMemberModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[150] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-5 flex justify-between items-center shadow-md">
+                <h3 class="text-lg font-black tracking-tight">상담자 정보 수정</h3>
+                <button type="button" onclick="document.getElementById('counselEditMemberModal').classList.add('hidden')" class="text-white/80 hover:text-white transition-colors duration-150">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <form id="counselEditMemberForm" class="p-6 overflow-y-auto flex-1 bg-slate-50/10 space-y-4 no-scrollbar">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">성명 *</label>
+                        <input type="text" name="name" required class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">소속회 (구분)</label>
+                        <select name="category" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium bg-white outline-none transition duration-150 cursor-pointer">
+                            <option value="봉사회">봉사회</option>
+                            <option value="어머니회">어머니회</option>
+                            <option value="청년회">청년회</option>
+                            <option value="은장회">은장회</option>
+                            <option value="모름">모름</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">생년 (예: 1980)</label>
+                        <input type="number" name="birth_year" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">B/S 구분</label>
+                        <select name="bs" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium bg-white outline-none transition duration-150 cursor-pointer">
+                            <option value="B">B (형제)</option>
+                            <option value="S">S (자매)</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">구원일</label>
+                        <input type="date" name="salvation_date" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">연락처</label>
+                        <input type="text" name="phone" placeholder="010-0000-0000" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">주소</label>
+                        <input type="text" name="address" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">간증 및 기타 메모</label>
+                        <textarea name="testimony" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 h-24 outline-none transition duration-150" placeholder="성도님에 대한 추가적인 참고사항을 입력하세요..."></textarea>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('counselEditMemberModal').classList.add('hidden')" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 active:scale-[0.98] transition shadow-sm">취소</button>
+                <button type="button" id="counselEditMemberSubmitBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm active:scale-[0.98] transition shadow-sm">수정 완료</button>
             </div>
         </div>
     </div>

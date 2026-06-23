@@ -1023,10 +1023,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const editMemberBtn = document.getElementById('editMemberBtn');
-    if (editMemberBtn) {
+    const counselEditMemberModal = document.getElementById('counselEditMemberModal');
+    const counselEditMemberForm = document.getElementById('counselEditMemberForm');
+    const counselEditMemberSubmitBtn = document.getElementById('counselEditMemberSubmitBtn');
+
+    if (editMemberBtn && counselEditMemberModal && counselEditMemberForm) {
         editMemberBtn.addEventListener('click', () => {
-            if (currentMemberData && currentMemberData.id) {
-                window.location.href = `/member_management.html?openId=${currentMemberData.id}&edit=true`;
+            if (!currentMemberData) return;
+            
+            counselEditMemberForm.querySelector('input[name="name"]').value = currentMemberData.name || '';
+            counselEditMemberForm.querySelector('select[name="category"]').value = currentMemberData.category || '모름';
+            counselEditMemberForm.querySelector('input[name="birth_year"]').value = currentMemberData.birth_year || '';
+            counselEditMemberForm.querySelector('select[name="bs"]').value = currentMemberData.bs || 'B';
+            counselEditMemberForm.querySelector('input[name="salvation_date"]').value = currentMemberData.salvation_date || '';
+            counselEditMemberForm.querySelector('input[name="phone"]').value = currentMemberData.phone || '';
+            counselEditMemberForm.querySelector('input[name="address"]').value = currentMemberData.address || '';
+            counselEditMemberForm.querySelector('textarea[name="testimony"]').value = currentMemberData.testimony || '';
+
+            counselEditMemberModal.classList.remove('hidden');
+        });
+    }
+
+    if (counselEditMemberSubmitBtn && counselEditMemberForm) {
+        counselEditMemberSubmitBtn.addEventListener('click', async () => {
+            if (!currentMemberData) return;
+
+            const name = counselEditMemberForm.querySelector('input[name="name"]').value.trim();
+            if (!name) return alert('성명을 입력하세요.');
+
+            const category = counselEditMemberForm.querySelector('select[name="category"]').value;
+            const birth_year = counselEditMemberForm.querySelector('input[name="birth_year"]').value;
+            const bs = counselEditMemberForm.querySelector('select[name="bs"]').value;
+            const salvation_date = counselEditMemberForm.querySelector('input[name="salvation_date"]').value;
+            const phone = counselEditMemberForm.querySelector('input[name="phone"]').value.trim();
+            const address = counselEditMemberForm.querySelector('input[name="address"]').value.trim();
+            const testimony = counselEditMemberForm.querySelector('textarea[name="testimony"]').value.trim();
+
+            counselEditMemberSubmitBtn.disabled = true;
+            counselEditMemberSubmitBtn.textContent = '저장 중...';
+
+            try {
+                const updatedMember = {
+                    ...currentMemberData,
+                    name,
+                    category,
+                    birth_year: birth_year ? parseInt(birth_year) : null,
+                    bs,
+                    salvation_date: salvation_date || null,
+                    phone: phone || null,
+                    address: address || null,
+                    testimony: testimony || null
+                };
+
+                const res = await fetch(`/api/members/${currentMemberData.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedMember)
+                });
+
+                if (!res.ok) throw new Error('성도 정보 수정 실패');
+
+                alert('성공적으로 수정되었습니다.');
+                counselEditMemberModal.classList.add('hidden');
+                
+                await openMemberHistoryModal(currentMemberData.id);
+                loadStatus();
+            } catch (err) {
+                console.error(err);
+                alert('성도 정보 수정 중 오류가 발생했습니다.');
+            } finally {
+                counselEditMemberSubmitBtn.disabled = false;
+                counselEditMemberSubmitBtn.textContent = '수정 완료';
             }
         });
     }
