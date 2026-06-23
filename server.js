@@ -2080,6 +2080,300 @@ app.post('/api/visitation/counseling', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────
+// NEW: 상담 관리 전용 API  (meetings + attendance 기반, member_records 병합)
+// ─────────────────────────────────────────────────────────
+
+// GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
+app.get('/api/counseling', async (req, res) => {
+  try {
+    // 1. members 전체 조회
+    const { data: members, error: memErr } = await supabase
+      .from('members')
+      .select('id, name, district, category, position, family_relation, bs, church, parish')
+      .eq('status', 'active');
+    if (memErr) throw memErr;
+
+    // 2. meetings(type='상담') 조회
+    const { data: counselingMeetings, error: meetErr } = await supabase
+      .from('meetings')
+      .select('id, title, date, memo, type')
+      .eq('type', '상담');
+    if (meetErr) throw meetErr;
+
+    const counselingMeetingIds = (counselingMeetings || []).map(m => m.id);
+    const meetingMap = {};
+    (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
+
+    // 3. 해당 meetings의 attendance 조회 (모든 성도 포함 - is_present 무관)
+    let attRows = [];
+    if (counselingMeetingIds.length > 0) {
+      const { data: attData, error: attErr } = await supabase
+        .from('attendance')
+        .select('member_id, meeting_id, testimony_snapshot, is_present')
+        .in('meeting_id', counselingMeetingIds);
+      if (attErr) throw attErr;
+      attRows = attData || [];
+    }
+
+    // 4. member_records COUNSELING 조회 (기존 레거시 데이터)
+    const { data: cRecords, error: cRecErr } = await supabase
+      .from('member_records')
+      .select('member_id, date, remark, id')
+      .eq('status', 'COUNSELING');
+    if (cRecErr) throw cRecErr;
+
+    // 5. memberId별로 상담 세션 수집
+    const memberCounselingMap = {}; // memberId → [{ date, content, source, session_id }]
+
+    // meetings 기반 (달력 개인상담)
+    attRows.forEach(a => {
+      const meet = meetingMap[a.meeting_id];
+      if (!meet) return;
+      if (!memberCounselingMap[a.member_id]) memberCounselingMap[a.member_id] = [];
+      memberCounselingMap[a.member_id].push({
+        date: meet.date,
+        content: a.testimony_snapshot || '',
+        tags: '',
+        source: 'meeting',
+        session_id: `m_${a.meeting_id}`,
+        meeting_id: a.meeting_id,
+        is_present: a.is_present
+      });
+    });
+
+    // member_records 기반 (레거시 상담 등록)
+    (cRecords || []).forEach(r => {
+      if (!memberCounselingMap[r.member_id]) memberCounselingMap[r.member_id] = [];
+      // remark에서 태그 파싱
+      let tags = '', content = r.remark || '';
+      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
+      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+      memberCounselingMap[r.member_id].push({
+        date: r.date,
+        content,
+        tags,
+        source: 'record',
+        session_id: `r_${r.id}`,
+        record_id: r.id
+      });
+    });
+
+    // 6. 상담 이력이 있는 성도만 필터링하여 반환
+    const result = members
+      .filter(m => memberCounselingMap[m.id] && memberCounselingMap[m.id].length > 0)
+      .map(m => {
+        const sessions = (memberCounselingMap[m.id] || []).sort((a, b) => b.date.localeCompare(a.date));
+        const last = sessions[0];
+        return {
+          id: m.id,
+          name: m.name,
+          district: m.district,
+          category: m.category,
+          position: m.position,
+          family_relation: m.family_relation,
+          bs: m.bs,
+          church: m.church,
+          parish: m.parish,
+          counseling_count: sessions.length,
+          last_counseling_date: last ? last.date : null,
+          last_counseling_content: last ? last.content : null,
+          last_counseling_tags: last ? last.tags : null
+        };
+      });
+
+    res.json(result);
+  } catch (err) {
+    console.error('GET /api/counseling error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/counseling/:memberId — 특정 성도의 상담 이력 전체 (날짜 역순)
+app.get('/api/counseling/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  try {
+    // meetings(type='상담') 기반 attendance
+    const { data: counselingMeetings, error: meetErr } = await supabase
+      .from('meetings')
+      .select('id, title, date, memo')
+      .eq('type', '상담');
+    if (meetErr) throw meetErr;
+
+    const meetingMap = {};
+    (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
+    const meetingIds = (counselingMeetings || []).map(m => m.id);
+
+    let sessions = [];
+
+    if (meetingIds.length > 0) {
+      const { data: attData, error: attErr } = await supabase
+        .from('attendance')
+        .select('meeting_id, testimony_snapshot, is_present')
+        .eq('member_id', memberId)
+        .in('meeting_id', meetingIds);
+      if (attErr) throw attErr;
+
+      (attData || []).forEach(a => {
+        const meet = meetingMap[a.meeting_id];
+        if (!meet) return;
+        let tags = '', content = a.testimony_snapshot || '';
+        const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
+        if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+        sessions.push({
+          date: meet.date,
+          content,
+          tags,
+          source: 'meeting',
+          session_id: `m_${a.meeting_id}`,
+          meeting_id: a.meeting_id
+        });
+      });
+    }
+
+    // member_records COUNSELING 병합
+    const { data: cRecords, error: cRecErr } = await supabase
+      .from('member_records')
+      .select('id, date, remark')
+      .eq('member_id', memberId)
+      .eq('status', 'COUNSELING');
+    if (cRecErr) throw cRecErr;
+
+    (cRecords || []).forEach(r => {
+      let tags = '', content = r.remark || '';
+      const tagMatch = content.match(/^((?:#\S+\s*)+)\n([\s\S]*)$/);
+      if (tagMatch) { tags = tagMatch[1].trim(); content = tagMatch[2].trim(); }
+      // [상담] 접두사 제거
+      content = content.replace(/^\[상담\]\s*/, '');
+      sessions.push({
+        date: r.date,
+        content,
+        tags,
+        source: 'record',
+        session_id: `r_${r.id}`,
+        record_id: r.id
+      });
+    });
+
+    sessions.sort((a, b) => b.date.localeCompare(a.date));
+    res.json(sessions);
+  } catch (err) {
+    console.error('GET /api/counseling/:memberId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
+app.post('/api/counseling', async (req, res) => {
+  const { member_id, name, date, content, tags, remark_memo, church, parish, district, category, bs, member_status } = req.body;
+  if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
+  if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
+
+  try {
+    let finalMemberId = member_id;
+
+    // 1. 성도 조회 또는 신규 생성
+    if (!finalMemberId) {
+      const insertData = {
+        name: name.trim(),
+        church: church ? church.trim() : '교회정보없음',
+        parish: parish ? parish.trim() : '교구정보없음',
+        district: district ? district.trim() : '구역정보없음',
+        category: category || '봉사회',
+        bs: bs || 'S',
+        status: 'active'
+      };
+      const { data: newMem, error: insErr } = await supabase
+        .from('members').insert(insertData).select('id').single();
+      if (insErr) throw insErr;
+      finalMemberId = newMem.id;
+
+      if (church || parish || district) {
+        const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
+        await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+      }
+    } else {
+      // 기존 성도 — 소속/구분 정보 업데이트 (입력값 있는 경우)
+      const updateFields = {};
+      if (category) updateFields.category = category;
+      if (bs) updateFields.bs = bs;
+      if (Object.keys(updateFields).length > 0) {
+        await supabase.from('members').update(updateFields).eq('id', finalMemberId);
+      }
+    }
+
+    // 2. meetings에 개인상담 일정 생성
+    const meetingTitle = `${name} 개인상담`;
+    let finalMemo = '';
+    if (remark_memo && remark_memo.trim()) finalMemo = remark_memo.trim();
+
+    const { data: newMeeting, error: meetErr } = await supabase
+      .from('meetings')
+      .insert({ title: meetingTitle, date, type: '상담', memo: finalMemo })
+      .select('id').single();
+    if (meetErr) throw meetErr;
+
+    // 3. attendance에 해당 성도 testimony_snapshot으로 저장 (태그 + 내용)
+    let fullContent = '';
+    if (tags && tags.trim()) fullContent = tags.trim() + '\n';
+    fullContent += content ? content.trim() : '';
+
+    const { error: attErr } = await supabase
+      .from('attendance')
+      .insert({
+        meeting_id: newMeeting.id,
+        member_id: finalMemberId,
+        is_present: 1,
+        testimony_snapshot: fullContent || null,
+        district_snapshot: district || null,
+        category_snapshot: category || null
+      });
+    if (attErr) throw attErr;
+
+    res.json({ success: true, member_id: finalMemberId, meeting_id: newMeeting.id });
+  } catch (err) {
+    console.error('POST /api/counseling error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/counseling/:sessionId — 상담 세션 수정
+app.put('/api/counseling/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  const { date, content, tags } = req.body;
+
+  try {
+    let fullContent = '';
+    if (tags && tags.trim()) fullContent = tags.trim() + '\n';
+    fullContent += content ? content.trim() : '';
+
+    if (sessionId.startsWith('m_')) {
+      // meetings + attendance 방식
+      const meetingId = sessionId.replace('m_', '');
+      const memberId = req.body.member_id;
+
+      await supabase.from('meetings').update({ date }).eq('id', meetingId);
+      if (memberId) {
+        const { data: existing } = await supabase.from('attendance')
+          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId).maybeSingle();
+        if (existing) {
+          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).eq('id', existing.id);
+        }
+      }
+    } else if (sessionId.startsWith('r_')) {
+      // member_records 방식 (레거시)
+      const recordId = sessionId.replace('r_', '');
+      const remarkText = fullContent ? `[상담] ${fullContent}` : '[상담] 내용 없음';
+      await supabase.from('member_records').update({ date, remark: remarkText }).eq('id', recordId);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/counseling/:sessionId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/members/filter', async (req, res) => {
     const { q } = req.query;
     try {
