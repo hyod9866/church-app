@@ -178,9 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
                             <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
                         </div>
-                        <div>
-                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 태그 (공백 구분, 예: #진로 #구원확신)</label>
-                            <input type="text" class="counsel-edit-tags w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentTags}" placeholder="예: #구원확신 #진로">
+                        <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
+                            <div class="edit-tags-presets flex flex-wrap gap-1 mb-2">
+                                ${['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'].map(t => {
+                                    return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 dark:border-indigo-850/60 transition-all">${t}</button>`;
+                                }).join('')}
+                            </div>
+                            <div class="flex gap-1 items-center mb-2">
+                                <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력 추가...">
+                                <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
+                            </div>
+                            <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
+                            <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
@@ -192,6 +202,81 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
+
+                // 태그 상태 관리
+                let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.substring(1)));
+
+                function updateInlineTags() {
+                    const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
+                    bodyArea.querySelector('.counsel-edit-tags').value = tagsVal;
+
+                    const preview = bodyArea.querySelector('.inline-tags-preview');
+                    preview.innerHTML = Array.from(activeTags).map(t => `
+                        <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white animate-fade-in" data-tag="${t}">
+                            #${t}
+                            <button type="button" class="inline-remove-tag-btn hover:text-indigo-200 transition-colors font-bold ml-1 leading-none">&times;</button>
+                        </span>
+                    `).join('');
+
+                    bodyArea.querySelectorAll('.inline-edit-tag-btn').forEach(btn => {
+                        const t = btn.dataset.tag;
+                        if (activeTags.has(t)) {
+                            btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                            btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                        } else {
+                            btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                        }
+                    });
+                }
+
+                // 초기 태그 렌더링
+                updateInlineTags();
+
+                // 프리셋 클릭
+                bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
+                    const btn = ev.target.closest('.inline-edit-tag-btn');
+                    if (!btn) return;
+                    const tag = btn.dataset.tag;
+                    if (activeTags.has(tag)) {
+                        activeTags.delete(tag);
+                    } else {
+                        activeTags.add(tag);
+                    }
+                    updateInlineTags();
+                });
+
+                // 직접 입력 추가
+                const addTagBtn = bodyArea.querySelector('.inline-add-tag-btn');
+                const customInput = bodyArea.querySelector('.inline-custom-tag-input');
+                const performAddCustomTag = () => {
+                    let val = customInput.value.trim();
+                    if (!val) return;
+                    if (val.startsWith('#')) val = val.substring(1);
+                    if (val) {
+                        activeTags.add(val);
+                        customInput.value = '';
+                        updateInlineTags();
+                    }
+                };
+
+                addTagBtn.addEventListener('click', performAddCustomTag);
+                customInput.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        performAddCustomTag();
+                    }
+                });
+
+                // 프리뷰 개별 삭제
+                bodyArea.querySelector('.inline-tags-preview').addEventListener('click', (ev) => {
+                    const removeBtn = ev.target.closest('.inline-remove-tag-btn');
+                    if (!removeBtn) return;
+                    const span = removeBtn.closest('[data-tag]');
+                    const tag = span.dataset.tag;
+                    activeTags.delete(tag);
+                    updateInlineTags();
+                });
 
                 // 수정 버튼은 편집 중에는 숨기기
                 btn.style.display = 'none';
@@ -508,9 +593,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
                                         <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
                                     </div>
-                                    <div>
-                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 태그 (공백 구분, 예: #진로 #구원확신)</label>
-                                        <input type="text" class="counsel-edit-tags w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentTags}" placeholder="예: #구원확신 #진로">
+                                    <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
+                                        <div class="edit-tags-presets flex flex-wrap gap-1 mb-2">
+                                            ${['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'].map(t => {
+                                                return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 dark:border-indigo-850/60 transition-all">${t}</button>`;
+                                            }).join('')}
+                                        </div>
+                                        <div class="flex gap-1 items-center mb-2">
+                                            <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력 추가...">
+                                            <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
+                                        </div>
+                                        <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
+                                        <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
                                     </div>
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
@@ -522,6 +617,81 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             `;
+
+                            // 태그 상태 관리
+                            let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.substring(1)));
+
+                            function updateModalEditTags() {
+                                const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
+                                bodyArea.querySelector('.counsel-edit-tags').value = tagsVal;
+
+                                const preview = bodyArea.querySelector('.inline-tags-preview');
+                                preview.innerHTML = Array.from(activeTags).map(t => `
+                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white animate-fade-in" data-tag="${t}">
+                                        #${t}
+                                        <button type="button" class="inline-remove-tag-btn hover:text-indigo-200 transition-colors font-bold ml-1 leading-none">&times;</button>
+                                    </span>
+                                `).join('');
+
+                                bodyArea.querySelectorAll('.inline-edit-tag-btn').forEach(btn => {
+                                    const t = btn.dataset.tag;
+                                    if (activeTags.has(t)) {
+                                        btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                                        btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                                    } else {
+                                        btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                                        btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                                    }
+                                });
+                            }
+
+                            // 초기 태그 렌더링
+                            updateModalEditTags();
+
+                            // 프리셋 클릭
+                            bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
+                                const btn = ev.target.closest('.inline-edit-tag-btn');
+                                if (!btn) return;
+                                const tag = btn.dataset.tag;
+                                if (activeTags.has(tag)) {
+                                    activeTags.delete(tag);
+                                } else {
+                                    activeTags.add(tag);
+                                }
+                                updateModalEditTags();
+                            });
+
+                            // 직접 입력 추가
+                            const addTagBtn = bodyArea.querySelector('.inline-add-tag-btn');
+                            const customInput = bodyArea.querySelector('.inline-custom-tag-input');
+                            const performAddCustomTag = () => {
+                                let val = customInput.value.trim();
+                                if (!val) return;
+                                if (val.startsWith('#')) val = val.substring(1);
+                                if (val) {
+                                    activeTags.add(val);
+                                    customInput.value = '';
+                                    updateModalEditTags();
+                                }
+                            };
+
+                            addTagBtn.addEventListener('click', performAddCustomTag);
+                            customInput.addEventListener('keydown', (ev) => {
+                                if (ev.key === 'Enter') {
+                                    ev.preventDefault();
+                                    performAddCustomTag();
+                                }
+                            });
+
+                            // 프리뷰 개별 삭제
+                            bodyArea.querySelector('.inline-tags-preview').addEventListener('click', (ev) => {
+                                const removeBtn = ev.target.closest('.inline-remove-tag-btn');
+                                if (!removeBtn) return;
+                                const span = removeBtn.closest('[data-tag]');
+                                const tag = span.dataset.tag;
+                                activeTags.delete(tag);
+                                updateModalEditTags();
+                            });
 
                             const saveBtn = bodyArea.querySelector('.save-counsel-btn');
                             const cancelBtn = bodyArea.querySelector('.cancel-counsel-btn');
