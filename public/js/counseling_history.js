@@ -113,9 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tagsHtml = renderTagBadge(member.last_counseling_tags || '');
                 if (member.last_counseling_content || tagsHtml) {
                     detailHtml = `
-                        <div class="mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs">
-                            ${tagsHtml}
-                            ${member.last_counseling_content ? `<div class="text-gray-500 dark:text-slate-400 italic mt-1">📝 ${member.last_counseling_content}</div>` : ''}
+                        <div class="main-counsel-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative" data-session-id="${member.last_counseling_session_id || ''}" data-member-id="${member.id}" data-date="${member.last_counseling_date}" data-tags="${member.last_counseling_tags || ''}">
+                            <div class="absolute right-2 top-2">
+                                <button type="button" class="edit-main-counsel-btn text-[10px] font-bold text-indigo-650 dark:text-indigo-400 hover:text-indigo-850 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer">
+                                    <i class="fa-regular fa-pen-to-square"></i> 수정
+                                </button>
+                            </div>
+                            <div class="main-counsel-body">
+                                ${tagsHtml}
+                                ${member.last_counseling_content ? `<div class="text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${member.last_counseling_content}</div>` : ''}
+                            </div>
                         </div>
                     `;
                 }
@@ -143,6 +150,89 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex flex-col gap-1">
                             <button onclick="openNewCounselingWithMember('${member.name}', ${member.id}, '${member.category || ''}', '${member.bs || ''}')" 
                                     class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
+                                  추가 상담 등록
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 메인 리스트에서 직접 상담 수정
+        counselingList.querySelectorAll('.edit-main-counsel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const card = e.target.closest('.main-counsel-card');
+                if (!card || card.querySelector('.counsel-edit-textarea')) return;
+
+                const sessionId = card.dataset.sessionId;
+                const memberId = card.dataset.memberId;
+                const currentDate = card.dataset.date || '';
+                const currentTags = card.dataset.tags || '';
+                const bodyArea = card.querySelector('.main-counsel-body');
+                const remarkTextPara = bodyArea.querySelector('.text-gray-500');
+                const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
+
+                bodyArea.innerHTML = `
+                    <div class="flex flex-col gap-2 w-full mt-2">
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
+                            <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 태그 (공백 구분, 예: #진로 #구원확신)</label>
+                            <input type="text" class="counsel-edit-tags w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentTags}" placeholder="예: #구원확신 #진로">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
+                            <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="3">${currentRemark}</textarea>
+                        </div>
+                        <div class="flex justify-end gap-1.5 mt-1">
+                            <button type="button" class="save-main-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
+                            <button type="button" class="cancel-main-counsel-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
+                        </div>
+                    </div>
+                `;
+
+                // 수정 버튼은 편집 중에는 숨기기
+                btn.style.display = 'none';
+
+                const saveBtn = bodyArea.querySelector('.save-main-counsel-btn');
+                const cancelBtn = bodyArea.querySelector('.cancel-main-counsel-btn');
+
+                cancelBtn.addEventListener('click', () => {
+                    loadStatus();
+                });
+
+                saveBtn.addEventListener('click', async () => {
+                    const newDate = bodyArea.querySelector('.counsel-edit-date').value;
+                    const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
+                    const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
+                    if (!newDate) return alert('날짜를 입력해주세요.');
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = '저장중...';
+                    try {
+                        const res = await fetch(`/api/counseling/${sessionId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_id: parseInt(memberId) })
+                        });
+                        if (res.ok) {
+                            loadStatus();
+                        } else {
+                            alert('수정에 실패했습니다.');
+                            saveBtn.disabled = false;
+                            saveBtn.textContent = '저장';
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('서버 오류로 인해 실패했습니다.');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = '저장';
+                    }
+                });
+            });
+        });
+    }digo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
                                 추가 상담 등록
                             </button>
                         </div>

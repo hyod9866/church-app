@@ -2182,7 +2182,8 @@ app.get('/api/counseling', async (req, res) => {
           counseling_count: sessions.length,
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
-          last_counseling_tags: last ? last.tags : null
+          last_counseling_tags: last ? last.tags : null,
+          last_counseling_session_id: last ? last.session_id : null
         };
       });
 
