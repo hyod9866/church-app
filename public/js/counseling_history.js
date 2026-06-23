@@ -434,16 +434,100 @@ document.addEventListener('DOMContentLoaded', () => {
                     counselingMemoList.innerHTML = cMemos.map(r => {
                         const memoText = r.remark || '';
                         return `
-                            <div class="bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-record-id="${r.id}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1 flex justify-between items-center">
-                                    <span>📅 ${r.date} 개인 상담</span>
+                                    <span>📅 <span class="counsel-date-text">${r.date}</span> 개인 상담</span>
+                                    <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-905 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                                        <i class="fa-regular fa-pen-to-square"></i> 수정
+                                    </button>
                                 </div>
-                                <div class="mb-2 bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <p class="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${memoText}</p>
+                                <div class="counsel-body-area mb-2 bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <p class="counsel-remark-text text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${memoText}</p>
                                 </div>
                             </div>
                         `;
                     }).join('');
+
+                    // 상담 기록 수정 버튼 이벤트 연결
+                    counselingMemoList.querySelectorAll('.counsel-card').forEach(card => {
+                        const recordId = card.dataset.recordId;
+                        const editBtn = card.querySelector('.edit-counsel-btn');
+                        const bodyArea = card.querySelector('.counsel-body-area');
+
+                        editBtn.addEventListener('click', () => {
+                            if (card.querySelector('.counsel-edit-textarea')) return; // 이미 수정 모드
+
+                            const dateTextSpan = card.querySelector('.counsel-date-text');
+                            const currentDate = dateTextSpan.textContent.trim();
+                            const remarkTextPara = card.querySelector('.counsel-remark-text');
+                            const currentRemark = remarkTextPara.textContent.trim();
+
+                            bodyArea.innerHTML = `
+                                <div class="flex flex-col gap-2 w-full">
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1">상담 날짜</label>
+                                        <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1">상담 내용</label>
+                                        <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="4">${currentRemark}</textarea>
+                                    </div>
+                                    <div class="flex justify-end gap-1.5 mt-1">
+                                        <button type="button" class="save-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
+                                        <button type="button" class="cancel-counsel-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
+                                    </div>
+                                </div>
+                            `;
+
+                            const saveBtn = bodyArea.querySelector('.save-counsel-btn');
+                            const cancelBtn = bodyArea.querySelector('.cancel-counsel-btn');
+                            const editDateInput = bodyArea.querySelector('.counsel-edit-date');
+                            const editTextarea = bodyArea.querySelector('.counsel-edit-textarea');
+
+                            cancelBtn.addEventListener('click', () => {
+                                openMemberHistoryModal(id);
+                            });
+
+                            saveBtn.addEventListener('click', async () => {
+                                const newDate = editDateInput.value;
+                                const newRemark = editTextarea.value.trim();
+
+                                if (!newDate) return alert('날짜를 입력해주세요.');
+                                if (!newRemark) return alert('상담 내용을 입력해주세요.');
+
+                                saveBtn.disabled = true;
+                                saveBtn.textContent = '저장중...';
+
+                                try {
+                                    const response = await fetch(`/api/members/records/${recordId}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            date: newDate,
+                                            status: 'COUNSELING',
+                                            remark: newRemark
+                                        })
+                                    });
+
+                                    if (response.ok) {
+                                        openMemberHistoryModal(id);
+                                        if (typeof loadStatus === 'function') {
+                                            loadStatus();
+                                        }
+                                    } else {
+                                        alert('상담 기록 수정에 실패했습니다.');
+                                        saveBtn.disabled = false;
+                                        saveBtn.textContent = '저장';
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    alert('서버 오류로 인해 실패했습니다.');
+                                    saveBtn.disabled = false;
+                                    saveBtn.textContent = '저장';
+                                }
+                            });
+                        });
+                    });
                 } else {
                     counselingMemoList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">상담 기록이 없습니다.</p>';
                 }
