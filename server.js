@@ -701,14 +701,7 @@ function isMandatoryMeeting(member, meeting) {
   if (mType.includes('교구전체모임')) return true;
   if (mType.includes('교구형제모임') && member.bs === 'B') return true;
   if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-  if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) {
-    // 교구청년모임은 교구정보가 있는 사람만 대상
-    if (mType.includes('교구청년')) {
-      const hasParish = member.parish && member.parish.trim() !== '' && member.parish !== '교구정보없음';
-      return !!hasParish;
-    }
-    return true;
-  }
+  if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 
   return false;
 }
@@ -733,7 +726,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
 
     const { data: members, error: memErr } = await supabase
       .from('members')
-      .select('id, name, category, bs, district, position, parish');
+      .select('id, name, category, bs, district, position');
     if (memErr) throw memErr;
 
     let allAttendance = [];
@@ -1495,8 +1488,8 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present')
-      .eq('is_present', 1);
+      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
+      .eq('is_present', true);
     if (attErr) throw attErr;
 
     const countMap = {};
@@ -2099,24 +2092,32 @@ app.post('/api/visitation/counseling', async (req, res) => {
 // 상담 본문 및 해시태그를 정교하게 파싱해주는 공통 자가치유 헬퍼 함수
 function parseCounselingContent(rawText) {
   let text = rawText || '';
-  
+
   // 1. 모든 [상담] 접두사 제거
   text = text.replace(/\[상담\]/g, '').trim();
-  
-  // 2. 전체 텍스트에서 해시태그(#\S+) 추출
+
+  // 2. [MS:...] 메타 (성도 구분) 추출
+  let member_status = 'member';
+  text = text.replace(/\[MS:([^\]]+)\]/g, (_, v) => { member_status = v.trim(); return ''; }).trim();
+
+  // 3. [METHOD:...] 메타 (상담 방식) 추출
+  let counseling_method = '대면';
+  text = text.replace(/\[METHOD:([^\]]+)\]/g, (_, v) => { counseling_method = v.trim(); return ''; }).trim();
+
+  // 4. 전체 텍스트에서 해시태그(#\S+) 추출
   const tagRegex = /#\S+/g;
   const tagsFound = text.match(tagRegex) || [];
-  
+
   // 중복 태그 제거
   const uniqueTags = Array.from(new Set(tagsFound));
-  
-  // 3. 본문에서 해시태그 제거 및 줄바꿈/공백 정리
-  let cleanContent = text.replace(tagRegex, '').trim();
-  
-  // 4. 추출한 태그들을 공백으로 연결
+
+  // 5. 본문에서 해시태그 제거 및 줄바꿈/공백 정리
+  let cleanContent = text.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+
+  // 6. 추출한 태그들을 공백으로 연결
   const tagsStr = uniqueTags.join(' ');
-  
-  return { tags: tagsStr, content: cleanContent };
+
+  return { tags: tagsStr, content: cleanContent, member_status, counseling_method };
 }
 
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
@@ -2167,13 +2168,15 @@ app.get('/api/counseling', async (req, res) => {
       const meet = meetingMap[a.meeting_id];
       if (!meet) return;
       if (!memberCounselingMap[a.member_id]) memberCounselingMap[a.member_id] = [];
-      
+
       const parsed = parseCounselingContent(a.testimony_snapshot);
-      
+
       memberCounselingMap[a.member_id].push({
         date: meet.date,
         content: parsed.content,
         tags: parsed.tags,
+        member_status: parsed.member_status,
+        counseling_method: parsed.counseling_method,
         source: 'meeting',
         session_id: `m_${a.meeting_id}`,
         meeting_id: a.meeting_id,
@@ -2184,13 +2187,15 @@ app.get('/api/counseling', async (req, res) => {
     // member_records 기반 (레거시 상담 등록)
     (cRecords || []).forEach(r => {
       if (!memberCounselingMap[r.member_id]) memberCounselingMap[r.member_id] = [];
-      
+
       const parsed = parseCounselingContent(r.remark);
-      
+
       memberCounselingMap[r.member_id].push({
         date: r.date,
         content: parsed.content,
         tags: parsed.tags,
+        member_status: parsed.member_status,
+        counseling_method: parsed.counseling_method,
         source: 'record',
         session_id: `r_${r.id}`,
         record_id: r.id
@@ -2218,7 +2223,9 @@ app.get('/api/counseling', async (req, res) => {
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
           last_counseling_tags: last ? last.tags : null,
-          last_counseling_session_id: last ? last.session_id : null
+          last_counseling_session_id: last ? last.session_id : null,
+          member_status: last ? (last.member_status || 'member') : 'member',
+          all_sessions: sessions
         };
       });
 
@@ -2303,7 +2310,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, church, parish, district, category, bs, member_status } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, church, parish, district, category, bs, member_status, counseling_method } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2351,9 +2358,13 @@ app.post('/api/counseling', async (req, res) => {
       .select('id').single();
     if (meetErr) throw meetErr;
 
-    // 3. attendance에 해당 성도 testimony_snapshot으로 저장 (태그 + 내용)
-    let fullContent = '';
-    if (tags && tags.trim()) fullContent = tags.trim() + '\n';
+    // 3. attendance에 해당 성도 testimony_snapshot으로 저장 (메타 + 태그 + 내용)
+    let prefix = '';
+    if (member_status && member_status !== 'member') prefix += `[MS:${member_status}]`;
+    if (counseling_method && counseling_method !== '대면') prefix += `[METHOD:${counseling_method}]`;
+    if (prefix) prefix += '\n';
+    let fullContent = prefix;
+    if (tags && tags.trim()) fullContent += tags.trim() + '\n';
     fullContent += content ? content.trim() : '';
 
     const { error: attErr } = await supabase

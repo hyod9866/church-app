@@ -72,18 +72,187 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList(filtered);
     }
 
-    function renderTagBadge(tagsStr) {
+    function renderTagBadge(tagsStr, memberStatus) {
         if (!tagsStr || !tagsStr.trim()) return '';
         const tags = tagsStr.trim().split(/\s+/).filter(t => t.startsWith('#'));
         if (!tags.length) return '';
+        const isEv = memberStatus === 'evangelism';
+        const cls = isEv
+            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200/60 dark:border-orange-700/40'
+            : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-700/40';
         return `<div class="flex flex-wrap gap-1 mt-1.5">${tags.map(t =>
-            `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40">${t}</span>`
+            `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${cls} border">${t}</span>`
         ).join('')}</div>`;
     }
 
+    // ── 인라인 수정 편집기를 카드에 주입 ──────────────────────
+    function attachInlineEditToCard(card, loadStatusFn) {
+        const editBtn = card.querySelector('.edit-counsel-session-btn');
+        if (!editBtn) return;
+        editBtn.addEventListener('click', (e) => {
+            if (card.querySelector('.counsel-edit-textarea')) return;
+            const sessionId = card.dataset.sessionId;
+            const memberId  = card.dataset.memberId;
+            const currentDate = card.dataset.date || '';
+            const currentTags = card.dataset.tags || '';
+            const bodyArea = card.querySelector('.counsel-session-body');
+            const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
+            const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
+
+            const presetTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+            if (bodyArea) bodyArea.innerHTML = `
+                <div class="flex flex-col gap-2 w-full mt-2">
+                    <div>
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
+                        <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                    </div>
+                    <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그</label>
+                        <div class="edit-tags-presets flex flex-wrap gap-1 mb-2">
+                            ${presetTags.map(t => `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">${t}</button>`).join('')}
+                        </div>
+                        <div class="flex gap-1 items-center mb-2">
+                            <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력...">
+                            <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
+                        </div>
+                        <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
+                        <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
+                        <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="3">${currentRemark}</textarea>
+                    </div>
+                    <div class="flex justify-end gap-1.5 mt-1">
+                        <button type="button" class="save-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
+                        <button type="button" class="cancel-counsel-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
+                    </div>
+                </div>
+            `;
+            editBtn.style.display = 'none';
+
+            let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.slice(1)));
+
+            function updateInlineTags() {
+                const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
+                bodyArea.querySelector('.counsel-edit-tags').value = tagsVal;
+                const preview = bodyArea.querySelector('.inline-tags-preview');
+                preview.innerHTML = Array.from(activeTags).map(t => `
+                    <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white" data-tag="${t}">
+                        #${t}<button type="button" class="inline-remove-tag-btn hover:text-indigo-200 font-bold ml-1 leading-none">&times;</button>
+                    </span>`).join('');
+                bodyArea.querySelectorAll('.inline-edit-tag-btn').forEach(b => {
+                    const t = b.dataset.tag;
+                    if (activeTags.has(t)) {
+                        b.classList.add('bg-indigo-600','text-white','border-indigo-600'); b.classList.remove('bg-white','dark:bg-slate-800','text-indigo-600','dark:text-indigo-400');
+                    } else {
+                        b.classList.remove('bg-indigo-600','text-white','border-indigo-600'); b.classList.add('bg-white','dark:bg-slate-800','text-indigo-600','dark:text-indigo-400');
+                    }
+                });
+            }
+            updateInlineTags();
+
+            bodyArea.querySelector('.edit-tags-presets').addEventListener('click', ev => {
+                const b = ev.target.closest('.inline-edit-tag-btn'); if (!b) return;
+                activeTags.has(b.dataset.tag) ? activeTags.delete(b.dataset.tag) : activeTags.add(b.dataset.tag);
+                updateInlineTags();
+            });
+            const addBtn = bodyArea.querySelector('.inline-add-tag-btn');
+            const custInput = bodyArea.querySelector('.inline-custom-tag-input');
+            const doAddTag = () => { let v = custInput.value.trim(); if (!v) return; if (v.startsWith('#')) v = v.slice(1); if (v) { activeTags.add(v); custInput.value = ''; updateInlineTags(); } };
+            addBtn.addEventListener('click', doAddTag);
+            custInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); doAddTag(); } });
+            bodyArea.querySelector('.inline-tags-preview').addEventListener('click', ev => {
+                const rb = ev.target.closest('.inline-remove-tag-btn'); if (!rb) return;
+                const t = rb.closest('[data-tag]').dataset.tag; activeTags.delete(t); updateInlineTags();
+            });
+
+            bodyArea.querySelector('.cancel-counsel-btn').addEventListener('click', () => loadStatusFn());
+            bodyArea.querySelector('.save-counsel-btn').addEventListener('click', async () => {
+                const newDate = bodyArea.querySelector('.counsel-edit-date').value;
+                const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
+                const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
+                if (!newDate) return alert('날짜를 입력해주세요.');
+                const saveBtn = bodyArea.querySelector('.save-counsel-btn');
+                saveBtn.disabled = true; saveBtn.textContent = '저장중...';
+                try {
+                    const res = await fetch(`/api/counseling/${sessionId}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_id: parseInt(memberId) })
+                    });
+                    if (res.ok) { loadStatusFn(); } else { alert('수정에 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+                } catch (err) { console.error(err); alert('서버 오류로 인해 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+            });
+        });
+
+        // 삭제 버튼
+        const delBtn = card.querySelector('.delete-counsel-session-btn');
+        if (delBtn) {
+            delBtn.addEventListener('click', async () => {
+                const sessionId = card.dataset.sessionId;
+                if (!sessionId) return;
+                if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
+                    try {
+                        const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                        if (res.ok) { loadStatusFn(); } else { alert('삭제에 실패했습니다.'); }
+                    } catch (err) { console.error(err); alert('서버 오류로 인해 삭제에 실패했습니다.'); }
+                }
+            });
+        }
+    }
+
+    // ── 세션 하나를 렌더하는 헬퍼 ───────────────────────────
+    function renderSessionCard(session, memberId, isLatest) {
+        const isEv = session.member_status === 'evangelism';
+        const methodBadge = session.counseling_method && session.counseling_method !== '대면'
+            ? `<span class="text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${session.counseling_method}</span>`
+            : '';
+        const memberBadge = isEv
+            ? `<span class="text-[9px] font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded border border-orange-200/60">전도대상</span>`
+            : '';
+        const tagsHtml = renderTagBadge(session.tags || '', session.member_status);
+        const latestLabel = isLatest ? `<span class="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded">최근</span>` : '';
+
+        return `
+            <div class="counsel-session-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative"
+                 data-session-id="${session.session_id || ''}"
+                 data-member-id="${memberId}"
+                 data-date="${session.date || ''}"
+                 data-tags="${session.tags || ''}">
+                <div class="flex items-center gap-1.5 mb-1 pr-20">
+                    ${latestLabel}
+                    <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
+                    ${methodBadge}
+                    ${memberBadge}
+                </div>
+                <div class="absolute right-2 top-2 flex gap-1.5">
+                    <button type="button" class="edit-counsel-session-btn text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer">
+                        <i class="fa-regular fa-pen-to-square"></i> 수정
+                    </button>
+                    <button type="button" class="delete-counsel-session-btn text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 transition-colors flex items-center gap-0.5 cursor-pointer">
+                        <i class="fa-regular fa-trash-can"></i> 삭제
+                    </button>
+                </div>
+                <div class="counsel-session-body">
+                    ${tagsHtml}
+                    ${session.content ? `<div class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${session.content}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // ── 세션 접기/펼치기 ─────────────────────────────────────
+    window.toggleSessions = function(btn, memberId) {
+        const card = btn.closest('.counseling-person-card');
+        const extraSessions = card.querySelector('.extra-sessions');
+        if (!extraSessions) return;
+        const isHidden = extraSessions.style.display === 'none' || extraSessions.style.display === '';
+        extraSessions.style.display = isHidden ? 'block' : 'none';
+        btn.textContent = isHidden ? '▲ 접기' : `▼ 이전 상담 ${extraSessions.dataset.count}건 더 보기`;
+    };
+
     function renderList(data) {
         if (counselingCount) counselingCount.textContent = `총 ${data.length}명 상담 대상자`;
-        
+
         if (!counselingList) return;
         if (data.length === 0) {
             counselingList.innerHTML = '<p class="text-gray-500 dark:text-slate-400 text-center py-20 font-medium">상담 이력이 존재하는 대상자가 없습니다.</p>';
@@ -94,70 +263,56 @@ document.addEventListener('DOMContentLoaded', () => {
         today.setHours(0, 0, 0, 0);
 
         counselingList.innerHTML = data.map(member => {
-            let statusHtml = '';
-            let detailHtml = '';
-            let daysDiff = null;
+            const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
+            const latestSession = sessions[0] || null;
+            const extraSessions = sessions.slice(1);
 
-            if (member.last_counseling_date) {
-                const lastDate = new Date(member.last_counseling_date);
+            let daysDiffHtml = '';
+            if (latestSession && latestSession.date) {
+                const lastDate = new Date(latestSession.date);
                 lastDate.setHours(0, 0, 0, 0);
-                daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-                
-                statusHtml = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-indigo-600 dark:text-indigo-400 font-bold text-sm">${member.last_counseling_date}</span>
-                        <span class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>
-                    </div>
-                `;
-
-                const tagsHtml = renderTagBadge(member.last_counseling_tags || '');
-                if (member.last_counseling_content || tagsHtml) {
-                    detailHtml = `
-                        <div class="main-counsel-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative" data-session-id="${member.last_counseling_session_id || ''}" data-member-id="${member.id}" data-date="${member.last_counseling_date}" data-tags="${member.last_counseling_tags || ''}">
-                            <div class="absolute right-2 top-2 flex gap-2">
-                                <button type="button" class="edit-main-counsel-btn text-[10px] font-bold text-indigo-650 dark:text-indigo-400 hover:text-indigo-850 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer">
-                                    <i class="fa-regular fa-pen-to-square"></i> 수정
-                                </button>
-                                <button type="button" class="delete-main-counsel-btn text-[10px] font-bold text-rose-600 dark:text-rose-450 hover:text-rose-800 dark:hover:text-rose-300 transition-colors flex items-center gap-0.5 cursor-pointer">
-                                    <i class="fa-regular fa-trash-can"></i> 삭제
-                                </button>
-                            </div>
-                            <div class="main-counsel-body">
-                                ${tagsHtml}
-                                ${member.last_counseling_content ? `<div class="text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${member.last_counseling_content}</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }
-            } else {
-                statusHtml = `<span class="text-red-400 font-bold text-sm italic">상담 기록 없음</span>`;
+                const daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+                daysDiffHtml = `<span class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>`;
             }
+
+            const latestSessionHtml = latestSession ? renderSessionCard(latestSession, member.id, true) : '';
+
+            const extraHtml = extraSessions.length > 0
+                ? `<div class="extra-sessions" style="display:none" data-count="${extraSessions.length}">
+                       ${extraSessions.map(s => renderSessionCard(s, member.id, false)).join('')}
+                   </div>
+                   <button type="button" onclick="toggleSessions(this, ${member.id})"
+                       class="mt-2 w-full text-center text-[10px] font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 py-1 border border-dashed border-indigo-200 dark:border-indigo-800/50 rounded-lg transition-colors cursor-pointer">
+                       ▼ 이전 상담 ${extraSessions.length}건 더 보기
+                   </button>`
+                : '';
 
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
             const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
 
             return `
-                <div class="bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+                <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
                             <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
+                            ${daysDiffHtml}
                         </div>
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
-                        ${statusHtml}
-                        ${detailHtml}
+                        ${latestSessionHtml}
+                        ${extraHtml}
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
                         <div class="text-xs font-bold text-gray-400">누적 상담 <span class="text-indigo-600 dark:text-indigo-400 font-black">${member.counseling_count}</span>회</div>
                         <div class="flex flex-col gap-1">
-                            <button onclick="openNewCounselingWithMember('${member.name}', ${member.id}, '${member.category || ''}', '${member.bs || ''}')" 
+                            <button onclick="openNewCounselingWithMember('${member.name}', ${member.id}, '${member.category || ''}', '${member.bs || ''}')"
                                     class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
-                                  추가 상담 등록
+                                추가 상담 등록
                             </button>
-                            <button onclick="deleteMemberAllCounseling('${member.name}', ${member.id})" 
+                            <button onclick="deleteMemberAllCounseling('${member.name}', ${member.id})"
                                     class="border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-rose-600 hover:text-white dark:hover:bg-rose-500 dark:hover:text-white transition-colors whitespace-nowrap">
-                                  상담 이력 전체 삭제
+                                상담 이력 전체 삭제
                             </button>
                         </div>
                     </div>
@@ -165,188 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
-        // 메인 리스트에서 직접 상담 수정
-        counselingList.querySelectorAll('.edit-main-counsel-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const card = e.target.closest('.main-counsel-card');
-                if (!card || card.querySelector('.counsel-edit-textarea')) return;
-
-                const sessionId = card.dataset.sessionId;
-                const memberId = card.dataset.memberId;
-                const currentDate = card.dataset.date || '';
-                const currentTags = card.dataset.tags || '';
-                const bodyArea = card.querySelector('.main-counsel-body');
-                const remarkTextPara = bodyArea.querySelector('.text-gray-500');
-                const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
-
-                bodyArea.innerHTML = `
-                    <div class="flex flex-col gap-2 w-full mt-2">
-                        <div>
-                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
-                            <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
-                        </div>
-                        <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
-                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
-                            <div class="edit-tags-presets flex flex-wrap gap-1 mb-2">
-                                ${['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'].map(t => {
-                                    return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 dark:border-indigo-850/60 transition-all">${t}</button>`;
-                                }).join('')}
-                            </div>
-                            <div class="flex gap-1 items-center mb-2">
-                                <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력 추가...">
-                                <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
-                            </div>
-                            <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
-                            <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
-                            <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="3">${currentRemark}</textarea>
-                        </div>
-                        <div class="flex justify-end gap-1.5 mt-1">
-                            <button type="button" class="save-main-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
-                            <button type="button" class="cancel-main-counsel-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
-                        </div>
-                    </div>
-                `;
-
-                // 태그 상태 관리
-                let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.substring(1)));
-
-                function updateInlineTags() {
-                    const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
-                    bodyArea.querySelector('.counsel-edit-tags').value = tagsVal;
-
-                    const preview = bodyArea.querySelector('.inline-tags-preview');
-                    preview.innerHTML = Array.from(activeTags).map(t => `
-                        <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white animate-fade-in" data-tag="${t}">
-                            #${t}
-                            <button type="button" class="inline-remove-tag-btn hover:text-indigo-200 transition-colors font-bold ml-1 leading-none">&times;</button>
-                        </span>
-                    `).join('');
-
-                    bodyArea.querySelectorAll('.inline-edit-tag-btn').forEach(btn => {
-                        const t = btn.dataset.tag;
-                        if (activeTags.has(t)) {
-                            btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
-                            btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
-                        } else {
-                            btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
-                            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
-                        }
-                    });
-                }
-
-                // 초기 태그 렌더링
-                updateInlineTags();
-
-                // 프리셋 클릭
-                bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
-                    const btn = ev.target.closest('.inline-edit-tag-btn');
-                    if (!btn) return;
-                    const tag = btn.dataset.tag;
-                    if (activeTags.has(tag)) {
-                        activeTags.delete(tag);
-                    } else {
-                        activeTags.add(tag);
-                    }
-                    updateInlineTags();
-                });
-
-                // 직접 입력 추가
-                const addTagBtn = bodyArea.querySelector('.inline-add-tag-btn');
-                const customInput = bodyArea.querySelector('.inline-custom-tag-input');
-                const performAddCustomTag = () => {
-                    let val = customInput.value.trim();
-                    if (!val) return;
-                    if (val.startsWith('#')) val = val.substring(1);
-                    if (val) {
-                        activeTags.add(val);
-                        customInput.value = '';
-                        updateInlineTags();
-                    }
-                };
-
-                addTagBtn.addEventListener('click', performAddCustomTag);
-                customInput.addEventListener('keydown', (ev) => {
-                    if (ev.key === 'Enter') {
-                        ev.preventDefault();
-                        performAddCustomTag();
-                    }
-                });
-
-                // 프리뷰 개별 삭제
-                bodyArea.querySelector('.inline-tags-preview').addEventListener('click', (ev) => {
-                    const removeBtn = ev.target.closest('.inline-remove-tag-btn');
-                    if (!removeBtn) return;
-                    const span = removeBtn.closest('[data-tag]');
-                    const tag = span.dataset.tag;
-                    activeTags.delete(tag);
-                    updateInlineTags();
-                });
-
-                // 수정 버튼은 편집 중에는 숨기기
-                btn.style.display = 'none';
-
-                const saveBtn = bodyArea.querySelector('.save-main-counsel-btn');
-                const cancelBtn = bodyArea.querySelector('.cancel-main-counsel-btn');
-
-                cancelBtn.addEventListener('click', () => {
-                    loadStatus();
-                });
-
-                saveBtn.addEventListener('click', async () => {
-                    const newDate = bodyArea.querySelector('.counsel-edit-date').value;
-                    const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
-                    const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
-                    if (!newDate) return alert('날짜를 입력해주세요.');
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = '저장중...';
-                    try {
-                        const res = await fetch(`/api/counseling/${sessionId}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_id: parseInt(memberId) })
-                        });
-                        if (res.ok) {
-                            loadStatus();
-                        } else {
-                            alert('수정에 실패했습니다.');
-                            saveBtn.disabled = false;
-                            saveBtn.textContent = '저장';
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        alert('서버 오류로 인해 실패했습니다.');
-                        saveBtn.disabled = false;
-                        saveBtn.textContent = '저장';
-                    }
-                });
-            });
-
-            // 메인 리스트에서 직접 상담 삭제
-            counselingList.querySelectorAll('.delete-main-counsel-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const card = e.target.closest('.main-counsel-card');
-                    if (!card) return;
-                    const sessionId = card.dataset.sessionId;
-                    if (!sessionId) return;
-                    
-                    if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
-                        try {
-                            const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
-                            if (res.ok) {
-                                loadStatus();
-                            } else {
-                                alert('삭제에 실패했습니다.');
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            alert('서버 오류로 인해 삭제에 실패했습니다.');
-                        }
-                    }
-                });
-            });
+        // 인라인 수정/삭제 이벤트 연결
+        counselingList.querySelectorAll('.counsel-session-card').forEach(card => {
+            attachInlineEditToCard(card, loadStatus);
         });
     }
 
