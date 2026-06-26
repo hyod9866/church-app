@@ -178,7 +178,18 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             try {
                 const res = await fetch('/api/meetings');
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    console.error('[Calendar] /api/meetings 오류:', res.status, errData);
+                    failureCallback(new Error(errData.error || 'HTTP ' + res.status));
+                    return;
+                }
                 const rawMeetings = await res.json();
+                if (!Array.isArray(rawMeetings)) {
+                    console.error('[Calendar] 응답이 배열 아님:', rawMeetings);
+                    failureCallback(new Error('모임 데이터 형식 오류'));
+                    return;
+                }
                 const meetings = rawMeetings.map(parseRecurringMetadata);
                 successCallback(meetings.map(m => {
                     const t = m.type || '';

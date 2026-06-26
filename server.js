@@ -1495,7 +1495,7 @@ app.get('/api/meetings', async (req, res) => {
 
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
-      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
+      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present')
       .eq('is_present', true);
     if (attErr) throw attErr;
 
