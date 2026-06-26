@@ -551,6 +551,16 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   Calendar event subtitle contrast fix (light & dark mode)
+   text-gray-700 (#374151) on dark event backgrounds = nearly invisible.
+   Inherit the event's auto-computed text color (white on dark, dark on light).
+   ═══════════════════════════════════════════════════════════════════ */
+.fc-event .text-gray-700 {
+    color: inherit !important;
+    opacity: 0.88;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    Light-mode contrast improvements
    ─ Lifts slate/gray-400 text (2.85:1 on white) to WCAG AA minimum ─
    html:not(.dark) scope → dark-mode overrides above are unaffected.
@@ -565,7 +575,7 @@ html:not(.dark) label.text-gray-400 {
 /* ── Paragraph helper text, empty-state messages ── */
 html:not(.dark) p.text-slate-400,
 html:not(.dark) p.text-gray-400 {
-    color: #64748b !important; /* slate-500 — 4.48:1; bold/italic passes large-text 3:1 */
+    color: #64748b !important; /* slate-500 — 4.48:1 */
 }
 
 /* ── Table cell placeholder / loading text ── */
