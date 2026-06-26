@@ -266,20 +266,6 @@
         .dark #topTagsContainer::-webkit-scrollbar-thumb {
             background: #334155;
         }
-        /* ── 필터 칩 공통 스타일 ── */
-        .chip-active {
-            background-color: #4f46e5 !important;
-            color: white !important;
-            border-color: #4f46e5 !important;
-        }
-        .dark .chip-active {
-            background-color: #4f46e5 !important;
-            color: white !important;
-            border-color: #4338ca !important;
-        }
-        .status-chip, .period-chip {
-            transition: all 0.15s ease;
-        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -450,33 +436,6 @@
                     <i class="fa-solid fa-plus text-xs"></i>
                     새 상담 등록
                 </button>
-            </div>
-        </div>
-
-        <!-- ── 빠른 필터 칩 바 ── -->
-        <div class="bg-white dark:bg-[#131B2E] px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm mb-4 flex flex-wrap gap-x-3 gap-y-2 items-center">
-            <!-- 신분 구분 -->
-            <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">신분</span>
-                <button type="button" class="status-chip chip-active px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="all">전체</button>
-                <button type="button" class="status-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="member">성도</button>
-                <button type="button" class="status-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="target">전도대상</button>
-            </div>
-            <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 self-center hidden sm:block"></div>
-            <!-- 기간 구분 -->
-            <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">기간</span>
-                <button type="button" class="period-chip chip-active px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="all">전체</button>
-                <button type="button" class="period-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="month">이번 달</button>
-                <button type="button" class="period-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="3months">3개월</button>
-            </div>
-            <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 self-center hidden sm:block"></div>
-            <!-- 동적 태그 칩 -->
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">주제</span>
-                <div id="tagFilterChips" class="flex flex-wrap gap-1.5">
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500 italic">로딩 중...</span>
-                </div>
             </div>
         </div>
 
@@ -703,7 +662,13 @@
                     <!-- 이름 입력 및 자동완성 -->
                     <div class="relative">
                         <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 대상자 이름 *</label>
-                        <input type="text" id="counselingName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" placeholder="이름을 입력하세요..." required autocomplete="off">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="counselingName" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" placeholder="이름을 입력하세요..." required autocomplete="off">
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
+                                <input type="checkbox" id="anonymousCheck" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">익명</span>
+                            </label>
+                        </div>
                         <div id="counselingNameSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
                     </div>
 
@@ -786,24 +751,39 @@
                         <input type="date" id="counselingDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" required>
                     </div>
 
+                    <!-- ★ 상담 방식 -->
+                    <div>
+                        <span class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 방식</span>
+                        <div id="counselingMethodBtnGroup" class="flex gap-2">
+                            <button type="button" data-val="대면" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-indigo-300 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 transition-all active-method">
+                                <i class="fa-solid fa-person text-[10px] mr-1"></i>대면상담
+                            </button>
+                            <button type="button" data-val="전화" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-sky-400 hover:text-sky-600 dark:hover:border-sky-400 dark:hover:text-sky-300 transition-all">
+                                <i class="fa-solid fa-phone text-[10px] mr-1"></i>전화상담
+                            </button>
+                        </div>
+                        <input type="hidden" id="counselingMethod" value="대면">
+                    </div>
+
                     <!-- ★ 상담 주제 해시태그 -->
                     <div class="bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/30">
-                        <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <i class="fa-solid fa-hashtag text-[9px]"></i> 상담 주제 태그 (복수 선택 가능)
-                        </label>
-                        <div id="counselingTagsBtnGroup" class="flex flex-wrap gap-1.5 mb-2.5">
-                            <button type="button" data-tag="전도상담" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#전도상담</button>
-                            <button type="button" data-tag="구원확신/의심" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#구원확신/의심</button>
-                            <button type="button" data-tag="진로" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#진로</button>
-                            <button type="button" data-tag="이성" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#이성</button>
-                            <button type="button" data-tag="죄" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#죄</button>
-                            <button type="button" data-tag="자녀" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#자녀</button>
-                            <button type="button" data-tag="부부관계" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#부부관계</button>
-                            <button type="button" data-tag="가족" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#가족</button>
-                            <button type="button" data-tag="성경질문" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#성경질문</button>
-                            <button type="button" data-tag="이단" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#이단</button>
-                            <button type="button" data-tag="직장생활" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#직장생활</button>
-                            <button type="button" data-tag="결혼" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#결혼</button>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-hashtag text-[9px]"></i> 상담 주제 태그 (복수 선택 가능)
+                            </label>
+                            <button type="button" id="openTagMgrBtn" class="text-[10px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-1">
+                                <i class="fa-solid fa-gear text-[9px]"></i> 태그 관리
+                            </button>
+                        </div>
+                        <!-- 성도용 태그 -->
+                        <div id="memberTagsSection">
+                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1.5">📌 성도 주제</p>
+                            <div id="counselingTagsBtnGroup" class="flex flex-wrap gap-1.5 mb-2"></div>
+                        </div>
+                        <!-- 전도대상용 태그 -->
+                        <div id="evangelismTagsSection" class="hidden">
+                            <p class="text-[10px] font-bold text-orange-400 dark:text-orange-500 mb-1.5">📌 전도 주제</p>
+                            <div id="evangelismTagsBtnGroup" class="flex flex-wrap gap-1.5 mb-2"></div>
                         </div>
                         <!-- 직접 입력 태그 -->
                         <div class="flex gap-2 items-center">
@@ -839,8 +819,52 @@
         </div>
     </div>
 
+    <!-- Tag Management Modal -->
+    <div id="tagMgrModal" class="fixed inset-0 z-[350] flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="tagMgrBackdrop"></div>
+        <div class="bg-white dark:bg-[#131B2E] w-[92%] max-w-md rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white p-4 flex justify-between items-center shrink-0">
+                <h3 class="text-sm font-black flex items-center gap-2">
+                    <i class="fa-solid fa-tags"></i> 태그 관리
+                </h3>
+                <button id="closeTagMgrBtn" class="text-indigo-200 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-5">
+                <!-- 성도 태그 관리 -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-hashtag text-[9px]"></i> 성도 태그</p>
+                        <button type="button" id="resetMemberTagsBtn" class="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors">초기화</button>
+                    </div>
+                    <div id="tagMgrMemberList" class="flex flex-wrap gap-1.5 mb-2 min-h-[32px]"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="newMemberTagInput" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="새 성도 태그 입력...">
+                        <button type="button" id="addMemberTagBtn" class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all whitespace-nowrap">+ 추가</button>
+                    </div>
+                </div>
+                <!-- 전도대상 태그 관리 -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-black text-orange-500 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-hashtag text-[9px]"></i> 전도 태그</p>
+                        <button type="button" id="resetEvangelismTagsBtn" class="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors">초기화</button>
+                    </div>
+                    <div id="tagMgrEvangelismList" class="flex flex-wrap gap-1.5 mb-2 min-h-[32px]"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="newEvangelismTagInput" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="새 전도 태그 입력...">
+                        <button type="button" id="addEvangelismTagBtn" class="px-3 py-2 rounded-xl text-xs font-bold bg-orange-500 text-white hover:bg-orange-600 transition-all whitespace-nowrap">+ 추가</button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-[#131B2E]/60 shrink-0">
+                <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center">변경사항은 자동으로 저장됩니다</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/counseling_history.js?v=counseling-edit-tags-v6"></script>
+    <script src="/js/counseling_history.js?v=counseling-feat-v7"></script>
 </body>
 </html>

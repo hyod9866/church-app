@@ -20,11 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let allStatus = [];
     let currentMemberData = null;
 
-    // ── 필터 상태 ──────────────────────────────
-    let activeStatusFilter = 'all';  // 'all' | 'member' | 'target'
-    let activePeriodFilter = 'all';  // 'all' | 'month' | '3months'
-    let activeTagFilter = null;      // null | tagString(# 제외)
-
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
     // ──────────────────────────────────────────────────
@@ -54,25 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const categoryMatch = (s.category || '').toLowerCase().includes(query);
                 const districtTextMatch = (s.district || '').toLowerCase().includes(query);
                 if (!nameMatch && !dateMatch && !contentMatch && !tagsMatch && !positionMatch && !categoryMatch && !districtTextMatch) return false;
-            }
-            // 신분 필터 (성도 vs 전도대상)
-            if (activeStatusFilter === 'member') {
-                if (!s.salvation_date || !s.salvation_date.trim()) return false;
-            } else if (activeStatusFilter === 'target') {
-                if (s.salvation_date && s.salvation_date.trim()) return false;
-            }
-            // 기간 필터
-            if (activePeriodFilter !== 'all') {
-                if (!s.last_counseling_date) return false;
-                const lastDate = new Date(s.last_counseling_date);
-                const now = new Date();
-                const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-                if (activePeriodFilter === 'month' && diffDays > 31) return false;
-                if (activePeriodFilter === '3months' && diffDays > 92) return false;
-            }
-            // 태그 필터
-            if (activeTagFilter) {
-                if (!(s.last_counseling_tags || '').includes('#' + activeTagFilter)) return false;
             }
             return true;
         });
@@ -105,16 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('')}</div>`;
     }
 
-    // 카드 헤더용 소형 태그 뱃지
-    function renderInlineTags(tagsStr) {
-        if (!tagsStr || !tagsStr.trim()) return '';
-        const tags = tagsStr.trim().split(/\s+/).filter(t => t.startsWith('#'));
-        if (!tags.length) return '';
-        return `<div class="flex flex-wrap gap-1 mb-1">${tags.map(t =>
-            `<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40">${t}</span>`
-        ).join('')}</div>`;
-    }
-
     function renderList(data) {
         if (counselingCount) counselingCount.textContent = `총 ${data.length}명 상담 대상자`;
         
@@ -130,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
         counselingList.innerHTML = data.map(member => {
             let statusHtml = '';
             let detailHtml = '';
-            let tagsHtml = '';
             let daysDiff = null;
 
             if (member.last_counseling_date) {
@@ -145,9 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                tagsHtml = renderInlineTags(member.last_counseling_tags || '');
-                if (member.last_counseling_content) {
-                    const contentId = `counsel-content-${member.id}`;
+                const tagsHtml = renderTagBadge(member.last_counseling_tags || '');
+                if (member.last_counseling_content || tagsHtml) {
                     detailHtml = `
                         <div class="main-counsel-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative" data-session-id="${member.last_counseling_session_id || ''}" data-member-id="${member.id}" data-date="${member.last_counseling_date}" data-tags="${member.last_counseling_tags || ''}">
                             <div class="absolute right-2 top-2 flex gap-2">
@@ -159,8 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </button>
                             </div>
                             <div class="main-counsel-body">
-                                <div id="${contentId}" class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${member.last_counseling_content}</div>
-                                <button type="button" class="toggle-content-btn text-[9px] font-bold text-indigo-500 dark:text-indigo-400 hover:underline mt-0.5 cursor-pointer" data-target="${contentId}" data-expanded="false">더보기 ▾</button>
+                                ${tagsHtml}
+                                ${member.last_counseling_content ? `<div class="text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${member.last_counseling_content}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -175,13 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <div class="flex items-center gap-2 mb-1">
                             <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
                         </div>
-                        ${tagsHtml}
-                        ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-1 font-medium italic">가족: ${member.family_relation}</div>` : ''}
+                        ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
                         ${statusHtml}
                         ${detailHtml}
                     </div>
@@ -385,25 +348,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         });
-
-        // 더보기/접기 토글 이벤트
-        counselingList.querySelectorAll('.toggle-content-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.dataset.target;
-                const contentEl = document.getElementById(targetId);
-                if (!contentEl) return;
-                const isExpanded = btn.dataset.expanded === 'true';
-                if (isExpanded) {
-                    contentEl.style.cssText = 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
-                    btn.textContent = '더보기 ▾';
-                    btn.dataset.expanded = 'false';
-                } else {
-                    contentEl.style.cssText = 'display:block;overflow:visible;';
-                    btn.textContent = '접기 ▴';
-                    btn.dataset.expanded = 'true';
-                }
-            });
-        });
     }
 
     window.deleteMemberAllCounseling = async function(name, memberId) {
@@ -592,14 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mType.includes('교구전체모임')) return true;
                 if (mType.includes('교구형제모임') && member.bs === 'B') return true;
                 if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) {
-                    // 교구청년모임은 교구정보가 있는 사람만 대상
-                    if (mType.includes('교구청년')) {
-                        const hasParish = member.parish && member.parish.trim() !== '' && member.parish !== '교구정보없음';
-                        return !!hasParish;
-                    }
-                    return true;
-                }
+                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
                 return false;
             }
             const filteredHistory = rawFilteredHistory.filter(h => isMandatoryMeeting(member, h) || h.is_present);
@@ -975,24 +912,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); alert('에러가 발생했습니다.'); }
     };
 
-    // ── 신분/기간 필터 칩 이벤트 ─────────────────
-    document.querySelectorAll('.status-chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            activeStatusFilter = btn.dataset.status;
-            document.querySelectorAll('.status-chip').forEach(b => b.classList.remove('chip-active'));
-            btn.classList.add('chip-active');
-            applyFilters();
-        });
-    });
-    document.querySelectorAll('.period-chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            activePeriodFilter = btn.dataset.period;
-            document.querySelectorAll('.period-chip').forEach(b => b.classList.remove('chip-active'));
-            btn.classList.add('chip-active');
-            applyFilters();
-        });
-    });
-
     loadStatus();
 
     // ──────────────────────────────────────────────────
@@ -1016,6 +935,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const counselingDistrict = document.getElementById('counselingDistrict');
 
     let allChurches = [];
+
+    // ── 기본 태그 정의 ──
+    const DEFAULT_MEMBER_TAGS = ['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'];
+    const DEFAULT_EVANGELISM_TAGS = ['인생', '성경', '창조', '1일차 전체', '에덴동산', '노아홍수', '바벨탑', '2일차 전체', '이스라엘 환란', '회복', '3일차 전체', '마지막 시대', '7년환란', '휴거', '4일차 전체', '죄', '심판', '지옥', '5일차 전체', '복음', '영원한 속죄', '대속법', '6일차 전체'];
+
+    const LS_KEY_MEMBER = 'counseling_tags_member';
+    const LS_KEY_EVANGELISM = 'counseling_tags_evangelism';
+
+    function loadTagList(lsKey, defaults) {
+        try {
+            const stored = localStorage.getItem(lsKey);
+            if (stored) return JSON.parse(stored);
+        } catch(e) {}
+        return [...defaults];
+    }
+
+    function saveTagList(lsKey, arr) {
+        try { localStorage.setItem(lsKey, JSON.stringify(arr)); } catch(e) {}
+    }
+
+    let memberTagList = loadTagList(LS_KEY_MEMBER, DEFAULT_MEMBER_TAGS);
+    let evangelismTagList = loadTagList(LS_KEY_EVANGELISM, DEFAULT_EVANGELISM_TAGS);
+
+    // ── 태그 버튼 렌더링 ──
+    let currentMemberStatusForTags = 'member';
+
+    function renderTagButtons(memberStatus) {
+        currentMemberStatusForTags = memberStatus || 'member';
+        const isMember = currentMemberStatusForTags !== 'evangelism';
+        const memberSection = document.getElementById('memberTagsSection');
+        const evangelismSection = document.getElementById('evangelismTagsSection');
+        const memberGroup = document.getElementById('counselingTagsBtnGroup');
+        const evangelismGroup = document.getElementById('evangelismTagsBtnGroup');
+
+        if (isMember) {
+            if (memberSection) memberSection.classList.remove('hidden');
+            if (evangelismSection) evangelismSection.classList.add('hidden');
+            if (memberGroup) {
+                memberGroup.innerHTML = memberTagList.map(tag => {
+                    const isSelected = selectedTags.has(tag);
+                    const activeClass = isSelected ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-600' : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400';
+                    return `<button type="button" data-tag="${tag}" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 ${activeClass} hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all">#${tag}</button>`;
+                }).join('');
+            }
+        } else {
+            if (memberSection) memberSection.classList.add('hidden');
+            if (evangelismSection) evangelismSection.classList.remove('hidden');
+            if (evangelismGroup) {
+                evangelismGroup.innerHTML = evangelismTagList.map(tag => {
+                    const isSelected = selectedTags.has(tag);
+                    const activeClass = isSelected ? 'bg-orange-500 text-white border-orange-500 dark:bg-orange-500' : 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400';
+                    return `<button type="button" data-tag="${tag}" class="counsel-tag-btn-ev px-2.5 py-1 rounded-lg text-[11px] font-bold border border-orange-200 dark:border-orange-800/60 ${activeClass} hover:bg-orange-500 hover:text-white hover:border-orange-500 dark:hover:bg-orange-500 dark:hover:text-white transition-all">#${tag}</button>`;
+                }).join('');
+            }
+        }
+    }
 
     // ── 태그 상태 관리 ──
     let selectedTags = new Set();
@@ -1044,17 +1019,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.removeTag = function(tag) {
         selectedTags.delete(tag);
-        // 해당 프리셋 버튼 토글 해제
+        // 해당 프리셋 버튼 토글 해제 (성도 & 전도 모두)
         document.querySelectorAll('.counsel-tag-btn').forEach(btn => {
             if (btn.dataset.tag === tag) {
                 btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600');
                 btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
             }
         });
+        document.querySelectorAll('.counsel-tag-btn-ev').forEach(btn => {
+            if (btn.dataset.tag === tag) {
+                btn.classList.remove('bg-orange-500', 'text-white', 'border-orange-500', 'dark:bg-orange-500');
+                btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-orange-600', 'dark:text-orange-400');
+            }
+        });
         updateTagsPreview();
     };
 
-    // 프리셋 태그 버튼 클릭
+    // 성도 태그 버튼 클릭 (이벤트 위임)
     document.getElementById('counselingTagsBtnGroup')?.addEventListener('click', e => {
         const btn = e.target.closest('.counsel-tag-btn');
         if (!btn) return;
@@ -1067,6 +1048,23 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTags.add(tag);
             btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600');
             btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+        }
+        updateTagsPreview();
+    });
+
+    // 전도대상 태그 버튼 클릭 (이벤트 위임)
+    document.getElementById('evangelismTagsBtnGroup')?.addEventListener('click', e => {
+        const btn = e.target.closest('.counsel-tag-btn-ev');
+        if (!btn) return;
+        const tag = btn.dataset.tag;
+        if (selectedTags.has(tag)) {
+            selectedTags.delete(tag);
+            btn.classList.remove('bg-orange-500', 'text-white', 'border-orange-500', 'dark:bg-orange-500');
+            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-orange-600', 'dark:text-orange-400');
+        } else {
+            selectedTags.add(tag);
+            btn.classList.add('bg-orange-500', 'text-white', 'border-orange-500', 'dark:bg-orange-500');
+            btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-orange-600', 'dark:text-orange-400');
         }
         updateTagsPreview();
     });
@@ -1133,6 +1131,54 @@ document.addEventListener('DOMContentLoaded', () => {
     initGroupBtns('bsBtnGroup', 'counselingBs', 'blue');
     initGroupBtns('memberStatusBtnGroup', 'counselingMemberStatus', 'emerald');
 
+    // 성도/전도대상 변경 시 태그 목록 재렌더링
+    document.getElementById('memberStatusBtnGroup')?.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-val]');
+        if (!btn) return;
+        selectedTags.clear();
+        updateTagsPreview();
+        setTimeout(() => renderTagButtons(btn.dataset.val), 0);
+    });
+
+    // ── 상담 방식 버튼 그룹 ──
+    const counselingMethodBtnGroup = document.getElementById('counselingMethodBtnGroup');
+    const counselingMethodInput = document.getElementById('counselingMethod');
+    if (counselingMethodBtnGroup) {
+        counselingMethodBtnGroup.addEventListener('click', e => {
+            const btn = e.target.closest('.counsel-method-btn');
+            if (!btn) return;
+            counselingMethodBtnGroup.querySelectorAll('.counsel-method-btn').forEach(b => {
+                b.classList.remove('border-indigo-300', 'dark:border-indigo-800/60', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'text-indigo-700', 'dark:text-indigo-400',
+                                   'border-sky-300', 'dark:border-sky-800/60', 'bg-sky-50', 'dark:bg-sky-950/30', 'text-sky-700', 'dark:text-sky-400');
+                b.classList.add('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+            });
+            btn.classList.remove('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+            if (btn.dataset.val === '대면') {
+                btn.classList.add('border-indigo-300', 'dark:border-indigo-800/60', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'text-indigo-700', 'dark:text-indigo-400');
+            } else {
+                btn.classList.add('border-sky-300', 'dark:border-sky-800/60', 'bg-sky-50', 'dark:bg-sky-950/30', 'text-sky-700', 'dark:text-sky-400');
+            }
+            if (counselingMethodInput) counselingMethodInput.value = btn.dataset.val;
+        });
+    }
+
+    // ── 익명 체크박스 ──
+    const anonymousCheck = document.getElementById('anonymousCheck');
+    if (anonymousCheck && counselingName) {
+        anonymousCheck.addEventListener('change', () => {
+            if (anonymousCheck.checked) {
+                counselingName.value = '익명';
+                counselingName.disabled = true;
+                counselingName.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                counselingName.value = '';
+                counselingName.disabled = false;
+                counselingName.classList.remove('opacity-50', 'cursor-not-allowed');
+                counselingName.focus();
+            }
+        });
+    }
+
     function setGroupBtn(groupId, hiddenId, val) {
         const group = document.getElementById(groupId);
         if (!group) return;
@@ -1152,13 +1198,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('counselingDate').value = new Date().toISOString().split('T')[0];
         if (counselingParish) { counselingParish.innerHTML = '<option value="">교구 선택</option>'; counselingParish.disabled = true; }
         if (counselingDistrict) { counselingDistrict.innerHTML = '<option value="">구역 선택</option>'; counselingDistrict.disabled = true; }
+        // 익명 체크박스 초기화
+        const anonCheck = document.getElementById('anonymousCheck');
+        if (anonCheck) anonCheck.checked = false;
+        if (counselingName) { counselingName.disabled = false; counselingName.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        // 상담 방식 초기화
+        const methodInput = document.getElementById('counselingMethod');
+        if (methodInput) methodInput.value = '대면';
+        if (counselingMethodBtnGroup) {
+            counselingMethodBtnGroup.querySelectorAll('.counsel-method-btn').forEach(b => {
+                b.classList.remove('border-indigo-300', 'dark:border-indigo-800/60', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'text-indigo-700', 'dark:text-indigo-400',
+                                   'border-sky-300', 'dark:border-sky-800/60', 'bg-sky-50', 'dark:bg-sky-950/30', 'text-sky-700', 'dark:text-sky-400');
+                b.classList.add('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+            });
+            const defaultMethod = counselingMethodBtnGroup.querySelector('.counsel-method-btn[data-val="대면"]');
+            if (defaultMethod) {
+                defaultMethod.classList.remove('border-slate-200', 'dark:border-slate-600', 'bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+                defaultMethod.classList.add('border-indigo-300', 'dark:border-indigo-800/60', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'text-indigo-700', 'dark:text-indigo-400');
+            }
+        }
         // 태그 초기화
         selectedTags = new Set();
         updateTagsPreview();
-        document.querySelectorAll('.counsel-tag-btn').forEach(btn => {
-            btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600');
-            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
-        });
+        renderTagButtons('member');
         // 구분 버튼 초기화
         document.querySelectorAll('.category-btn, .bs-btn, .member-status-btn').forEach(btn => {
             btn.classList.remove('ring-2', 'ring-offset-1', 'border-indigo-400', 'text-indigo-700', 'dark:text-indigo-300', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'ring-indigo-400', 'border-blue-500', 'text-blue-700', 'dark:text-blue-300', 'bg-blue-50', 'dark:bg-blue-950/30', 'ring-blue-400', 'border-pink-400', 'text-pink-700', 'dark:text-pink-300', 'bg-pink-50', 'dark:bg-pink-950/30', 'ring-pink-400', 'border-emerald-400', 'text-emerald-700', 'dark:text-emerald-300', 'bg-emerald-50', 'dark:bg-emerald-950/30', 'ring-emerald-400', 'border-orange-400', 'text-orange-700', 'dark:text-orange-300', 'bg-orange-50', 'dark:bg-orange-950/30', 'ring-orange-400');
@@ -1396,6 +1458,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const category = document.getElementById('counselingCategory').value;
             const bs = document.getElementById('counselingBs').value;
             const member_status = document.getElementById('counselingMemberStatus').value;
+            const counseling_method = document.getElementById('counselingMethod')?.value || '대면';
 
             if (!name) return alert('상담 대상자 이름을 입력하세요.');
             if (!date) return alert('상담 날짜를 입력하세요.');
@@ -1418,7 +1481,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         district: district || null,
                         category: category || null,
                         bs: bs || null,
-                        member_status: member_status || 'member'
+                        member_status: member_status || 'member',
+                        counseling_method: counseling_method || '대면'
                     })
                 });
 
@@ -1590,33 +1654,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const top10 = sortedTags.slice(0, 10);
         const topTagsContainer = document.getElementById('topTagsContainer');
 
-        // ── 태그 필터 칩 렌더링 ──────────────────
-        const tagFilterChips = document.getElementById('tagFilterChips');
-        if (tagFilterChips) {
-            tagFilterChips.innerHTML = sortedTags.slice(0, 8).map(item =>
-                '<button type="button" class="tag-chip px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all" data-tag="' + item.tag + '">#' + item.tag + '</button>'
-            ).join('');
-            tagFilterChips.querySelectorAll('.tag-chip').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const tag = btn.dataset.tag;
-                    if (activeTagFilter === tag) {
-                        activeTagFilter = null;
-                        btn.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
-                        btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
-                    } else {
-                        activeTagFilter = tag;
-                        tagFilterChips.querySelectorAll('.tag-chip').forEach(b => {
-                            b.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
-                            b.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
-                        });
-                        btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
-                        btn.classList.add('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
-                    }
-                    applyFilters();
-                });
-            });
-        }
-
         if (top10.length === 0) {
             topTagsContainer.innerHTML = '<p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>';
         } else {
@@ -1677,4 +1714,81 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ── 태그 관리 모달 ──
+    function renderTagMgrList(listId, tagArr, lsKey, colorClass) {
+        const container = document.getElementById(listId);
+        if (!container) return;
+        if (tagArr.length === 0) {
+            container.innerHTML = '<span class="text-[11px] text-slate-400 italic">태그 없음</span>';
+            return;
+        }
+        container.innerHTML = tagArr.map((tag, i) => `
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                #${tag}
+                <button type="button" onclick="window.removePresetTag('${lsKey}', ${i})" class="hover:text-red-500 transition-colors leading-none text-slate-400">&times;</button>
+            </span>
+        `).join('');
+    }
+
+    window.removePresetTag = function(lsKey, index) {
+        if (lsKey === LS_KEY_MEMBER) {
+            memberTagList.splice(index, 1);
+            saveTagList(LS_KEY_MEMBER, memberTagList);
+            renderTagMgrList('tagMgrMemberList', memberTagList, LS_KEY_MEMBER);
+        } else {
+            evangelismTagList.splice(index, 1);
+            saveTagList(LS_KEY_EVANGELISM, evangelismTagList);
+            renderTagMgrList('tagMgrEvangelismList', evangelismTagList, LS_KEY_EVANGELISM);
+        }
+        renderTagButtons(currentMemberStatusForTags);
+    };
+
+    const tagMgrModal = document.getElementById('tagMgrModal');
+    document.getElementById('openTagMgrBtn')?.addEventListener('click', () => {
+        renderTagMgrList('tagMgrMemberList', memberTagList, LS_KEY_MEMBER);
+        renderTagMgrList('tagMgrEvangelismList', evangelismTagList, LS_KEY_EVANGELISM);
+        if (tagMgrModal) tagMgrModal.classList.remove('hidden');
+    });
+    document.getElementById('closeTagMgrBtn')?.addEventListener('click', () => {
+        if (tagMgrModal) tagMgrModal.classList.add('hidden');
+        renderTagButtons(currentMemberStatusForTags);
+    });
+    document.getElementById('tagMgrBackdrop')?.addEventListener('click', () => {
+        if (tagMgrModal) tagMgrModal.classList.add('hidden');
+        renderTagButtons(currentMemberStatusForTags);
+    });
+
+    function addPresetTag(inputId, lsKey) {
+        const input = document.getElementById(inputId);
+        const val = (input?.value || '').trim().replace(/^#+/, '');
+        if (!val) return;
+        if (lsKey === LS_KEY_MEMBER) {
+            if (!memberTagList.includes(val)) { memberTagList.push(val); saveTagList(LS_KEY_MEMBER, memberTagList); }
+            renderTagMgrList('tagMgrMemberList', memberTagList, LS_KEY_MEMBER);
+        } else {
+            if (!evangelismTagList.includes(val)) { evangelismTagList.push(val); saveTagList(LS_KEY_EVANGELISM, evangelismTagList); }
+            renderTagMgrList('tagMgrEvangelismList', evangelismTagList, LS_KEY_EVANGELISM);
+        }
+        if (input) input.value = '';
+    }
+
+    document.getElementById('addMemberTagBtn')?.addEventListener('click', () => addPresetTag('newMemberTagInput', LS_KEY_MEMBER));
+    document.getElementById('newMemberTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPresetTag('newMemberTagInput', LS_KEY_MEMBER); }});
+    document.getElementById('addEvangelismTagBtn')?.addEventListener('click', () => addPresetTag('newEvangelismTagInput', LS_KEY_EVANGELISM));
+    document.getElementById('newEvangelismTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPresetTag('newEvangelismTagInput', LS_KEY_EVANGELISM); }});
+
+    document.getElementById('resetMemberTagsBtn')?.addEventListener('click', () => {
+        memberTagList = [...DEFAULT_MEMBER_TAGS];
+        saveTagList(LS_KEY_MEMBER, memberTagList);
+        renderTagMgrList('tagMgrMemberList', memberTagList, LS_KEY_MEMBER);
+    });
+    document.getElementById('resetEvangelismTagsBtn')?.addEventListener('click', () => {
+        evangelismTagList = [...DEFAULT_EVANGELISM_TAGS];
+        saveTagList(LS_KEY_EVANGELISM, evangelismTagList);
+        renderTagMgrList('tagMgrEvangelismList', evangelismTagList, LS_KEY_EVANGELISM);
+    });
+
+    // ── 초기 태그 렌더링 ──
+    renderTagButtons('member');
 });
