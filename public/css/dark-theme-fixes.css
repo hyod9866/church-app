@@ -61,7 +61,8 @@
 }
 
 /* ── Invalid / custom Tailwind color tokens (CDN has no definition) ── */
-.dark .text-slate-250 { color: #64748b !important; }
+/* slate-250 was #64748b (3.5:1 on dark bg) — bumped to #94a3b8 for WCAG AA on xs buttons */
+.dark .text-slate-250 { color: #94a3b8 !important; }
 .dark .text-slate-350 { color: #94a3b8 !important; }
 .dark .text-slate-450 { color: #94a3b8 !important; }
 .dark .text-slate-550 { color: #94a3b8 !important; }
@@ -547,4 +548,53 @@
 
 .dark #attendanceTable .member-info .border-yellow-200 {
     border-color: rgba(234, 179, 8, 0.35) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Light-mode contrast improvements
+   ─ Lifts slate/gray-400 text (2.85:1 on white) to WCAG AA minimum ─
+   html:not(.dark) scope → dark-mode overrides above are unaffected.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Form & field labels (smallest text; must be clearly legible) ── */
+html:not(.dark) label.text-slate-400,
+html:not(.dark) label.text-gray-400 {
+    color: #475569 !important; /* slate-600 — 5.74:1 on white */
+}
+
+/* ── Paragraph helper text, empty-state messages ── */
+html:not(.dark) p.text-slate-400,
+html:not(.dark) p.text-gray-400 {
+    color: #64748b !important; /* slate-500 — 4.48:1; bold/italic passes large-text 3:1 */
+}
+
+/* ── Table cell placeholder / loading text ── */
+html:not(.dark) td.text-slate-400,
+html:not(.dark) td.text-gray-400 {
+    color: #64748b !important;
+}
+
+/* ── Inline captions and metadata spans (outside header / nav) ── */
+html:not(.dark) span.text-slate-400:not(header *):not(nav *) {
+    color: #64748b !important;
+}
+html:not(.dark) span.text-gray-400:not(header *):not(nav *) {
+    color: #6b7280 !important; /* gray-500 — 4.6:1 on white */
+}
+
+/* ── Modal icon-buttons (close / toggle) outside header / nav ── */
+html:not(.dark) button.text-slate-400:not(header *):not(nav *) {
+    color: #64748b !important;
+}
+
+/* ── Read-only input value: slate-400 on bg-slate-100 = 1.6:1 ── */
+html:not(.dark) input[readonly].text-slate-400 {
+    color: #475569 !important; /* slate-600 on slate-100 (#f1f5f9) = 3.7:1 */
+}
+
+/* ── Exceptions: elements on explicit dark-bg cards in light mode ── */
+/* status.html info-header card always uses dark gradient background  */
+html:not(.dark) #nodeParentHierarchy,
+html:not(.dark) #nodeAddressContainer {
+    color: #94a3b8 !important; /* restore: on from-[#1e293b] dark card — 6.5:1 */
 }
