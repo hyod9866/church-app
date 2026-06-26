@@ -1498,8 +1498,13 @@ app.get('/api/meetings', async (req, res) => {
     const districtTestimonyCountMap = {};
 
     if (presentAttendance) {
+      const seenAttendance = new Set(); // deduplicate (meeting_id, member_id) pairs
       presentAttendance.forEach(a => {
         if (Number(a.is_present) !== 1) return;
+
+        const key = `${a.meeting_id}:${a.member_id}`;
+        if (seenAttendance.has(key)) return; // skip duplicate
+        seenAttendance.add(key);
 
         countMap[a.meeting_id] = (countMap[a.meeting_id] || 0) + 1;
         if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
@@ -1646,7 +1651,7 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
       
     if (error) throw error;
 
-    const rowsRaw = (data || []).map(a => ({
+    const rows = (data || []).map(a => ({
       id: a.id,
       meeting_id: a.meeting_id,
       member_id: a.member_id,
@@ -1658,11 +1663,7 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
       district: a.members?.district || '',
       category: a.members?.category || ''
     }));
-    // Deduplicate by member_id — keep last entry (highest id) so testimony is preserved
-    const dedupeMap = new Map();
-    rowsRaw.forEach(r => dedupeMap.set(r.member_id, r));
-    const rows = Array.from(dedupeMap.values());
-
+    
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
