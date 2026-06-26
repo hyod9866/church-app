@@ -701,7 +701,14 @@ function isMandatoryMeeting(member, meeting) {
   if (mType.includes('교구전체모임')) return true;
   if (mType.includes('교구형제모임') && member.bs === 'B') return true;
   if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-  if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
+  if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) {
+    // 교구청년모임은 교구정보가 있는 사람만 대상
+    if (mType.includes('교구청년')) {
+      const hasParish = member.parish && member.parish.trim() !== '' && member.parish !== '교구정보없음';
+      return !!hasParish;
+    }
+    return true;
+  }
 
   return false;
 }
@@ -726,7 +733,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
 
     const { data: members, error: memErr } = await supabase
       .from('members')
-      .select('id, name, category, bs, district, position');
+      .select('id, name, category, bs, district, position, parish');
     if (memErr) throw memErr;
 
     let allAttendance = [];
@@ -1489,7 +1496,7 @@ app.get('/api/meetings', async (req, res) => {
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
       .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
-      .eq('is_present', 1);
+      .eq('is_present', true);
     if (attErr) throw attErr;
 
     const countMap = {};
@@ -1498,9 +1505,9 @@ app.get('/api/meetings', async (req, res) => {
     const districtTestimonyCountMap = {};
 
     if (presentAttendance) {
-      const seenAttendance = new Set(); // deduplicate (meeting_id, member_id) pairs
+      const seenAttendance = new Set(); // deduplicate (meeting_id, member_id) pairs — same logic as /api/meetings/:id/attendance
       presentAttendance.forEach(a => {
-        if (Number(a.is_present) !== 1) return;
+        if (!a.is_present) return;
 
         const key = `${a.meeting_id}:${a.member_id}`;
         if (seenAttendance.has(key)) return; // skip duplicate

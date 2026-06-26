@@ -1776,6 +1776,11 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
             allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
         }
 
+        // 교구청년모임: 교구정보 없는 사람 제외
+        if (typeStr.includes('교구청년')) {
+            allTargets = allTargets.filter(m => m.parish && m.parish.trim() !== '' && m.parish !== '교구정보없음');
+        }
+
         if (typeStr === '교구임원모임') {
             allTargets = allTargets.filter(m => m.position && m.position.trim().length > 0);
         }
@@ -2411,6 +2416,11 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
 
         if (currentType.includes('조모임')) {
             members = members.filter(m => m.bs === 'S' && m.category !== '청년회');
+        }
+
+        // 교구청년모임: 교구정보 없는 사람 제외
+        if (currentType.includes('교구청년')) {
+            members = members.filter(m => m.parish && m.parish.trim() !== '' && m.parish !== '교구정보없음');
         }
 
         if (currentType === '교구임원모임') {

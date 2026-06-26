@@ -592,7 +592,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mType.includes('교구전체모임')) return true;
                 if (mType.includes('교구형제모임') && member.bs === 'B') return true;
                 if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
+                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) {
+                    // 교구청년모임은 교구정보가 있는 사람만 대상
+                    if (mType.includes('교구청년')) {
+                        const hasParish = member.parish && member.parish.trim() !== '' && member.parish !== '교구정보없음';
+                        return !!hasParish;
+                    }
+                    return true;
+                }
                 return false;
             }
             const filteredHistory = rawFilteredHistory.filter(h => isMandatoryMeeting(member, h) || h.is_present);
