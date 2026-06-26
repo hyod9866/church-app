@@ -1738,7 +1738,10 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
         timeStr = `${startTime}~${endTime}`;
     }
     document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : type}`;
-    const res = await fetch(`/api/meetings/${id}/attendance`); const att = await res.json();
+    const res = await fetch(`/api/meetings/${id}/attendance`); const attRaw = await res.json();
+    // Client-side dedup as safety net (server already dedupes, but guard against stale cache)
+    const attDedupeMap = new Map(); attRaw.forEach(a => attDedupeMap.set(a.member_id, a));
+    const att = Array.from(attDedupeMap.values());
     const p = att.filter(a => a.is_present);
     const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
     
@@ -2596,13 +2599,11 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 });
                 const { id } = await newRes.json();
 
-                const attDataRaw = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
                     is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                const attDataMap = new Map(); attDataRaw.forEach(r => attDataMap.set(r.member_id, r));
-                const attData = Array.from(attDataMap.values());
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
             } else {
                 // 전체 일정 수정 / 등록
@@ -2627,13 +2628,11 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 const { id } = await res.json();
                 const mid = currentMeetingId || id;
 
-                const attDataRaw = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
                     is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                const attDataMap = new Map(); attDataRaw.forEach(r => attDataMap.set(r.member_id, r));
-                const attData = Array.from(attDataMap.values());
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
             }
             const urlParams = new URLSearchParams(window.location.search);
