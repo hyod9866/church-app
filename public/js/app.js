@@ -2439,7 +2439,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
         // 기존 검색 추가 인원 복구 (수정 시 - 실제 출석했던 추가 인원만 복구)
         if (id) {
             const memberIds = members.map(m => m.id);
-            const extras = att.filter(a => !memberIds.includes(a.member_id) && !!a.is_present);
+            const extras = att.filter(a => !memberIds.includes(a.member_id) && a.is_present === 1);
             extraAttendees = extras.map(e => ({ id: e.member_id, name: e.name, district: e.district, is_present: e.is_present, testimony_snapshot: e.testimony_snapshot }));
             renderExtras();
         } else {
@@ -2493,7 +2493,7 @@ function renderExtras() {
             <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${m.is_present ? 'checked' : ''}>
             <span class="font-bold text-emerald-900 dark:text-emerald-300">${m.name}</span>
             <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">${m.district || ''}</span>
-            <button class="ml-auto text-red-400 text-xs font-bold px-2 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-950/30 active:bg-red-100 transition-colors" onclick="if(confirm('추가 인원에서 삭제하시겠습니까?')) removeExtra(${m.id})">삭제</button>
+            <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
         </div>
         <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
     </div>`).join('');
@@ -2596,11 +2596,13 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 });
                 const { id } = await newRes.json();
 
-                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                const attDataRaw = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
                     is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
+                const attDataMap = new Map(); attDataRaw.forEach(r => attDataMap.set(r.member_id, r));
+                const attData = Array.from(attDataMap.values());
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
             } else {
                 // 전체 일정 수정 / 등록
@@ -2625,11 +2627,13 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 const { id } = await res.json();
                 const mid = currentMeetingId || id;
 
-                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                const attDataRaw = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
                     is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
+                const attDataMap = new Map(); attDataRaw.forEach(r => attDataMap.set(r.member_id, r));
+                const attData = Array.from(attDataMap.values());
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
             }
             const urlParams = new URLSearchParams(window.location.search);
