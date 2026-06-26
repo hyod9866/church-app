@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let allStatus = [];
     let currentMemberData = null;
 
+    // ── 필터 상태 ──────────────────────────────
+    let activeStatusFilter = 'all';  // 'all' | 'member' | 'target'
+    let activePeriodFilter = 'all';  // 'all' | 'month' | '3months'
+    let activeTagFilter = null;      // null | tagString(# 제외)
+
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
     // ──────────────────────────────────────────────────
@@ -49,6 +54,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const categoryMatch = (s.category || '').toLowerCase().includes(query);
                 const districtTextMatch = (s.district || '').toLowerCase().includes(query);
                 if (!nameMatch && !dateMatch && !contentMatch && !tagsMatch && !positionMatch && !categoryMatch && !districtTextMatch) return false;
+            }
+            // 신분 필터 (성도 vs 전도대상)
+            if (activeStatusFilter === 'member') {
+                if (!s.salvation_date || !s.salvation_date.trim()) return false;
+            } else if (activeStatusFilter === 'target') {
+                if (s.salvation_date && s.salvation_date.trim()) return false;
+            }
+            // 기간 필터
+            if (activePeriodFilter !== 'all') {
+                if (!s.last_counseling_date) return false;
+                const lastDate = new Date(s.last_counseling_date);
+                const now = new Date();
+                const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+                if (activePeriodFilter === 'month' && diffDays > 31) return false;
+                if (activePeriodFilter === '3months' && diffDays > 92) return false;
+            }
+            // 태그 필터
+            if (activeTagFilter) {
+                if (!(s.last_counseling_tags || '').includes('#' + activeTagFilter)) return false;
             }
             return true;
         });
@@ -81,6 +105,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('')}</div>`;
     }
 
+    // 카드 헤더용 소형 태그 뱃지
+    function renderInlineTags(tagsStr) {
+        if (!tagsStr || !tagsStr.trim()) return '';
+        const tags = tagsStr.trim().split(/\s+/).filter(t => t.startsWith('#'));
+        if (!tags.length) return '';
+        return `<div class="flex flex-wrap gap-1 mb-1">${tags.map(t =>
+            `<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40">${t}</span>`
+        ).join('')}</div>`;
+    }
+
     function renderList(data) {
         if (counselingCount) counselingCount.textContent = `총 ${data.length}명 상담 대상자`;
         
@@ -96,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         counselingList.innerHTML = data.map(member => {
             let statusHtml = '';
             let detailHtml = '';
+            let tagsHtml = '';
             let daysDiff = null;
 
             if (member.last_counseling_date) {
@@ -110,8 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                const tagsHtml = renderTagBadge(member.last_counseling_tags || '');
-                if (member.last_counseling_content || tagsHtml) {
+                tagsHtml = renderInlineTags(member.last_counseling_tags || '');
+                if (member.last_counseling_content) {
+                    const contentId = `counsel-content-${member.id}`;
                     detailHtml = `
                         <div class="main-counsel-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative" data-session-id="${member.last_counseling_session_id || ''}" data-member-id="${member.id}" data-date="${member.last_counseling_date}" data-tags="${member.last_counseling_tags || ''}">
                             <div class="absolute right-2 top-2 flex gap-2">
@@ -123,8 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </button>
                             </div>
                             <div class="main-counsel-body">
-                                ${tagsHtml}
-                                ${member.last_counseling_content ? `<div class="text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${member.last_counseling_content}</div>` : ''}
+                                <div id="${contentId}" class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${member.last_counseling_content}</div>
+                                <button type="button" class="toggle-content-btn text-[9px] font-bold text-indigo-500 dark:text-indigo-400 hover:underline mt-0.5 cursor-pointer" data-target="${contentId}" data-expanded="false">더보기 ▾</button>
                             </div>
                         </div>
                     `;
@@ -139,12 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
+                        <div class="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
                         </div>
-                        ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
+                        ${tagsHtml}
+                        ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-1 font-medium italic">가족: ${member.family_relation}</div>` : ''}
                         ${statusHtml}
                         ${detailHtml}
                     </div>
@@ -346,6 +383,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
+            });
+        });
+
+        // 더보기/접기 토글 이벤트
+        counselingList.querySelectorAll('.toggle-content-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.target;
+                const contentEl = document.getElementById(targetId);
+                if (!contentEl) return;
+                const isExpanded = btn.dataset.expanded === 'true';
+                if (isExpanded) {
+                    contentEl.style.cssText = 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
+                    btn.textContent = '더보기 ▾';
+                    btn.dataset.expanded = 'false';
+                } else {
+                    contentEl.style.cssText = 'display:block;overflow:visible;';
+                    btn.textContent = '접기 ▴';
+                    btn.dataset.expanded = 'true';
+                }
             });
         });
     }
@@ -911,6 +967,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) { console.error(e); alert('에러가 발생했습니다.'); }
     };
+
+    // ── 신분/기간 필터 칩 이벤트 ─────────────────
+    document.querySelectorAll('.status-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeStatusFilter = btn.dataset.status;
+            document.querySelectorAll('.status-chip').forEach(b => b.classList.remove('chip-active'));
+            btn.classList.add('chip-active');
+            applyFilters();
+        });
+    });
+    document.querySelectorAll('.period-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activePeriodFilter = btn.dataset.period;
+            document.querySelectorAll('.period-chip').forEach(b => b.classList.remove('chip-active'));
+            btn.classList.add('chip-active');
+            applyFilters();
+        });
+    });
 
     loadStatus();
 
@@ -1508,6 +1582,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const top10 = sortedTags.slice(0, 10);
         const topTagsContainer = document.getElementById('topTagsContainer');
+
+        // ── 태그 필터 칩 렌더링 ──────────────────
+        const tagFilterChips = document.getElementById('tagFilterChips');
+        if (tagFilterChips) {
+            tagFilterChips.innerHTML = sortedTags.slice(0, 8).map(item =>
+                '<button type="button" class="tag-chip px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all" data-tag="' + item.tag + '">#' + item.tag + '</button>'
+            ).join('');
+            tagFilterChips.querySelectorAll('.tag-chip').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tag = btn.dataset.tag;
+                    if (activeTagFilter === tag) {
+                        activeTagFilter = null;
+                        btn.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
+                        btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+                    } else {
+                        activeTagFilter = tag;
+                        tagFilterChips.querySelectorAll('.tag-chip').forEach(b => {
+                            b.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
+                            b.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+                        });
+                        btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+                        btn.classList.add('bg-indigo-600', 'text-white', 'dark:bg-indigo-600');
+                    }
+                    applyFilters();
+                });
+            });
+        }
 
         if (top10.length === 0) {
             topTagsContainer.innerHTML = '<p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>';

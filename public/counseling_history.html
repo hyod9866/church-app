@@ -266,6 +266,20 @@
         .dark #topTagsContainer::-webkit-scrollbar-thumb {
             background: #334155;
         }
+        /* ── 필터 칩 공통 스타일 ── */
+        .chip-active {
+            background-color: #4f46e5 !important;
+            color: white !important;
+            border-color: #4f46e5 !important;
+        }
+        .dark .chip-active {
+            background-color: #4f46e5 !important;
+            color: white !important;
+            border-color: #4338ca !important;
+        }
+        .status-chip, .period-chip {
+            transition: all 0.15s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -436,6 +450,33 @@
                     <i class="fa-solid fa-plus text-xs"></i>
                     새 상담 등록
                 </button>
+            </div>
+        </div>
+
+        <!-- ── 빠른 필터 칩 바 ── -->
+        <div class="bg-white dark:bg-[#131B2E] px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm mb-4 flex flex-wrap gap-x-3 gap-y-2 items-center">
+            <!-- 신분 구분 -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">신분</span>
+                <button type="button" class="status-chip chip-active px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="all">전체</button>
+                <button type="button" class="status-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="member">성도</button>
+                <button type="button" class="status-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-status="target">전도대상</button>
+            </div>
+            <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 self-center hidden sm:block"></div>
+            <!-- 기간 구분 -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">기간</span>
+                <button type="button" class="period-chip chip-active px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="all">전체</button>
+                <button type="button" class="period-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="month">이번 달</button>
+                <button type="button" class="period-chip px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-period="3months">3개월</button>
+            </div>
+            <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 self-center hidden sm:block"></div>
+            <!-- 동적 태그 칩 -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">주제</span>
+                <div id="tagFilterChips" class="flex flex-wrap gap-1.5">
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 italic">로딩 중...</span>
+                </div>
             </div>
         </div>
 
