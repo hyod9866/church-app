@@ -1028,6 +1028,40 @@ document.addEventListener('DOMContentLoaded', () => {
     initGroupBtns('bsBtnGroup', 'counselingBs', 'blue');
     initGroupBtns('memberStatusBtnGroup', 'counselingMemberStatus', 'emerald');
 
+    // 상담 방식 버튼
+    document.querySelectorAll('.counsel-method-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.counsel-method-btn').forEach(b => {
+                b.classList.remove('border-emerald-300','dark:border-emerald-800/60','bg-emerald-50','dark:bg-emerald-950/30','text-emerald-700','dark:text-emerald-400',
+                    'border-amber-300','dark:border-amber-800/60','bg-amber-50','dark:bg-amber-950/30','text-amber-700','dark:text-amber-400');
+                b.classList.add('border-slate-200','dark:border-slate-600','bg-white','dark:bg-slate-700','text-slate-600','dark:text-slate-300');
+            });
+            btn.classList.remove('border-slate-200','dark:border-slate-600','bg-white','dark:bg-slate-700','text-slate-600','dark:text-slate-300');
+            if (btn.dataset.val === '전화') {
+                btn.classList.add('border-amber-300','dark:border-amber-800/60','bg-amber-50','dark:bg-amber-950/30','text-amber-700','dark:text-amber-400');
+            } else {
+                btn.classList.add('border-emerald-300','dark:border-emerald-800/60','bg-emerald-50','dark:bg-emerald-950/30','text-emerald-700','dark:text-emerald-400');
+            }
+            const hidden = document.getElementById('counselingMethod');
+            if (hidden) hidden.value = btn.dataset.val;
+        });
+    });
+
+    // 익명 체크박스
+    const anonymousCheck = document.getElementById('anonymousCheck');
+    if (anonymousCheck && counselingName) {
+        anonymousCheck.addEventListener('change', () => {
+            if (anonymousCheck.checked) {
+                counselingName.value = '익명';
+                counselingName.disabled = true;
+            } else {
+                counselingName.value = '';
+                counselingName.disabled = false;
+                counselingName.focus();
+            }
+        });
+    }
+
     function setGroupBtn(groupId, hiddenId, val) {
         const group = document.getElementById(groupId);
         if (!group) return;
@@ -1065,6 +1099,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // 기본 상태: 성도 버튼 활성화
         const memberBtn = document.querySelector('#memberStatusBtnGroup button[data-val="member"]');
         if (memberBtn) memberBtn.click();
+        // 익명 체크박스 초기화
+        const anonCk = document.getElementById('anonymousCheck');
+        if (anonCk) { anonCk.checked = false; }
+        const cnInput = document.getElementById('counselingName');
+        if (cnInput) { cnInput.disabled = false; }
+        // 상담 방식 초기화 → 대면
+        const methodHidden = document.getElementById('counselingMethod');
+        if (methodHidden) methodHidden.value = '대면';
+        document.querySelectorAll('.counsel-method-btn').forEach(b => {
+            b.classList.remove('border-emerald-300','dark:border-emerald-800/60','bg-emerald-50','dark:bg-emerald-950/30','text-emerald-700','dark:text-emerald-400',
+                'border-amber-300','dark:border-amber-800/60','bg-amber-50','dark:bg-amber-950/30','text-amber-700','dark:text-amber-400');
+            b.classList.add('border-slate-200','dark:border-slate-600','bg-white','dark:bg-slate-700','text-slate-600','dark:text-slate-300');
+        });
+        const daemyeonBtn = document.querySelector('.counsel-method-btn[data-val="대면"]');
+        if (daemyeonBtn) {
+            daemyeonBtn.classList.remove('border-slate-200','dark:border-slate-600','bg-white','dark:bg-slate-700','text-slate-600','dark:text-slate-300');
+            daemyeonBtn.classList.add('border-emerald-300','dark:border-emerald-800/60','bg-emerald-50','dark:bg-emerald-950/30','text-emerald-700','dark:text-emerald-400');
+        }
     }
 
     window.openNewCounselingWithMember = (memberName, memberId, category, bs) => {
@@ -1291,6 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const category = document.getElementById('counselingCategory').value;
             const bs = document.getElementById('counselingBs').value;
             const member_status = document.getElementById('counselingMemberStatus').value;
+            const counseling_method = document.getElementById('counselingMethod')?.value || '대면';
 
             if (!name) return alert('상담 대상자 이름을 입력하세요.');
             if (!date) return alert('상담 날짜를 입력하세요.');
@@ -1313,7 +1366,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         district: district || null,
                         category: category || null,
                         bs: bs || null,
-                        member_status: member_status || 'member'
+                        member_status: member_status || 'member',
+                        counseling_method: counseling_method || '대면'
                     })
                 });
 

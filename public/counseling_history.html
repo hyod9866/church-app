@@ -704,6 +704,12 @@
                         <div id="counselingNameSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
                     </div>
 
+                    <!-- 익명 체크박스 -->
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <input type="checkbox" id="anonymousCheck" class="w-4 h-4 accent-indigo-600 cursor-pointer">
+                        <label for="anonymousCheck" class="text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none">익명으로 등록</label>
+                    </div>
+
                     <!-- 신규 성도 여부 알림 뱃지 -->
                     <div id="newMemberBadgeContainer" class="hidden">
                         <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-lg border border-amber-200/50 dark:border-amber-900/50">
@@ -781,6 +787,16 @@
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 날짜 *</label>
                         <input type="date" id="counselingDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" required>
+                    </div>
+
+                    <!-- 상담 방식 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 방식</label>
+                        <div id="counselingMethodBtnGroup" class="flex gap-2">
+                            <button type="button" data-val="대면" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 transition-all">대면</button>
+                            <button type="button" data-val="전화" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-amber-400 hover:text-amber-600 dark:hover:border-amber-400 dark:hover:text-amber-300 transition-all">전화</button>
+                        </div>
+                        <input type="hidden" id="counselingMethod" value="대면">
                     </div>
 
                     <!-- ★ 상담 주제 해시태그 -->
