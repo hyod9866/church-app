@@ -1496,7 +1496,7 @@ app.get('/api/meetings', async (req, res) => {
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
       .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present')
-      .eq('is_present', true);
+      .eq('is_present', 1);
     if (attErr) throw attErr;
 
     const countMap = {};
