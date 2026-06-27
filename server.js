@@ -2253,6 +2253,14 @@ app.get('/api/counseling/:memberId', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const { memberId } = req.params;
   try {
+    const { data: memberData, error: memErr } = await supabase
+      .from('members')
+      .select('member_status')
+      .eq('id', memberId)
+      .maybeSingle();
+    if (memErr) throw memErr;
+    const memberStatus = memberData?.member_status || 'member';
+
     // meetings(type='상담') 기반 attendance
     const { data: counselingMeetings, error: meetErr } = await supabase
       .from('meetings')
@@ -2290,7 +2298,8 @@ app.get('/api/counseling/:memberId', async (req, res) => {
           session_id: `m_${a.meeting_id}`,
           meeting_id: a.meeting_id,
           name: counseleeName,
-          memo: meet.memo || ''
+          memo: meet.memo || '',
+          member_status: memberStatus
         });
       });
     }
@@ -2312,7 +2321,8 @@ app.get('/api/counseling/:memberId', async (req, res) => {
         tags: parsed.tags,
         source: 'record',
         session_id: `r_${r.id}`,
-        record_id: r.id
+        record_id: r.id,
+        member_status: memberStatus
       });
     });
 
