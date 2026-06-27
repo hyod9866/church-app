@@ -178,18 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             try {
                 const res = await fetch('/api/meetings');
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    console.error('[Calendar] /api/meetings 오류:', res.status, errData);
-                    failureCallback(new Error(errData.error || 'HTTP ' + res.status));
-                    return;
-                }
                 const rawMeetings = await res.json();
-                if (!Array.isArray(rawMeetings)) {
-                    console.error('[Calendar] 응답이 배열 아님:', rawMeetings);
-                    failureCallback(new Error('모임 데이터 형식 오류'));
-                    return;
-                }
                 const meetings = rawMeetings.map(parseRecurringMetadata);
                 successCallback(meetings.map(m => {
                     const t = m.type || '';
@@ -1749,10 +1738,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
         timeStr = `${startTime}~${endTime}`;
     }
     document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : type}`;
-    const res = await fetch(`/api/meetings/${id}/attendance`); const attRaw = await res.json();
-    // Client-side dedup as safety net (server already dedupes, but guard against stale cache)
-    const attDedupeMap = new Map(); attRaw.forEach(a => attDedupeMap.set(a.member_id, a));
-    const att = Array.from(attDedupeMap.values());
+    const res = await fetch(`/api/meetings/${id}/attendance`); const att = await res.json();
     const p = att.filter(a => a.is_present);
     const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
     
@@ -1785,11 +1771,6 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
 
         if (typeStr.includes('조모임')) {
             allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
-        }
-
-        // 교구청년모임: 교구정보 없는 사람 제외
-        if (typeStr.includes('교구청년')) {
-            allTargets = allTargets.filter(m => m.parish && m.parish.trim() !== '' && m.parish !== '교구정보없음');
         }
 
         if (typeStr === '교구임원모임') {
@@ -2001,20 +1982,27 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             }
         };
         
+        function flushTagInput() {
+            const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
+            if (tagVal && !currentSermonTagsList.includes(tagVal)) {
+                currentSermonTagsList.push(tagVal);
+                tagsInput.value = '';
+                renderSermonTagBadges();
+            } else if (tagVal) {
+                tagsInput.value = '';
+            }
+        }
         tagsInput.onkeydown = (e) => {
             if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
                 e.preventDefault();
-                const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
-                if (tagVal && !currentSermonTagsList.includes(tagVal)) {
-                    currentSermonTagsList.push(tagVal);
-                    tagsInput.value = '';
-                    renderSermonTagBadges();
-                }
+                flushTagInput();
             } else if (e.key === 'Backspace' && !tagsInput.value) {
                 currentSermonTagsList.pop();
                 renderSermonTagBadges();
             }
         };
+        tagsInput.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ',') flushTagInput(); });
+        tagsInput.addEventListener('blur', () => { flushTagInput(); });
     }
 
     let parsedSermonTitle = sermon || '';
@@ -2429,11 +2417,6 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             members = members.filter(m => m.bs === 'S' && m.category !== '청년회');
         }
 
-        // 교구청년모임: 교구정보 없는 사람 제외
-        if (currentType.includes('교구청년')) {
-            members = members.filter(m => m.parish && m.parish.trim() !== '' && m.parish !== '교구정보없음');
-        }
-
         if (currentType === '교구임원모임') {
             members = members.filter(m => m.position && m.position.trim().length > 0);
         }
@@ -2525,6 +2508,19 @@ function renderExtras() {
 window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
 
 document.getElementById('saveMeeting').addEventListener('click', async () => {
+    // 저장 전 입력 중인 주제 태그 텍스트 자동 추가 (모바일에서 엔터 없이 저장하는 경우 대비)
+    const tagsInputEl = document.getElementById('meetingSermonTags');
+    if (tagsInputEl && tagsInputEl.value) {
+        const tagVal = tagsInputEl.value.replace(/[#,\s]/g, '').trim();
+        if (tagVal && !currentSermonTagsList.includes(tagVal)) {
+            currentSermonTagsList.push(tagVal);
+            tagsInputEl.value = '';
+            renderSermonTagBadges();
+        } else {
+            tagsInputEl.value = '';
+        }
+    }
+
     const title = document.getElementById('meetingTitle').value.trim();
     const date = document.getElementById('meetingDate').value;
     const startTime = document.getElementById('meetingStartTime').value;
