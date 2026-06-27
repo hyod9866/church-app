@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const parts = info.dateStr.split('T');
             const clickedDate = parts[0];
             const clickedTime = parts[1] ? parts[1].substring(0, 5) : '';
-            
+
             // 종료 시간은 기본적으로 시작시간 + 1시간 추천
             let endTimeVal = '';
             if (clickedTime) {
@@ -311,8 +311,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const nextHour = (h + 1) % 24;
                 endTimeVal = `${String(nextHour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
             }
-            
-            openMeetingModal(null, clickedDate, '', '581구역모임', '', '', '', '', clickedTime, endTimeVal);
+
+            if (typeof window.openGlobalMeetingEditor === 'function') {
+                window.openGlobalMeetingEditor(null, () => {
+                    if (typeof calendar !== 'undefined' && calendar.refetchEvents) calendar.refetchEvents();
+                }, null, clickedDate, clickedTime, endTimeVal);
+            } else {
+                openMeetingModal(null, clickedDate, '', '581구역모임', '', '', '', '', clickedTime, endTimeVal);
+            }
         },
         eventClick: (info) => {
             const id = info.event.id;
@@ -2320,13 +2326,39 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     const refreshAttendanceList = async () => {
         const currentType = document.getElementById('meetingType').value;
         let targetParams = new URLSearchParams({ status: 'active' });
-        
+
+        // 개인상담 패널 제어
+        const counselingPanel = document.getElementById('counselingPanel');
+        const titleField = document.getElementById('meetingTitleField');
+        const recurrenceSection = document.getElementById('meetingRecurrenceSection');
+        const sermonSectionEl = document.getElementById('sermonSection');
+        const extraAttendeesSection = document.getElementById('extraAttendeesSection');
+
+        if (currentType === '상담' || currentType === '개인상담') {
+            if (counselingPanel) counselingPanel.classList.remove('hidden');
+            if (titleField) titleField.classList.add('hidden');
+            if (recurrenceSection) recurrenceSection.classList.add('hidden');
+            if (sermonSectionEl) sermonSectionEl.classList.add('hidden');
+            if (extraAttendeesSection) extraAttendeesSection.classList.add('hidden');
+            const defaultAttSec2 = document.getElementById('defaultAttendanceSection');
+            if (defaultAttSec2) defaultAttSec2.classList.add('hidden');
+            const memoField2 = document.getElementById('memoField');
+            if (memoField2) memoField2.classList.add('hidden');
+            return;
+        } else {
+            if (counselingPanel) counselingPanel.classList.add('hidden');
+            if (titleField) titleField.classList.remove('hidden');
+            if (recurrenceSection) recurrenceSection.classList.remove('hidden');
+            if (sermonSectionEl) sermonSectionEl.classList.remove('hidden');
+            if (extraAttendeesSection) extraAttendeesSection.classList.remove('hidden');
+        }
+
         const endDateField = document.getElementById('meetingEndDateField');
         const dateLabel = document.getElementById('meetingDateLabel');
         const defaultAttSec = document.getElementById('defaultAttendanceSection');
         const extraAttSec = document.getElementById('openExtraMemberSearch')?.closest('.border-t');
         const memoField = document.getElementById('memoField');
-        
+
         const sermonTagsField = document.getElementById('sermonTagsField');
         if (sermonTagsField) {
             if (currentType === '설교') {
@@ -2521,6 +2553,11 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
         }
     }
 
+    const typeCheck = document.getElementById('meetingType').value;
+    if (typeCheck === '상담' || typeCheck === '개인상담') {
+        if (typeof handleSaveCounseling === 'function') { await handleSaveCounseling(); return; }
+    }
+
     const title = document.getElementById('meetingTitle').value.trim();
     const date = document.getElementById('meetingDate').value;
     const startTime = document.getElementById('meetingStartTime').value;
@@ -2531,7 +2568,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     const memo = document.getElementById('meetingMemo').value.trim();
     const sermon_bible = document.getElementById('meetingSermonBible').value.trim();
     const sermon_tags = currentSermonTagsList.map(t => `#${t}`).join(' ');
-    
+
     const rrule_type = document.getElementById('meetingRecurrence').value;
     const rrule_end_date = document.getElementById('meetingRecurrenceEndDate').value || null;
 

@@ -1421,18 +1421,28 @@ function openRecurrenceConfirmModal(onSingle, onAll) {
 }
 
 // Global Editor Entry Point
-window.openGlobalMeetingEditor = async function(id, onSave, onDelete) {
+window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDate, defaultStartTime, defaultEndTime) {
     console.log("[DEBUG] openGlobalMeetingEditor called with id:", id);
     currentMeetingId = id;
     editorSaveCallback = onSave;
     editorDeleteCallback = onDelete;
-    
+
     injectEditorElements();
     bindEditorEvents();
 
     if (!id) {
         console.log("[DEBUG] openGlobalMeetingEditor - No id, opening empty modal");
-        openMeetingModal(null, new Date().toISOString().split('T')[0]);
+        const date = defaultDate || new Date().toISOString().split('T')[0];
+        openMeetingModal(null, date);
+        // 기본 시작/종료 시간 세팅
+        if (defaultStartTime) {
+            const stEl = document.getElementById('meetingStartTime');
+            if (stEl) stEl.value = defaultStartTime;
+        }
+        if (defaultEndTime) {
+            const etEl = document.getElementById('meetingEndTime');
+            if (etEl) etEl.value = defaultEndTime;
+        }
         return;
     }
 
