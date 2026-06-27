@@ -240,6 +240,23 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    // ── 사람별 상담 이력 접기/펼치기 ─────────────────────────────────────
+    window.toggleMemberSessions = function(btn) {
+        const card = btn.closest('.counseling-person-card');
+        const wrapper = card.querySelector('.member-sessions-wrapper');
+        const icon = btn.querySelector('i');
+        
+        if (wrapper) {
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                wrapper.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    };
+
     // ── 세션 접기/펼치기 ─────────────────────────────────────
     window.toggleSessions = function(btn, memberId) {
         const card = btn.closest('.counseling-person-card');
@@ -290,18 +307,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
             const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
 
+            const hasSessions = sessions.length > 0;
+            const toggleButtonHtml = hasSessions ? `
+                <button type="button" onclick="toggleMemberSessions(this)" class="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer focus:outline-none flex items-center justify-center w-5 h-5">
+                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-sm"></i>
+                </button>
+            ` : '';
+
             return `
                 <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 flex-wrap mb-1">
+                            ${toggleButtonHtml}
                             <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
                             ${daysDiffHtml}
                         </div>
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
-                        ${latestSessionHtml}
-                        ${extraHtml}
+                        <div class="member-sessions-wrapper hidden w-full mt-2">
+                            ${latestSessionHtml}
+                            ${extraHtml}
+                        </div>
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
                         <div class="text-xs font-bold text-gray-400">누적 상담 <span class="text-indigo-600 dark:text-indigo-400 font-black">${member.counseling_count}</span>회</div>

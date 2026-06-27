@@ -1420,6 +1420,9 @@ function openRecurrenceConfirmModal(onSingle, onAll) {
     btnCancel.onclick = () => { modal.classList.add('hidden'); };
 }
 
+// index.html의 app.js에서 접근 가능하도록 counseling 저장 함수 노출
+window.handleSaveCounseling = handleSaveCounseling;
+
 // Global Editor Entry Point
 window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDate, defaultStartTime, defaultEndTime) {
     console.log("[DEBUG] openGlobalMeetingEditor called with id:", id);

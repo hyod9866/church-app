@@ -2555,7 +2555,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 
     const typeCheck = document.getElementById('meetingType').value;
     if (typeCheck === '상담' || typeCheck === '개인상담') {
-        if (typeof handleSaveCounseling === 'function') { await handleSaveCounseling(); return; }
+        if (typeof window.handleSaveCounseling === 'function') { await window.handleSaveCounseling(); return; }
     }
 
     const title = document.getElementById('meetingTitle').value.trim();
