@@ -833,7 +833,7 @@ async function refreshAttendanceList() {
     const sermonSectionEl = document.getElementById('sermonSection');
     const extraAttendeesSection = document.getElementById('extraAttendeesSection');
 
-    if (currentType === '상담') {
+    if (currentType === '상담' || currentType === '개인상담') {
         if (counselingPanel) counselingPanel.classList.remove('hidden');
         if (titleField) titleField.classList.add('hidden');
         if (recurrenceSection) recurrenceSection.classList.add('hidden');
@@ -1155,7 +1155,7 @@ async function handleSaveMeeting() {
     }
 
     const typeCheck = document.getElementById('meetingType').value;
-    if (typeCheck === '상담') {
+    if (typeCheck === '상담' || typeCheck === '개인상담') {
         await handleSaveCounseling();
         return;
     }
