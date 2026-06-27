@@ -15,11 +15,6 @@ let editorDeleteCallback = null;
 function injectEditorElements() {
     // 1. Inject meetingModal into meetingPanelsContainer if not exists
     const container = document.getElementById('meetingPanelsContainer');
-    // 구버전 모달(attendanceChipGrid 없는 것) 감지 → 제거 후 재주입
-    const staleModal = document.getElementById('meetingModal');
-    if (staleModal && !document.getElementById('attendanceChipGrid')) {
-        staleModal.remove();
-    }
     if (container && !document.getElementById('meetingModal')) {
         const modalHTML = `
         <!-- Add/Edit Meeting Panel -->
@@ -119,8 +114,8 @@ function injectEditorElements() {
                     </div>
                 </div>
 
-                <div id="defaultAttendanceSection" class="min-h-[80px]"><div class="flex justify-between items-center mb-2"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><input type="text" id="memberSearchInput" placeholder="이름 검색..." oninput="filterAttendanceChips(this.value)" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 mb-2.5 dark:placeholder-slate-500" autocomplete="off"><div id="attendanceChipGrid" class="flex flex-wrap gap-1.5"></div><div id="testimonySection" class="mt-3 space-y-2 hidden"></div><div id="attendanceList" class="hidden"></div></div>
-                <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-1"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div><div id="extraTestimonySection" class="mt-3 space-y-2 hidden"></div></div>
+                <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
+                <div class="mt-60 pt-8 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
             </div>
             <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800/50 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/35 active:scale-[0.98] text-red-500 dark:text-red-400 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700/60 py-3 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
         </div>
@@ -196,166 +191,33 @@ window.removeSermonTag = function(idx) {
 function renderExtras() {
     const list = document.getElementById('extraAttendanceList');
     if (!list) return;
-    if (!extraAttendees.length) {
-        list.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p>';
-        updateExtraTestimonySection();
-        return;
-    }
-    const categoryOrder = ['봉사회', '어머니회', '청년회', '은장회'];
-    const groups = {};
-    extraAttendees.forEach(m => {
-        const cat = (m.category && m.category.trim()) ? m.category.trim() : '구역';
-        if (!groups[cat]) groups[cat] = [];
-        groups[cat].push(m);
-    });
-    const allCats = [
-        ...categoryOrder.filter(c => groups[c]),
-        ...Object.keys(groups).filter(k => !categoryOrder.includes(k) && groups[k])
-    ];
-    list.innerHTML = allCats.map(cat => `
-        <div class="mb-3 last:mb-0">
-            <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">${cat}</p>
-            <div class="flex flex-wrap gap-1.5">${groups[cat].map(renderExtraChip).join('')}</div>
-        </div>`).join('');
-    updateExtraTestimonySection();
+    if (!extraAttendees.length) { list.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p>'; return; }
+    list.innerHTML = extraAttendees.map(m => `<div class="attendance-row p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}" data-extra="true">
+        <div class="flex items-center gap-3">
+            <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${m.is_present ? 'checked' : ''}>
+            <span class="font-bold text-emerald-900 dark:text-emerald-300">${m.name}</span>
+            <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">${m.district || ''}</span>
+            <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
+        </div>
+        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
+    </div>`).join('');
 }
 
-function renderExtraChip(m) {
-    const isP = m.is_present ? 1 : 0;
-    const cls = isP
-        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600';
-    const test = (m.testimony_snapshot || '').replace(/"/g, '&quot;');
-    return `<button type="button" class="extra-chip ${cls} border rounded-full pl-3 pr-2 py-1.5 text-xs font-bold transition-all active:scale-95 inline-flex items-center gap-1.5"
-        data-id="${m.id}" data-name="${m.name}" data-present="${isP}" data-testimony="${test}"
-        onclick="toggleExtraChip(this)">
-        ${m.name}<span class="text-[9px] opacity-50 hover:opacity-100 hover:text-red-400 font-black leading-none" onclick="event.stopPropagation();removeExtraChip(${m.id})">✕</span>
-    </button>`;
-}
-
-window.removeExtraChip = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
-window.removeExtra = window.removeExtraChip;
-
-function updateExtraTestimonySection() {
-    const section = document.getElementById('extraTestimonySection');
-    if (!section) return;
-    const checked = Array.from(document.querySelectorAll('.extra-chip[data-present="1"]'));
-    if (!checked.length) { section.classList.add('hidden'); section.innerHTML = ''; return; }
-    section.classList.remove('hidden');
-    const saved = {};
-    section.querySelectorAll('.extra-testimony-input').forEach(inp => { saved[inp.dataset.id] = inp.value; });
-    section.innerHTML = '<p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">간증 / 기록</p>' +
-        checked.map(chip => {
-            const id = chip.dataset.id;
-            const val = (saved[id] !== undefined ? saved[id] : (chip.dataset.testimony || '')).replace(/"/g, '&quot;');
-            return `<div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300 w-16 shrink-0 truncate">${chip.dataset.name}</span>
-                <input type="text" class="extra-testimony-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs bg-white dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" data-id="${id}" placeholder="간증/기록 입력..." value="${val}">
-            </div>`;
-        }).join('');
-}
-
-window.toggleExtraChip = function(el) {
-    const isNowPresent = el.dataset.present !== '1';
-    el.dataset.present = isNowPresent ? '1' : '0';
-    if (isNowPresent) {
-        el.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-600');
-        el.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600', 'shadow-sm');
-    } else {
-        el.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600', 'shadow-sm');
-        el.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-600');
-    }
-    const id = parseInt(el.dataset.id);
-    const member = extraAttendees.find(m => m.id === id);
-    if (member) member.is_present = isNowPresent ? 1 : 0;
-    updateExtraTestimonySection();
-};
-
-function updateAttendanceCount() {
-    const count = document.querySelectorAll('#attendanceChipGrid .attendance-chip[data-present="1"]').length;
-    const el = document.getElementById('attendanceCount');
-    if (el) el.textContent = `${count}명 선택됨`;
-}
-
-function updateTestimonySection() {
-    const section = document.getElementById('testimonySection');
-    if (!section) return;
-    const checked = Array.from(document.querySelectorAll('#attendanceChipGrid .attendance-chip[data-present="1"]'));
-    if (!checked.length) { section.classList.add('hidden'); section.innerHTML = ''; return; }
-    section.classList.remove('hidden');
-    const saved = {};
-    section.querySelectorAll('.chip-testimony-input').forEach(inp => { saved[inp.dataset.id] = inp.value; });
-    section.innerHTML = '<p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">간증 / 기록</p>' +
-        checked.map(chip => {
-            const id = chip.dataset.id;
-            const val = (saved[id] !== undefined ? saved[id] : (chip.dataset.testimony || '')).replace(/"/g, '&quot;');
-            return `<div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-blue-700 dark:text-blue-300 w-16 shrink-0 truncate">${chip.dataset.name}</span>
-                <input type="text" class="chip-testimony-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs bg-white dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" data-id="${id}" placeholder="간증/기록 입력..." value="${val}">
-            </div>`;
-        }).join('');
-}
-
-window.toggleAttendanceChip = function(el) {
-    const isNowPresent = el.dataset.present !== '1';
-    el.dataset.present = isNowPresent ? '1' : '0';
-    if (isNowPresent) {
-        el.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-600');
-        el.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-sm');
-    } else {
-        el.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-sm');
-        el.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-600');
-    }
-    updateTestimonySection();
-    updateAttendanceCount();
-};
-
-window.filterAttendanceChips = function(q) {
-    const lower = q.trim().toLowerCase();
-    document.querySelectorAll('#attendanceChipGrid .attendance-chip').forEach(chip => {
-        chip.style.display = (!lower || chip.dataset.name.toLowerCase().includes(lower)) ? '' : 'none';
-    });
-};
-
-function collectAttendanceData() {
-    const chipData = Array.from(document.querySelectorAll('#attendanceChipGrid .attendance-chip')).map(chip => {
-        const testimonyEl = document.querySelector(`.chip-testimony-input[data-id="${chip.dataset.id}"]`);
-        return {
-            member_id: parseInt(chip.dataset.id),
-            is_present: chip.dataset.present === '1' ? 1 : 0,
-            testimony_snapshot: testimonyEl ? testimonyEl.value.trim() : (chip.dataset.testimony || '')
-        };
-    });
-    const extraData = Array.from(document.querySelectorAll('.extra-chip')).map(chip => {
-        const testimonyEl = document.querySelector(`.extra-testimony-input[data-id="${chip.dataset.id}"]`);
-        return {
-            member_id: parseInt(chip.dataset.id),
-            is_present: chip.dataset.present === '1' ? 1 : 0,
-            testimony_snapshot: testimonyEl ? testimonyEl.value.trim() : (chip.dataset.testimony || '')
-        };
-    });
-    const dedupeMap = new Map();
-    chipData.forEach(r => dedupeMap.set(r.member_id, r));
-    extraData.forEach(r => dedupeMap.set(r.member_id, r));
-    return Array.from(dedupeMap.values());
-}
+window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
 
 function updateSermonTagActiveState(tagVal) {
     const tags = document.querySelectorAll('.sermon-tag');
     let matched = false;
-
+    
     tags.forEach(tag => {
         const val = tag.getAttribute('data-value');
         if (val !== '직접입력' && val === tagVal) {
-            // 다크모드 클래스도 제거해야 dark:bg-slate-800이 bg-blue-600을 덮어쓰지 않음
-            tag.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-800', 'dark:text-slate-300', 'dark:border-slate-700/60');
+            tag.classList.remove('bg-slate-100', 'text-slate-800');
             tag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-            tag.style.backgroundColor = '';
             matched = true;
         } else {
             tag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-            tag.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-800', 'dark:text-slate-300', 'dark:border-slate-700/60');
-            tag.style.backgroundColor = '';
+            tag.classList.add('bg-slate-100', 'text-slate-800');
         }
     });
 
@@ -365,13 +227,13 @@ function updateSermonTagActiveState(tagVal) {
 
     if (directInputTag) {
         if (tagVal === '직접입력' || (!matched && tagVal && tagVal.trim() !== '')) {
-            directInputTag.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-800', 'dark:text-slate-300', 'dark:border-slate-700/60');
+            directInputTag.classList.remove('bg-slate-100', 'text-slate-800');
             directInputTag.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
             if (directTagField) directTagField.classList.remove('hidden');
             if (directTagInput && tagVal !== '직접입력') directTagInput.value = tagVal;
         } else {
             directInputTag.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-            directInputTag.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-800', 'dark:text-slate-300', 'dark:border-slate-700/60');
+            directInputTag.classList.add('bg-slate-100', 'text-slate-800');
             if (directTagField) directTagField.classList.add('hidden');
             if (directTagInput && !tagVal) directTagInput.value = '';
         }
@@ -425,20 +287,33 @@ function bindEditorEvents() {
                 tagsInput.focus();
             }
         };
+        function flushTagInput() {
+            const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
+            if (tagVal && !currentSermonTagsList.includes(tagVal)) {
+                currentSermonTagsList.push(tagVal);
+                tagsInput.value = '';
+                renderSermonTagBadges();
+            } else if (tagVal) {
+                tagsInput.value = '';
+            }
+        }
         tagsInput.onkeydown = (e) => {
             if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
                 e.preventDefault();
-                const tagVal = tagsInput.value.replace(/[#,\s]/g, '').trim();
-                if (tagVal && !currentSermonTagsList.includes(tagVal)) {
-                    currentSermonTagsList.push(tagVal);
-                    tagsInput.value = '';
-                    renderSermonTagBadges();
-                }
+                flushTagInput();
             } else if (e.key === 'Backspace' && !tagsInput.value) {
                 currentSermonTagsList.pop();
                 renderSermonTagBadges();
             }
         };
+        tagsInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                flushTagInput();
+            }
+        });
+        tagsInput.addEventListener('blur', () => {
+            flushTagInput();
+        });
     }
 
     // Type Change -> Load attendance
@@ -674,13 +549,13 @@ function bindEditorEvents() {
             const q = e.target.value.trim(); if (q.length < 1) return;
             const res = await fetch(`/api/members/search?q=${encodeURIComponent(q)}&status=active`);
             const ms = await res.json();
-            document.getElementById('extraSearchResults').innerHTML = ms.map(m => `<div class="p-3 bg-white dark:bg-slate-800 border dark:border-slate-700/80 rounded hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer font-bold dark:text-slate-200" onclick="addExtraAttendee(${m.id}, '${m.name}', '${m.district || ''}', '${m.category || ''}')">${m.name} (${m.district || ''}) <span class='text-[10px] font-normal text-slate-400'>${m.category || ''}</span></div>`).join('');
+            document.getElementById('extraSearchResults').innerHTML = ms.map(m => `<div class="p-3 bg-white dark:bg-slate-800 border dark:border-slate-700/80 rounded hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer font-bold dark:text-slate-200" onclick="addExtraAttendee(${m.id}, '${m.name}', '${m.district}')">${m.name} (${m.district})</div>`).join('');
         });
     }
 
-    window.addExtraAttendee = (id, name, district, category) => {
+    window.addExtraAttendee = (id, name, district) => {
         if (!extraAttendees.some(x => x.id === id)) {
-            extraAttendees.push({ id, name, district, category: category || '', is_present: 1, testimony_snapshot: '' });
+            extraAttendees.push({ id, name, district, is_present: true, testimony_snapshot: '' });
             renderExtras();
         }
         extraSearchModal.classList.add('hidden');
@@ -818,7 +693,7 @@ async function refreshAttendanceList() {
         if (currentMeetingId) {
             const aRes = await fetch(`/api/meetings/${currentMeetingId}/attendance`);
             const att = await aRes.json();
-            extraAttendees = att.map(e => ({ id: e.member_id, name: e.name, district: e.district, category: e.category || '', is_present: e.is_present, testimony_snapshot: e.testimony_snapshot }));
+            extraAttendees = att.map(e => ({ id: e.member_id, name: e.name, district: e.district, is_present: e.is_present, testimony_snapshot: e.testimony_snapshot }));
             renderExtras();
         } else {
             extraAttendees = [];
@@ -852,27 +727,26 @@ async function refreshAttendanceList() {
         att = await aRes.json(); 
     }
     
-    const renderChip = (m) => {
+    const renderRow = (m) => {
         const a = att.find(x => x.member_id === m.id);
-        const isP = a ? !!a.is_present : false;
-        const test = (a ? (a.testimony_snapshot || '') : '').replace(/"/g, '&quot;');
-        const cls = isP
-            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600';
-        return `<button type="button" class="attendance-chip ${cls} border rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95"
-            data-id="${m.id}" data-name="${m.name}" data-district="${m.district || ''}" data-present="${isP ? '1' : '0'}" data-testimony="${test}"
-            onclick="toggleAttendanceChip(this)">${m.name}</button>`;
+        const isP = a ? a.is_present : false;
+        const test = a ? (a.testimony_snapshot || '') : '';
+        return `<div class="attendance-row p-3 bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}">
+            <div class="flex items-center gap-3">
+                <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${isP ? 'checked' : ''}>
+                <span class="font-bold text-gray-800 dark:text-slate-200">${m.name}</span>
+                <span class="text-[10px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-slate-400">${m.district}</span>
+            </div>
+            <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
+        </div>`;
     };
-    const grid = document.getElementById('attendanceChipGrid');
-    if (grid) grid.innerHTML = members.map(renderChip).join('');
-    document.getElementById('attendanceList').innerHTML = '';
-    updateTestimonySection();
-    updateAttendanceCount();
+
+    document.getElementById('attendanceList').innerHTML = members.map(renderRow).join('');
     
     if (currentMeetingId) {
         const memberIds = members.map(m => m.id);
         const extras = att.filter(a => !memberIds.includes(a.member_id) && a.is_present === 1);
-        extraAttendees = extras.map(e => ({ id: e.member_id, name: e.name, district: e.district, category: e.category || '', is_present: e.is_present, testimony_snapshot: e.testimony_snapshot }));
+        extraAttendees = extras.map(e => ({ id: e.member_id, name: e.name, district: e.district, is_present: e.is_present, testimony_snapshot: e.testimony_snapshot }));
         renderExtras();
     } else {
         extraAttendees = [];
@@ -882,6 +756,19 @@ async function refreshAttendanceList() {
 
 // Handle Save
 async function handleSaveMeeting() {
+    // 저장 전 입력 중인 주제 태그 텍스트 자동 추가 (모바일에서 엔터 없이 저장하는 경우 대비)
+    const tagsInputEl = document.getElementById('meetingSermonTags');
+    if (tagsInputEl && tagsInputEl.value) {
+        const tagVal = tagsInputEl.value.replace(/[#,\s]/g, '').trim();
+        if (tagVal && !currentSermonTagsList.includes(tagVal)) {
+            currentSermonTagsList.push(tagVal);
+            tagsInputEl.value = '';
+            renderSermonTagBadges();
+        } else {
+            tagsInputEl.value = '';
+        }
+    }
+
     const title = document.getElementById('meetingTitle').value.trim();
     const date = document.getElementById('meetingDate').value;
     const startTime = document.getElementById('meetingStartTime').value;
@@ -972,7 +859,11 @@ async function handleSaveMeeting() {
                 });
                 const { id } = await newRes.json();
 
-                const attData = collectAttendanceData();
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                    member_id: parseInt(row.dataset.id),
+                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    testimony_snapshot: row.querySelector('.testimony-input').value.trim()
+                }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
             } else {
                 const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
@@ -996,7 +887,11 @@ async function handleSaveMeeting() {
                 const { id } = await res.json();
                 const mid = currentMeetingId || id;
 
-                const attData = collectAttendanceData();
+                const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
+                    member_id: parseInt(row.dataset.id),
+                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    testimony_snapshot: row.querySelector('.testimony-input').value.trim()
+                }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
             }
 
