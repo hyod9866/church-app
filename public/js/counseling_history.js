@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isHash = leadTarget.startsWith('#');
             const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
             if (isHash) {
-                sessionLeadHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                sessionLeadHtml = `<span class="text-[9px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
             } else {
                 sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
             }
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isHash = latestLeadTarget.startsWith('#');
                 const cleanName = isHash ? latestLeadTarget.slice(1).trim() : latestLeadTarget;
                 if (isHash) {
-                    leadTargetHtml = `<span class="text-[10px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                    leadTargetHtml = `<span class="text-[10px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-2 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
                 } else {
                     leadTargetHtml = `<span class="text-[10px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
                 }
@@ -741,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const isHash = leadTarget.startsWith('#');
                             const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
                             if (isHash) {
-                                sessionLeadHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                                sessionLeadHtml = `<span class="text-[9px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
                             } else {
                                 sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
                             }
