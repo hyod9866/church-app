@@ -4,12 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>상담 관리</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class'
-        }
-    </script>
+    <link rel="stylesheet" href="/css/tailwind.min.css">
     <script>
         // Prevent flickering
         (function() {
@@ -344,105 +339,67 @@
         </div>
 
         <!-- Dashboard Container -->
-        <div id="counselingDashboard" class="space-y-4 mb-6">
-
-            <!-- Row 1: KPI Cards -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                    <p class="text-[10px] font-black text-indigo-400 uppercase tracking-wider mb-1 flex items-center gap-1"><i class="fa-solid fa-calendar-day text-[9px]"></i> 당월 상담</p>
-                    <h3 id="monthlyCounselCount" class="text-2xl font-black text-indigo-600 dark:text-indigo-400">- 건</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5">이번 달 상담 기록</p>
+        <div id="counselingDashboard" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 transition-all duration-300">
+            <!-- 1. 상황판 카드 -->
+            <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-4">
+                <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                    <span class="text-xs font-black text-slate-500 dark:text-slate-400">상담 건수 집계</span>
+                    <i class="fa-solid fa-calculator text-slate-350 text-sm"></i>
                 </div>
-                <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                    <p class="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1 flex items-center gap-1"><i class="fa-solid fa-layer-group text-[9px]"></i> 누적 상담</p>
-                    <h3 id="totalCounselCount" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">- 건</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5">전체 누적 상담 건수</p>
-                </div>
-                <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/40">
-                    <p class="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1 flex items-center gap-1"><i class="fa-solid fa-church text-[9px]"></i> 성도</p>
-                    <h3 id="memberKpiCount" class="text-2xl font-black text-blue-600 dark:text-blue-400">- 명</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5" id="memberKpiPct">전체의 --%</p>
-                </div>
-                <div class="bg-white dark:bg-[#131B2E] p-4 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-900/40">
-                    <p class="text-[10px] font-black text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1"><i class="fa-solid fa-person-walking-arrow-right text-[9px]"></i> 전도대상</p>
-                    <h3 id="evangelismKpiCount" class="text-2xl font-black text-amber-600 dark:text-amber-400">- 명</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5" id="evangelismKpiPct">전체의 --%</p>
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="bg-indigo-50/40 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                        <span class="block text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mb-1">당월 상담</span>
+                        <span id="monthlyCounselCount" class="text-xl font-black text-indigo-700 dark:text-indigo-300">- 건</span>
+                    </div>
+                    <div class="bg-emerald-50/40 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30">
+                        <span class="block text-[10px] font-bold text-emerald-500 dark:text-emerald-400 mb-1">누적 상담</span>
+                        <span id="totalCounselCount" class="text-xl font-black text-emerald-700 dark:text-emerald-300">- 건</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Row 2: 분포 + 인기 태그 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                <!-- 대상 및 소속 분포 -->
-                <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4">
-                    <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
-                        <span class="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-chart-bar text-indigo-500 text-[11px]"></i> 대상 및 소속 분포</span>
-                    </div>
-
-                    <!-- 성도 vs 전도대상 -->
+            <!-- 2. 교회 및 신분 구분 비율 게이지 -->
+            <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                    <span class="text-xs font-black text-slate-500 dark:text-slate-400">대상 및 소속 분포</span>
+                    <i class="fa-solid fa-users text-slate-350 text-sm"></i>
+                </div>
+                <div class="space-y-3">
+                    <!-- 신분 구분 (성도 vs 전도대상) -->
                     <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-[11px] font-black text-slate-600 dark:text-slate-300">성도 vs 전도대상</span>
-                            <span id="memberTargetRatioText" class="text-[10px] font-bold text-slate-400">- / -</span>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            <span>성도 vs 전도대상</span>
+                            <span id="memberTargetRatioText">- / -</span>
                         </div>
-                        <div class="flex gap-2 mb-2">
-                            <div class="flex-1 bg-blue-50 dark:bg-blue-950/20 rounded-xl p-2.5 border border-blue-100 dark:border-blue-900/40 text-center">
-                                <p class="text-[9px] font-bold text-blue-400 mb-0.5 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>성도</p>
-                                <p id="memberStatCount" class="text-lg font-black text-blue-600 dark:text-blue-400">-</p>
-                                <p id="memberStatPct" class="text-[9px] text-blue-400">--%</p>
-                            </div>
-                            <div class="flex-1 bg-amber-50 dark:bg-amber-950/20 rounded-xl p-2.5 border border-amber-100 dark:border-amber-900/40 text-center">
-                                <p class="text-[9px] font-bold text-amber-400 mb-0.5 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>전도대상</p>
-                                <p id="evangelismStatCount" class="text-lg font-black text-amber-600 dark:text-amber-400">-</p>
-                                <p id="evangelismStatPct" class="text-[9px] text-amber-400">--%</p>
-                            </div>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden flex">
-                            <div id="memberRatioBar" class="bg-blue-500 h-full transition-all duration-700 rounded-l-full" style="width: 0%"></div>
-                            <div id="targetRatioBar" class="bg-amber-500 h-full transition-all duration-700 rounded-r-full" style="width: 0%"></div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
+                            <div id="memberRatioBar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            <div id="targetRatioBar" class="bg-amber-500 h-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                     </div>
-
-                    <!-- 서울중앙 vs 타교회 -->
+                    <!-- 소속 교회 (서울중앙 vs 타교회) -->
                     <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-[11px] font-black text-slate-600 dark:text-slate-300">소속 교회</span>
-                            <span id="churchRatioText" class="text-[10px] font-bold text-slate-400">- / -</span>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            <span>서울중앙 vs 타교회/모름</span>
+                            <span id="churchRatioText">- / -</span>
                         </div>
-                        <div class="flex gap-2 mb-2">
-                            <div class="flex-1 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl p-2.5 border border-indigo-100 dark:border-indigo-900/40 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 mb-0.5 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>서울중앙</p>
-                                <p id="seoulStatCount" class="text-lg font-black text-indigo-600 dark:text-indigo-400">-</p>
-                                <p id="seoulStatPct" class="text-[9px] text-indigo-400">--%</p>
-                            </div>
-                            <div class="flex-1 bg-teal-50 dark:bg-teal-950/20 rounded-xl p-2.5 border border-teal-100 dark:border-teal-900/40 text-center">
-                                <p class="text-[9px] font-bold text-teal-400 mb-0.5 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>타교회/모름</p>
-                                <p id="otherStatCount" class="text-lg font-black text-teal-600 dark:text-teal-400">-</p>
-                                <p id="otherStatPct" class="text-[9px] text-teal-400">--%</p>
-                            </div>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden flex">
-                            <div id="seoulChurchRatioBar" class="bg-indigo-500 h-full transition-all duration-700 rounded-l-full" style="width: 0%"></div>
-                            <div id="otherChurchRatioBar" class="bg-teal-500 h-full transition-all duration-700 rounded-r-full" style="width: 0%"></div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
+                            <div id="seoulChurchRatioBar" class="bg-indigo-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            <div id="otherChurchRatioBar" class="bg-teal-500 h-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 인기 상담 주제 (성도/전도대상 탭) -->
-                <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
-                    <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
-                        <span class="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-fire text-orange-500 text-[11px]"></i> 인기 상담 주제 TOP 8</span>
-                        <!-- 탭 -->
-                        <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
-                            <button id="tagTabMemberBtn" class="px-3 py-1.5 bg-indigo-600 text-white transition-all">성도</button>
-                            <button id="tagTabEvangelismBtn" class="px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">전도대상</button>
-                        </div>
-                    </div>
-                    <div id="topTagsContainer" class="space-y-2 flex-1 overflow-y-auto pr-1" style="max-height: 240px;">
-                        <p class="text-slate-400 italic text-[11px] text-center py-6">주제 정보가 없습니다.</p>
-                    </div>
+            <!-- 3. 최다 상담 주제 TOP 10 (스크롤 영역) -->
+            <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-2.5">
+                <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                    <span class="text-xs font-black text-slate-500 dark:text-slate-400">인기 상담 주제 TOP 10</span>
+                    <i class="fa-solid fa-fire text-orange-500 text-sm"></i>
                 </div>
-
+                <!-- TOP 10 리스트 스크롤 컨테이너 -->
+                <div id="topTagsContainer" class="space-y-2 max-h-36 overflow-y-auto pr-1">
+                    <p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>
+                </div>
             </div>
         </div>
 
@@ -704,12 +661,6 @@
                         <div id="counselingNameSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
                     </div>
 
-                    <!-- 익명 체크박스 -->
-                    <div class="flex items-center gap-2 mt-1.5">
-                        <input type="checkbox" id="anonymousCheck" class="w-4 h-4 accent-indigo-600 cursor-pointer">
-                        <label for="anonymousCheck" class="text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none">익명으로 등록</label>
-                    </div>
-
                     <!-- 신규 성도 여부 알림 뱃지 -->
                     <div id="newMemberBadgeContainer" class="hidden">
                         <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-lg border border-amber-200/50 dark:border-amber-900/50">
@@ -789,16 +740,6 @@
                         <input type="date" id="counselingDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200" required>
                     </div>
 
-                    <!-- 상담 방식 -->
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 방식</label>
-                        <div id="counselingMethodBtnGroup" class="flex gap-2">
-                            <button type="button" data-val="대면" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 transition-all">대면</button>
-                            <button type="button" data-val="전화" class="counsel-method-btn px-3 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-amber-400 hover:text-amber-600 dark:hover:border-amber-400 dark:hover:text-amber-300 transition-all">전화</button>
-                        </div>
-                        <input type="hidden" id="counselingMethod" value="대면">
-                    </div>
-
                     <!-- ★ 상담 주제 해시태그 -->
                     <div class="bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/30">
                         <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -854,6 +795,6 @@
 
     <!-- Scripts -->
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/counseling_history.js?v=expandable-sessions-v8"></script>
+    <script src="/js/counseling_history.js?v=counseling-edit-tags-v6"></script>
 </body>
 </html>
