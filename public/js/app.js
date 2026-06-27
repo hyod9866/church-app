@@ -2459,21 +2459,64 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             att = await aRes.json(); 
         }
         
+        const APP_CHECK_SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+
         const renderRow = (m) => {
             const a = att.find(x => x.member_id === m.id);
-            const isP = a ? a.is_present : false;
-            const test = a ? (a.testimony_snapshot || '') : '';
-            return `<div class="attendance-row p-3 bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}">
-                <div class="flex items-center gap-3">
-                    <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${isP ? 'checked' : ''}>
-                    <span class="font-bold text-gray-800 dark:text-slate-200">${m.name}</span>
-                    <span class="text-[10px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-slate-400">${m.district}</span>
+            const isP = a ? !!a.is_present : false;
+            const test = (a ? (a.testimony_snapshot || '') : '').replace(/"/g, '&quot;');
+            const chipCls = isP ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+            const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
+            const distCls = isP ? 'bg-blue-500/70 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
+            return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}">
+                <button type="button" class="attend-chip w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
+                    <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${dotCls}">${isP ? APP_CHECK_SVG : ''}</span>
+                    <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
+                    <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district}</span>
+                </button>
+                <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
+                    <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
                 </div>
-                <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
             </div>`;
         };
 
+        function appToggleChip(row) {
+            const nowPresent = row.dataset.present !== 'true';
+            row.dataset.present = String(nowPresent);
+            const chip = row.querySelector('.attend-chip');
+            const dot = row.querySelector('.attend-dot');
+            const dist = row.querySelector('.attend-district');
+            const wrap = row.querySelector('.testimony-wrap');
+            const SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+            if (nowPresent) {
+                chip.classList.remove('bg-white', 'border-slate-200', 'text-slate-700');
+                chip.classList.add('bg-blue-600', 'border-blue-600', 'text-white');
+                dot.classList.remove('border-slate-300', 'opacity-50');
+                dot.classList.add('bg-white', 'border-white');
+                dot.innerHTML = SVG;
+                dist.classList.remove('bg-slate-100', 'text-slate-400');
+                dist.classList.add('bg-blue-500/70', 'text-blue-50');
+                wrap.classList.remove('hidden');
+            } else {
+                chip.classList.remove('bg-blue-600', 'border-blue-600', 'text-white');
+                chip.classList.add('bg-white', 'border-slate-200', 'text-slate-700');
+                dot.classList.remove('bg-white', 'border-white');
+                dot.classList.add('border-slate-300', 'opacity-50');
+                dot.innerHTML = '';
+                dist.classList.remove('bg-blue-500/70', 'text-blue-50');
+                dist.classList.add('bg-slate-100', 'text-slate-400');
+                wrap.classList.add('hidden');
+            }
+            const total = document.querySelectorAll('.attendance-row[data-present="true"]').length;
+            const countEl = document.getElementById('attendanceCount');
+            if (countEl) countEl.textContent = `${total}명 선택됨`;
+        }
+
         document.getElementById('attendanceList').innerHTML = members.map(renderRow).join('');
+        document.getElementById('attendanceList').onclick = (e) => {
+            const chip = e.target.closest('.attend-chip');
+            if (chip) appToggleChip(chip.closest('.attendance-row'));
+        };
         
         // 기존 검색 추가 인원 복구 (수정 시 - 실제 출석했던 추가 인원만 복구)
         if (id) {
@@ -2526,16 +2569,53 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
 
 function renderExtras() {
     const list = document.getElementById('extraAttendanceList');
-    if (!extraAttendees.length) { list.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-2">없음</p>'; return; }
-    list.innerHTML = extraAttendees.map(m => `<div class="attendance-row p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}" data-extra="true">
-        <div class="flex items-center gap-3">
-            <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${m.is_present ? 'checked' : ''}>
-            <span class="font-bold text-emerald-900 dark:text-emerald-300">${m.name}</span>
-            <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">${m.district || ''}</span>
-            <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
-        </div>
-        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
-    </div>`).join('');
+    if (!extraAttendees.length) { list.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p>'; return; }
+    const EX_SVG = `<svg class="w-2.5 h-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+    list.innerHTML = extraAttendees.map(m => {
+        const isP = !!m.is_present;
+        const test = (m.testimony_snapshot || '').replace(/"/g, '&quot;');
+        const chipCls = isP ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+        const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
+        const distCls = isP ? 'bg-emerald-500/70 text-emerald-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
+        return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}" data-extra="true">
+            <div class="flex items-center gap-2">
+                <button type="button" class="attend-chip flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
+                    <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${dotCls}">${isP ? EX_SVG : ''}</span>
+                    <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
+                    <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district || ''}</span>
+                </button>
+                <button type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/20 text-red-400 hover:bg-red-100 border border-red-100 dark:border-red-900/30 transition-all flex-shrink-0" onclick="removeExtra(${m.id})">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
+                <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
+            </div>
+        </div>`;
+    }).join('');
+    list.onclick = (e) => {
+        if (e.target.closest('button[onclick]')) return;
+        const chip = e.target.closest('.attend-chip');
+        if (!chip) return;
+        const row = chip.closest('.attendance-row');
+        const nowPresent = row.dataset.present !== 'true';
+        row.dataset.present = String(nowPresent);
+        const dot = chip.querySelector('.attend-dot');
+        const dist = chip.querySelector('.attend-district');
+        const wrap = row.querySelector('.testimony-wrap');
+        const ESVG = `<svg class="w-2.5 h-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+        if (nowPresent) {
+            chip.classList.remove('bg-white','border-slate-200','text-slate-700'); chip.classList.add('bg-emerald-600','border-emerald-600','text-white');
+            dot.classList.remove('border-slate-300','opacity-50'); dot.classList.add('bg-white','border-white'); dot.innerHTML = ESVG;
+            dist.classList.remove('bg-slate-100','text-slate-400'); dist.classList.add('bg-emerald-500/70','text-emerald-50');
+            wrap.classList.remove('hidden');
+        } else {
+            chip.classList.remove('bg-emerald-600','border-emerald-600','text-white'); chip.classList.add('bg-white','border-slate-200','text-slate-700');
+            dot.classList.remove('bg-white','border-white'); dot.classList.add('border-slate-300','opacity-50'); dot.innerHTML = '';
+            dist.classList.remove('bg-emerald-500/70','text-emerald-50'); dist.classList.add('bg-slate-100','text-slate-400');
+            wrap.classList.add('hidden');
+        }
+    };
 }
 window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
 
@@ -2655,7 +2735,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
-                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
@@ -2684,7 +2764,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
-                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });

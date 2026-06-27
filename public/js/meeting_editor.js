@@ -147,6 +147,14 @@ function injectEditorElements() {
                 </div>
                 <input type="hidden" id="modalCounselingBs" value="">
             </div>
+            <div class="flex-1">
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상담 방식</span>
+                <div class="flex gap-1.5" id="modalCounselMethodBtns">
+                    <button type="button" data-val="대면" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all">대면</button>
+                    <button type="button" data-val="전화" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">전화</button>
+                </div>
+                <input type="hidden" id="modalCounselingMethod" value="대면">
+            </div>
         </div>
     </div>
     <div class="bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/30">
@@ -257,15 +265,63 @@ function renderExtras() {
     const list = document.getElementById('extraAttendanceList');
     if (!list) return;
     if (!extraAttendees.length) { list.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p>'; return; }
-    list.innerHTML = extraAttendees.map(m => `<div class="attendance-row p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}" data-extra="true">
-        <div class="flex items-center gap-3">
-            <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${m.is_present ? 'checked' : ''}>
-            <span class="font-bold text-emerald-900 dark:text-emerald-300">${m.name}</span>
-            <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">${m.district || ''}</span>
-            <button class="ml-auto text-red-400 text-xs" onclick="removeExtra(${m.id})">삭제</button>
-        </div>
-        <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${m.testimony_snapshot || ''}">
-    </div>`).join('');
+    const EX_CHECK_SVG = `<svg class="w-2.5 h-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+    list.innerHTML = extraAttendees.map(m => {
+        const isP = !!m.is_present;
+        const test = (m.testimony_snapshot || '').replace(/"/g, '&quot;');
+        const chipCls = isP
+            ? 'bg-emerald-600 border-emerald-600 text-white'
+            : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+        const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
+        const distCls = isP ? 'bg-emerald-500/70 text-emerald-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
+        return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}" data-extra="true">
+            <div class="flex items-center gap-2">
+                <button type="button" class="attend-chip flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
+                    <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${dotCls}">${isP ? EX_CHECK_SVG : ''}</span>
+                    <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
+                    <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district || ''}</span>
+                </button>
+                <button type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-100 dark:border-red-900/30 transition-all flex-shrink-0" onclick="removeExtra(${m.id})">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
+                <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
+            </div>
+        </div>`;
+    }).join('');
+    // 추가인원 칩 클릭 토글
+    list.onclick = (e) => {
+        if (e.target.closest('button[onclick]')) return; // 삭제 버튼 제외
+        const chip = e.target.closest('.attend-chip');
+        if (!chip) return;
+        const row = chip.closest('.attendance-row');
+        const nowPresent = row.dataset.present !== 'true';
+        row.dataset.present = String(nowPresent);
+        const dot = chip.querySelector('.attend-dot');
+        const dist = chip.querySelector('.attend-district');
+        const wrap = row.querySelector('.testimony-wrap');
+        const EX_SVG = `<svg class="w-2.5 h-2.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+        if (nowPresent) {
+            chip.classList.remove('bg-white', 'border-slate-200', 'text-slate-700');
+            chip.classList.add('bg-emerald-600', 'border-emerald-600', 'text-white');
+            dot.classList.remove('border-slate-300', 'opacity-50');
+            dot.classList.add('bg-white', 'border-white');
+            dot.innerHTML = EX_SVG;
+            dist.classList.remove('bg-slate-100', 'text-slate-400');
+            dist.classList.add('bg-emerald-500/70', 'text-emerald-50');
+            wrap.classList.remove('hidden');
+        } else {
+            chip.classList.remove('bg-emerald-600', 'border-emerald-600', 'text-white');
+            chip.classList.add('bg-white', 'border-slate-200', 'text-slate-700');
+            dot.classList.remove('bg-white', 'border-white');
+            dot.classList.add('border-slate-300', 'opacity-50');
+            dot.innerHTML = '';
+            dist.classList.remove('bg-emerald-500/70', 'text-emerald-50');
+            dist.classList.add('bg-slate-100', 'text-slate-400');
+            wrap.classList.add('hidden');
+        }
+    };
 }
 
 window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
@@ -483,6 +539,26 @@ function bindEditorEvents() {
             b.classList.toggle('dark:bg-slate-700', !isActive);
             b.classList.toggle('text-slate-600', !isActive);
             b.classList.toggle('dark:text-slate-300', !isActive);
+        });
+    });
+
+    // --- 상담 방식 버튼 (대면/전화) ---
+    document.getElementById('modalCounselMethodBtns')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.modal-method-btn');
+        if (!btn) return;
+        const val = btn.dataset.val;
+        document.getElementById('modalCounselingMethod').value = val;
+        document.querySelectorAll('.modal-method-btn').forEach(b => {
+            const isActive = b.dataset.val === val;
+            b.classList.toggle('bg-indigo-600', isActive);
+            b.classList.toggle('border-indigo-500', isActive);
+            b.classList.toggle('text-white', isActive);
+            b.classList.toggle('bg-white', !isActive);
+            b.classList.toggle('dark:bg-slate-700', !isActive);
+            b.classList.toggle('text-slate-600', !isActive);
+            b.classList.toggle('dark:text-slate-300', !isActive);
+            b.classList.toggle('border-slate-200', !isActive);
+            b.classList.toggle('dark:border-slate-600', !isActive);
         });
     });
 
@@ -998,19 +1074,68 @@ async function refreshAttendanceList() {
     
     const renderRow = (m) => {
         const a = att.find(x => x.member_id === m.id);
-        const isP = a ? a.is_present : false;
-        const test = a ? (a.testimony_snapshot || '') : '';
-        return `<div class="attendance-row p-3 bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 rounded-xl flex flex-col gap-2 shadow-sm" data-id="${m.id}">
-            <div class="flex items-center gap-3">
-                <input type="checkbox" class="w-5 h-5 rounded is-present-check" ${isP ? 'checked' : ''}>
-                <span class="font-bold text-gray-800 dark:text-slate-200">${m.name}</span>
-                <span class="text-[10px] bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-slate-400">${m.district}</span>
+        const isP = a ? !!a.is_present : false;
+        const test = (a ? (a.testimony_snapshot || '') : '').replace(/"/g, '&quot;');
+        const chipCls = isP
+            ? 'bg-blue-600 border-blue-600 text-white'
+            : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+        const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
+        const distCls = isP ? 'bg-blue-500/70 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
+        const checkSvg = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+        return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}">
+            <button type="button" class="attend-chip w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
+                <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${dotCls}">${isP ? checkSvg : ''}</span>
+                <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
+                <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district}</span>
+            </button>
+            <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
+                <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
             </div>
-            <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
         </div>`;
     };
 
+    const CHECK_SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+
+    function updateAttendCount() {
+        const total = document.querySelectorAll('.attendance-row[data-present="true"]').length;
+        const countEl = document.getElementById('attendanceCount');
+        if (countEl) countEl.textContent = `${total}명 선택됨`;
+    }
+
+    function toggleAttendChip(row) {
+        const nowPresent = row.dataset.present !== 'true';
+        row.dataset.present = String(nowPresent);
+        const chip = row.querySelector('.attend-chip');
+        const dot = row.querySelector('.attend-dot');
+        const dist = row.querySelector('.attend-district');
+        const wrap = row.querySelector('.testimony-wrap');
+        if (nowPresent) {
+            chip.classList.remove('bg-white', 'border-slate-200', 'text-slate-700');
+            chip.classList.add('bg-blue-600', 'border-blue-600', 'text-white');
+            dot.classList.remove('border-slate-300', 'opacity-50');
+            dot.classList.add('bg-white', 'border-white');
+            dot.innerHTML = CHECK_SVG;
+            dist.classList.remove('bg-slate-100', 'text-slate-400');
+            dist.classList.add('bg-blue-500/70', 'text-blue-50');
+            wrap.classList.remove('hidden');
+        } else {
+            chip.classList.remove('bg-blue-600', 'border-blue-600', 'text-white');
+            chip.classList.add('bg-white', 'border-slate-200', 'text-slate-700');
+            dot.classList.remove('bg-white', 'border-white');
+            dot.classList.add('border-slate-300', 'opacity-50');
+            dot.innerHTML = '';
+            dist.classList.remove('bg-blue-500/70', 'text-blue-50');
+            dist.classList.add('bg-slate-100', 'text-slate-400');
+            wrap.classList.add('hidden');
+        }
+        updateAttendCount();
+    }
+
     document.getElementById('attendanceList').innerHTML = members.map(renderRow).join('');
+    document.getElementById('attendanceList').onclick = (e) => {
+        const chip = e.target.closest('.attend-chip');
+        if (chip) toggleAttendChip(chip.closest('.attendance-row'));
+    };
     
     if (currentMeetingId) {
         const memberIds = members.map(m => m.id);
@@ -1057,7 +1182,7 @@ window.removeModalCounselTag = function(idx) {
 
 function resetCounselingPanel() {
     const fields = ['modalCounselingName', 'modalCounselingMemberId', 'modalCounselingCategory',
-                    'modalCounselingBs', 'modalCounselingTags', 'modalCounselingContent', 'modalCounselingRemark'];
+                    'modalCounselingBs', 'modalCounselingTags', 'modalCounselingContent', 'modalCounselingRemark', 'modalCounselingMethod'];
     fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const preview = document.getElementById('modalCounselTagsPreview');
     if (preview) preview.innerHTML = '';
@@ -1070,6 +1195,22 @@ function resetCounselingPanel() {
         b.classList.remove('bg-blue-600', 'bg-pink-500', 'text-white', 'border-blue-600', 'border-pink-500');
         b.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
     });
+    // Reset method buttons — 대면 기본값으로
+    document.querySelectorAll('.modal-method-btn').forEach(b => {
+        const isDaemyeon = b.dataset.val === '대면';
+        b.classList.toggle('bg-indigo-600', isDaemyeon);
+        b.classList.toggle('border-indigo-500', isDaemyeon);
+        b.classList.toggle('text-white', isDaemyeon);
+        b.classList.toggle('bg-white', !isDaemyeon);
+        b.classList.toggle('dark:bg-slate-700', !isDaemyeon);
+        b.classList.toggle('text-slate-600', !isDaemyeon);
+        b.classList.toggle('dark:text-slate-300', !isDaemyeon);
+        b.classList.toggle('border-slate-200', !isDaemyeon);
+        b.classList.toggle('dark:border-slate-600', !isDaemyeon);
+    });
+    const methodInput = document.getElementById('modalCounselingMethod');
+    if (methodInput) methodInput.value = '대면';
+
     document.querySelectorAll('.mcounsel-tag-btn').forEach(b => {
         b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
         b.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
@@ -1088,6 +1229,7 @@ async function handleSaveCounseling() {
     const tags = (document.getElementById('modalCounselingTags')?.value || '').trim();
     const category = document.getElementById('modalCounselingCategory')?.value || '';
     const bs = document.getElementById('modalCounselingBs')?.value || '';
+    const method = document.getElementById('modalCounselingMethod')?.value || '대면';
 
     if (!name) return alert('상담 대상자 이름을 입력하세요.');
     if (!date) return alert('날짜를 입력하세요.');
@@ -1118,7 +1260,7 @@ async function handleSaveCounseling() {
                     member_id: memberId ? parseInt(memberId) : null,
                     name, date, content,
                     tags: tags || null,
-                    remark_memo: remark || null,
+                    remark_memo: `[${method}상담]${remark ? ' ' + remark : ''}` ,
                     category: category || null,
                     bs: bs || null,
                     member_status: 'member'
@@ -1252,7 +1394,7 @@ async function handleSaveMeeting() {
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
-                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
@@ -1280,7 +1422,7 @@ async function handleSaveMeeting() {
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
                     member_id: parseInt(row.dataset.id),
-                    is_present: row.querySelector('.is-present-check').checked ? 1 : 0,
+                    is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
                 await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });

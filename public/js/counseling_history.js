@@ -1519,6 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 태그 탭 상태
     let dashTagTab = 'member'; // 'member' | 'evangelism'
     let dashTagData = { member: [], evangelism: [] };
+    let trendChartInstance = null;
 
     function renderTopTags(tab) {
         const container = document.getElementById('topTagsContainer');
@@ -1534,10 +1535,10 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = list.slice(0, 8).map(item => {
             const pct = Math.round((item.count / maxCount) * 100);
             return `
-                <div class="space-y-1">
+                <div class="space-y-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="openTagDetailsModal('${item.tag}', '${tab}')">
                     <div class="flex justify-between items-center text-[11px] font-bold">
-                        <span class="text-slate-700 dark:text-slate-300">#${item.tag}</span>
-                        <span class="${countColor} font-extrabold">${item.count}건</span>
+                        <span class="text-indigo-600 dark:text-indigo-400 font-extrabold">#${item.tag}</span>
+                        <span class="${countColor} font-black">${item.count}건</span>
                     </div>
                     <div class="w-full bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden">
                         <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
@@ -1550,49 +1551,209 @@ document.addEventListener('DOMContentLoaded', () => {
     // 태그 탭 버튼 클릭
     document.getElementById('tagTabMemberBtn')?.addEventListener('click', () => {
         dashTagTab = 'member';
-        document.getElementById('tagTabMemberBtn').className = 'px-3 py-1.5 bg-indigo-600 text-white transition-all';
-        document.getElementById('tagTabEvangelismBtn').className = 'px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all';
+        document.getElementById('tagTabMemberBtn').className = 'px-2.5 py-1 bg-indigo-650 text-white transition-all cursor-pointer';
+        document.getElementById('tagTabEvangelismBtn').className = 'px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all cursor-pointer';
         renderTopTags('member');
     });
     document.getElementById('tagTabEvangelismBtn')?.addEventListener('click', () => {
         dashTagTab = 'evangelism';
-        document.getElementById('tagTabEvangelismBtn').className = 'px-3 py-1.5 bg-orange-500 text-white transition-all';
-        document.getElementById('tagTabMemberBtn').className = 'px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all';
+        document.getElementById('tagTabEvangelismBtn').className = 'px-2.5 py-1 bg-orange-500 text-white transition-all cursor-pointer';
+        document.getElementById('tagTabMemberBtn').className = 'px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all cursor-pointer';
         renderTopTags('evangelism');
     });
+
+    window.openTagDetailsModal = function(tag, status) {
+        const modal = document.getElementById('counselingTagModal');
+        const title = document.getElementById('counselingTagModalTitle');
+        const content = document.getElementById('counselingTagModalContent');
+        if (!modal || !content) return;
+
+        title.innerHTML = `<i class="fa-solid fa-hashtag text-[11px] text-indigo-200"></i> ${tag} - 상세 상담 이력 (${status === 'evangelism' ? '전도대상' : '성도'})`;
+
+        const matching = [];
+        allStatus.forEach(member => {
+            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
+            const memberStatus = isMember ? 'member' : 'evangelism';
+            if (memberStatus !== status) return;
+
+            const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
+            sessions.forEach(s => {
+                const tags = s.tags || '';
+                const tagsArr = tags.split(/\s+/).map(t => t.replace('#', '').trim()).filter(Boolean);
+                if (tagsArr.includes(tag)) {
+                    matching.push({ member, session: s });
+                }
+            });
+        });
+
+        matching.sort((a, b) => b.session.date.localeCompare(a.session.date));
+
+        if (matching.length === 0) {
+            content.innerHTML = `<p class="text-slate-450 dark:text-slate-400 italic text-xs text-center py-8">해당 태그를 포함한 상담 기록이 없습니다.</p>`;
+        } else {
+            content.innerHTML = matching.map(item => {
+                const tagsHtml = item.session.tags ? item.session.tags.trim().split(/\s+/).filter(t => t.startsWith('#'))
+                    .map(t => `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30">${t}</span>`)
+                    .join('') : '';
+                return `
+                    <div class="p-3.5 bg-slate-50 dark:bg-[#0B0F19] rounded-xl border border-slate-200/60 dark:border-slate-800/80 flex flex-col gap-2">
+                        <div class="flex justify-between items-center text-xs border-b border-slate-200/50 dark:border-slate-800 pb-1.5">
+                            <div class="flex items-center gap-1.5 font-bold">
+                                <span class="text-indigo-650 dark:text-indigo-400 text-sm font-black">${item.member.name}</span>
+                                <span class="text-[10px] text-slate-450 dark:text-slate-400 font-bold">${item.member.position || ''} (${item.member.category || ''})</span>
+                            </div>
+                            <span class="text-slate-550 dark:text-slate-400 font-bold">${item.session.date}</span>
+                        </div>
+                        ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
+                        <p class="text-xs text-slate-700 dark:text-slate-350 font-bold whitespace-pre-wrap leading-relaxed">📝 ${item.session.content || '(내용 없음)'}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        modal.classList.remove('hidden');
+    };
+
+    function renderTrendChart(months, memberData, evData) {
+        const ctx = document.getElementById('counselingTrendChart')?.getContext('2d');
+        if (!ctx) return;
+
+        if (trendChartInstance) {
+            trendChartInstance.destroy();
+        }
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? '#334155' : '#f1f5f9';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+
+        trendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months.map(m => {
+                    const [y, mm] = m.split('-');
+                    return `${parseInt(mm)}월`;
+                }),
+                datasets: [
+                    {
+                        label: '성도 상담',
+                        data: memberData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#3b82f6',
+                        pointRadius: 3.5,
+                        tension: 0.35,
+                        fill: true
+                    },
+                    {
+                        label: '전도대상 상담',
+                        data: evData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#f59e0b',
+                        pointRadius: 3.5,
+                        tension: 0.35,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: textColor,
+                            boxWidth: 12,
+                            font: { weight: 'bold', size: 10 }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: textColor, font: { weight: 'bold', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: { 
+                            color: textColor, 
+                            font: { weight: 'bold', size: 10 },
+                            stepSize: 1,
+                            precision: 0
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
 
     function updateDashboard(data) {
         const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
         if (!data || data.length === 0) {
             setEl('monthlyCounselCount', '0 건');
+            setEl('monthlyCounselSplit', '(성도 0건 / 전도 0건)');
             setEl('totalCounselCount', '0 건');
+            setEl('totalCounselSplit', '(성도 0건 / 전도 0건)');
             setEl('memberKpiCount', '0 명'); setEl('memberKpiPct', '전체의 0%');
             setEl('evangelismKpiCount', '0 명'); setEl('evangelismKpiPct', '전체의 0%');
-            setEl('memberTargetRatioText', '0 / 0');
+            setEl('memberTargetRatioText', '성도 0명 / 전도 0명');
             setEl('memberStatCount', '0'); setEl('memberStatPct', '0%');
             setEl('evangelismStatCount', '0'); setEl('evangelismStatPct', '0%');
-            setEl('churchRatioText', '0 / 0');
+            setEl('churchRatioText', '서울중앙 0명 / 타교회 0명');
             setEl('seoulStatCount', '0'); setEl('seoulStatPct', '0%');
             setEl('otherStatCount', '0'); setEl('otherStatPct', '0%');
-            ['memberRatioBar','targetRatioBar','seoulChurchRatioBar','otherChurchRatioBar'].forEach(id => {
-                const el = document.getElementById(id); if (el) el.style.width = '0%';
+            ['memberRatioBar','targetRatioBar','seoulChurchRatioBar','otherChurchRatioBar',
+             'memberBongsaRatioBar','memberEomeoniRatioBar','memberCheongnyeonRatioBar','memberEunjangRatioBar','memberUnknownRatioBar',
+             'evangelismBongsaRatioBar','evangelismEomeoniRatioBar','evangelismCheongnyeonRatioBar','evangelismEunjangRatioBar','evangelismUnknownRatioBar'
+            ].forEach(id => {
+                const el = document.getElementById(id); if (el) { el.style.width = '0%'; el.textContent = ''; }
             });
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+                trendChartInstance = null;
+            }
             dashTagData = { member: [], evangelism: [] };
             renderTopTags(dashTagTab);
             return;
         }
 
-        // 1. 당월 및 누적 상담 건수
+        // 1. 당월 및 누적 상담 건수 (세션 기준 전체 분할 계산)
         let totalCount = 0, monthlyCount = 0;
+        let memberTotalCount = 0, memberMonthlyCount = 0;
+        let evTotalCount = 0, evMonthlyCount = 0;
+
         const now = new Date();
         const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        data.forEach(s => {
-            totalCount += (s.counseling_count || 0);
-            if (s.last_counseling_date && s.last_counseling_date.startsWith(currentYM)) monthlyCount++;
+
+        data.forEach(member => {
+            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
+            const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
+            sessions.forEach(s => {
+                totalCount++;
+                if (isMember) memberTotalCount++;
+                else evTotalCount++;
+
+                if (s.date && s.date.startsWith(currentYM)) {
+                    monthlyCount++;
+                    if (isMember) memberMonthlyCount++;
+                    else evMonthlyCount++;
+                }
+            });
         });
+
         setEl('monthlyCounselCount', `${monthlyCount} 건`);
+        setEl('monthlyCounselSplit', `(성도 ${memberMonthlyCount}건 / 전도 ${evMonthlyCount}건)`);
         setEl('totalCounselCount', `${totalCount} 건`);
+        setEl('totalCounselSplit', `(성도 ${memberTotalCount}건 / 전도 ${evTotalCount}건)`);
 
         // 2. 성도 vs 전도대상 (member_status 우선, 없으면 salvation_date 기준)
         const totalPeople = data.length || 1;
@@ -1610,8 +1771,16 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('memberStatPct', `${memberPct}%`);
         setEl('evangelismStatCount', `${targetCount}`);
         setEl('evangelismStatPct', `${targetPct}%`);
-        const mrBar = document.getElementById('memberRatioBar'); if (mrBar) mrBar.style.width = `${memberPct}%`;
-        const trBar = document.getElementById('targetRatioBar'); if (trBar) trBar.style.width = `${targetPct}%`;
+
+        const updateRatioBar = (id, pct, label) => {
+            const bar = document.getElementById(id);
+            if (bar) {
+                bar.style.width = `${pct}%`;
+                bar.textContent = pct >= 12 ? `${label} ${pct}%` : (pct >= 8 ? `${pct}%` : '');
+            }
+        };
+        updateRatioBar('memberRatioBar', memberPct, '성도');
+        updateRatioBar('targetRatioBar', targetPct, '전도대상');
 
         // 3. 서울중앙 vs 타교회/모름
         const seoulCount = data.filter(s => s.church === '서울중앙교회').length;
@@ -1624,10 +1793,52 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('seoulStatPct', `${seoulPct}%`);
         setEl('otherStatCount', `${otherCount}`);
         setEl('otherStatPct', `${otherPct}%`);
-        const scBar = document.getElementById('seoulChurchRatioBar'); if (scBar) scBar.style.width = `${seoulPct}%`;
-        const ocBar = document.getElementById('otherChurchRatioBar'); if (ocBar) ocBar.style.width = `${otherPct}%`;
+        updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙');
+        updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름');
 
-        // 4. 인기 상담 주제 — 성도 / 전도대상 분리 집계
+        // 4. 성도 및 전도대상 각각의 소속회 분포 계산
+        const memberCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
+        const evCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
+        let memberTotal = 0;
+        let evTotal = 0;
+
+        data.forEach(s => {
+            const isMember = s.member_status ? s.member_status === 'member' : (s.salvation_date && s.salvation_date.trim() !== '');
+            const cat = s.category || '모름';
+            const normalizedCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
+            if (isMember) {
+                memberCat[normalizedCat]++;
+                memberTotal++;
+            } else {
+                evCat[normalizedCat]++;
+                evTotal++;
+            }
+        });
+
+        const updateStackedBar = (prefix, counts, total) => {
+            const denom = total || 1;
+            const cats = ['Bongsa', 'Eomeoni', 'Cheongnyeon', 'Eunjang', 'Unknown'];
+            const labels = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
+            const keys = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
+            
+            cats.forEach((c, idx) => {
+                const count = counts[keys[idx]] || 0;
+                const pct = Math.round((count / denom) * 100);
+                const bar = document.getElementById(`${prefix}${c}RatioBar`);
+                if (bar) {
+                    bar.style.width = `${pct}%`;
+                    bar.textContent = pct >= 18 ? `${labels[idx].substring(0,2)} ${pct}%` : (pct >= 8 ? `${pct}%` : '');
+                    bar.title = `${labels[idx]}: ${count}명 (${pct}%)`;
+                }
+            });
+        };
+        updateStackedBar('member', memberCat, memberTotal);
+        updateStackedBar('evangelism', evCat, evTotal);
+        
+        setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명`);
+        setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명`);
+
+        // 5. 인기 상담 주제 — 성도 / 전도대상 분리 집계
         const memberTagCounts = {}, evangelismTagCounts = {};
         data.forEach(s => {
             if (!s.last_counseling_tags) return;
@@ -1642,6 +1853,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const toSorted = obj => Object.entries(obj).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count);
         dashTagData = { member: toSorted(memberTagCounts), evangelism: toSorted(evangelismTagCounts) };
         renderTopTags(dashTagTab);
+
+        // 6. 월별 추이 데이터 계산 및 Chart.js 그래프 렌더링
+        const months = [];
+        const monthlyCounts = { member: {}, evangelism: {} };
+
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            months.push(ym);
+            monthlyCounts.member[ym] = 0;
+            monthlyCounts.evangelism[ym] = 0;
+        }
+
+        data.forEach(member => {
+            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
+            const group = isMember ? 'member' : 'evangelism';
+            
+            const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
+            sessions.forEach(s => {
+                if (!s.date) return;
+                const ym = s.date.substring(0, 7); // "YYYY-MM"
+                if (monthlyCounts[group][ym] !== undefined) {
+                    monthlyCounts[group][ym]++;
+                }
+            });
+        });
+
+        renderTrendChart(months, months.map(m => monthlyCounts.member[m]), months.map(m => monthlyCounts.evangelism[m]));
     }
 
     // 대시보드 접기/펼치기 토글
@@ -1655,6 +1894,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCollapsed = localStorage.getItem('counseling_dashboard_collapsed') === 'true';
         if (isCollapsed) {
             counselingDashboard.style.display = 'none';
+            const trendCard = document.getElementById('counselingTrendCard');
+            if (trendCard) trendCard.style.display = 'none';
             if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 펼치기';
             if (dashboardToggleIcon) {
                 dashboardToggleIcon.classList.remove('fa-chevron-up');
@@ -1664,8 +1905,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         toggleDashboardBtn.addEventListener('click', () => {
             const isCurrentlyHidden = counselingDashboard.style.display === 'none';
+            const trendCard = document.getElementById('counselingTrendCard');
             if (!isCurrentlyHidden) {
                 counselingDashboard.style.display = 'none';
+                if (trendCard) trendCard.style.display = 'none';
                 if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 펼치기';
                 if (dashboardToggleIcon) {
                     dashboardToggleIcon.classList.remove('fa-chevron-up');
@@ -1674,6 +1917,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('counseling_dashboard_collapsed', 'true');
             } else {
                 counselingDashboard.style.display = '';
+                if (trendCard) trendCard.style.display = '';
                 if (dashboardToggleText) dashboardToggleText.textContent = '대시보드 접기';
                 if (dashboardToggleIcon) {
                     dashboardToggleIcon.classList.remove('fa-chevron-down');
