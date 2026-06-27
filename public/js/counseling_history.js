@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentTags = card.dataset.tags || '';
             const currentStatus = card.dataset.memberStatus || 'member';
             const currentMemo = card.dataset.remarkMemo || '';
+            const currentLeadTarget = card.dataset.leadTarget || '';
             const bodyArea = card.querySelector('.counsel-session-body');
             const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
             const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
@@ -133,6 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div>
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
                         <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="3">${currentRemark}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">인도대상 / 모임</label>
+                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="#이름 또는 모임명 입력...">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
@@ -223,13 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
                 const newStatus = bodyArea.querySelector('.counsel-edit-status').value;
                 const newMemo = bodyArea.querySelector('.counsel-edit-memo').value.trim();
+                const newLeadTarget = bodyArea.querySelector('.counsel-edit-lead-target').value.trim();
                 if (!newDate) return alert('날짜를 입력해주세요.');
                 const saveBtn = bodyArea.querySelector('.save-counsel-btn');
                 saveBtn.disabled = true; saveBtn.textContent = '저장중...';
                 try {
                     const res = await fetch(`/api/counseling/${sessionId}`, {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, member_id: parseInt(memberId) })
+                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, lead_target: newLeadTarget, member_id: parseInt(memberId) })
                     });
                     if (res.ok) { loadStatusFn(); } else { alert('수정에 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
                 } catch (err) { console.error(err); alert('서버 오류로 인해 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
@@ -264,6 +270,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const tagsHtml = renderTagBadge(session.tags || '', session.member_status);
         const latestLabel = isLatest ? `<span class="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded">최근</span>` : '';
 
+        const leadTarget = session.lead_target || '';
+        let sessionLeadHtml = '';
+        if (leadTarget) {
+            const isHash = leadTarget.startsWith('#');
+            const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
+            if (isHash) {
+                sessionLeadHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+            } else {
+                sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
+            }
+        }
+
         return `
             <div class="counsel-session-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative"
                  data-session-id="${session.session_id || ''}"
@@ -271,12 +289,14 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-date="${session.date || ''}"
                  data-tags="${session.tags || ''}"
                  data-member-status="${session.member_status || 'member'}"
+                 data-lead-target="${session.lead_target || ''}"
                  data-remark-memo="${session.remark_memo || ''}">
                 <div class="flex items-center gap-1.5 mb-1 pr-20">
                     ${latestLabel}
                     <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
                     ${methodBadge}
                     ${memberBadge}
+                    ${sessionLeadHtml}
                 </div>
                 <div class="absolute right-2 top-2 flex gap-1.5">
                     <button type="button" class="edit-counsel-session-btn text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer">
@@ -715,13 +735,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         const memberBadge = isEv 
                             ? '<span class="text-[9px] bg-orange-105 dark:bg-orange-950/30 text-orange-600 dark:text-orange-450 px-1.5 py-0.5 rounded font-bold border border-orange-200/60">전도대상</span>'
                             : '';
+                        const leadTarget = s.lead_target || '';
+                        let sessionLeadHtml = '';
+                        if (leadTarget) {
+                            const isHash = leadTarget.startsWith('#');
+                            const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
+                            if (isHash) {
+                                sessionLeadHtml = `<span class="text-[9px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                            } else {
+                                sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
+                            }
+                        }
+
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}" data-remark-memo="${s.remark_memo || ''}" data-lead-target="${s.lead_target || ''}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
                                     <div class="flex items-center gap-2">
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
                                         ${sourceLabel}
                                         ${memberBadge}
+                                        ${sessionLeadHtml}
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
@@ -733,8 +766,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                                 ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
-                                <div class="counsel-body-area bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                <div class="counsel-body-area bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
                                     <p class="counsel-remark-text text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${s.content || '(내용 없음)'}</p>
+                                    ${s.remark_memo ? `<div class="counsel-remark-text bg-amber-50/50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200/50 dark:border-amber-900/30 text-[11px] font-black mt-2">📌 비고: ${s.remark_memo}</div>` : ''}
                                 </div>
                             </div>
                         `;
@@ -744,6 +778,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     counselingMemoList.querySelectorAll('.counsel-card').forEach(card => {
                         const sessionId = card.dataset.sessionId;
                         const memberId = card.dataset.memberId;
+                        const currentTags = card.dataset.tags || '';
+                        const currentStatus = card.dataset.memberStatus || 'member';
                         const editBtn = card.querySelector('.edit-counsel-btn');
                         const deleteBtn = card.querySelector('.delete-counsel-btn');
                         const bodyArea = card.querySelector('.counsel-body-area');
@@ -774,8 +810,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const currentDate = currentDateMatch ? currentDateMatch[0] : '';
                             const remarkTextPara = card.querySelector('.counsel-remark-text');
                             const currentRemark = remarkTextPara.textContent.trim();
-                            const currentTags = card.dataset.tags || '';
-                            const currentStatus = card.dataset.memberStatus || 'member';
+                            const currentMemo = card.dataset.remarkMemo || '';
+                            const currentLeadTarget = card.dataset.leadTarget || '';
 
                             const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
                             const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
@@ -809,6 +845,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
                                         <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="4">${currentRemark === '(내용 없음)' ? '' : currentRemark}</textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">인도대상 / 모임</label>
+                                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="#이름 또는 모임명 입력...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
+                                        <input type="text" class="counsel-edit-memo w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentMemo}" placeholder="비고 및 특이사항 입력...">
                                     </div>
                                     <div class="flex justify-end gap-1.5 mt-1">
                                         <button type="button" class="save-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
