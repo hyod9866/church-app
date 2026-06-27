@@ -1956,15 +1956,18 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명`);
         setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명`);
 
-        // 5. 인기 상담 주제 — 성도 / 전도대상 분리 집계
+        // 5. 인기 상담 주제 — 성도 / 전도대상 각각의 모든 세션 태그 집계
         const memberTagCounts = {}, evangelismTagCounts = {};
-        data.forEach(s => {
-            if (!s.last_counseling_tags) return;
-            const isMember = s.member_status !== 'evangelism';
+        data.forEach(m => {
+            const isMember = m.member_status !== 'evangelism';
             const bucket = isMember ? memberTagCounts : evangelismTagCounts;
-            s.last_counseling_tags.split(/\s+/).filter(t => t.startsWith('#')).forEach(t => {
-                const tag = t.substring(1);
-                if (tag) bucket[tag] = (bucket[tag] || 0) + 1;
+            const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
+            sessions.forEach(s => {
+                if (!s.tags) return;
+                s.tags.split(/\s+/).filter(t => t.startsWith('#')).forEach(t => {
+                    const tag = t.substring(1);
+                    if (tag) bucket[tag] = (bucket[tag] || 0) + 1;
+                });
             });
         });
 
