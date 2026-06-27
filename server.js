@@ -2437,7 +2437,12 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 
     const memberId = member_id ? parseInt(member_id) : null;
     if (memberId && member_status) {
-      await supabase.from('members').update({ member_status }).eq('id', memberId);
+      const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
+      if (updErr) {
+        console.error('Error updating member status in PUT:', updErr);
+        throw updErr;
+      }
+      console.log('Successfully updated member status in PUT:', updRes);
     }
 
     if (sessionId.startsWith('m_')) {
