@@ -425,18 +425,26 @@
                 </div>
             </div>
 
-            <!-- 3. 최다 상담 주제 TOP 10 (스크롤 영역) -->
+            <!-- 3. 최다 상담 주제 TOP 10 (성도 / 전도대상 동시 표기) -->
             <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-2.5">
-                <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                <div class="border-b dark:border-slate-800 pb-2 flex items-center justify-between">
                     <span class="text-xs font-black text-slate-500 dark:text-slate-400">인기 상담 주제 TOP 10</span>
-                    <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
-                        <button type="button" id="tagTabMemberBtn" class="px-2.5 py-1 bg-indigo-650 text-white transition-all cursor-pointer">성도</button>
-                        <button type="button" id="tagTabEvangelismBtn" class="px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all cursor-pointer">전도대상</button>
-                    </div>
                 </div>
-                <!-- TOP 10 리스트 스크롤 컨테이너 -->
-                <div id="topTagsContainer" class="space-y-2 max-h-40 overflow-y-auto pr-1">
-                    <p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- 성도 인기 주제 -->
+                    <div>
+                        <div class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 mb-2 pb-1 border-b border-indigo-100/50 dark:border-indigo-950/40">성도 인기 주제</div>
+                        <div id="topTagsMemberContainer" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            <p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>
+                        </div>
+                    </div>
+                    <!-- 전도대상 인기 주제 -->
+                    <div>
+                        <div class="text-[10px] font-black text-orange-600 dark:text-orange-400 mb-2 pb-1 border-b border-orange-100/50 dark:border-orange-950/40">전도대상 인기 주제</div>
+                        <div id="topTagsEvangelismContainer" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            <p class="text-slate-400 italic text-[11px] text-center py-4">주제 정보가 없습니다.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

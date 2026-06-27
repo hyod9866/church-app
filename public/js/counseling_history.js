@@ -1565,46 +1565,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let dashTagData = { member: [], evangelism: [] };
     let trendChartInstance = null;
 
-    function renderTopTags(tab) {
-        const container = document.getElementById('topTagsContainer');
-        if (!container) return;
-        const list = dashTagData[tab] || [];
-        if (list.length === 0) {
-            container.innerHTML = `<p class="text-slate-400 italic text-[11px] text-center py-6">주제 정보가 없습니다.</p>`;
-            return;
-        }
-        const maxCount = list[0].count || 1;
-        const barColor = tab === 'member' ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-orange-500 dark:bg-orange-400';
-        const countColor = tab === 'member' ? 'text-indigo-600 dark:text-indigo-400' : 'text-orange-600 dark:text-orange-400';
-        container.innerHTML = list.slice(0, 8).map(item => {
-            const pct = Math.round((item.count / maxCount) * 100);
-            return `
-                <div class="space-y-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="openTagDetailsModal('${item.tag}', '${tab}')">
-                    <div class="flex justify-between items-center text-[11px] font-bold">
-                        <span class="text-indigo-600 dark:text-indigo-400 font-extrabold">#${item.tag}</span>
-                        <span class="${countColor} font-black">${item.count}건</span>
+    function renderTopTags() {
+        const renderList = (tab, containerId) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const list = dashTagData[tab] || [];
+            if (list.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic text-[11px] text-center py-6">주제 정보가 없습니다.</p>`;
+                return;
+            }
+            const maxCount = list[0].count || 1;
+            const barColor = tab === 'member' ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-orange-500 dark:bg-orange-400';
+            const countColor = tab === 'member' ? 'text-indigo-600 dark:text-indigo-400' : 'text-orange-600 dark:text-orange-400';
+            const tagColor = tab === 'member' ? 'text-indigo-600 dark:text-indigo-400' : 'text-orange-600 dark:text-orange-400';
+            container.innerHTML = list.slice(0, 8).map(item => {
+                const pct = Math.round((item.count / maxCount) * 100);
+                return `
+                    <div class="space-y-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="openTagDetailsModal('${item.tag}', '${tab}')">
+                        <div class="flex justify-between items-center text-[11px] font-bold">
+                            <span class="${tagColor} font-extrabold">#${item.tag}</span>
+                            <span class="${countColor} font-black">${item.count}건</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                            <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                        <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
+                `;
+            }).join('');
+        };
 
-    // 태그 탭 버튼 클릭
-    document.getElementById('tagTabMemberBtn')?.addEventListener('click', () => {
-        dashTagTab = 'member';
-        document.getElementById('tagTabMemberBtn').className = 'px-2.5 py-1 bg-indigo-650 text-white transition-all cursor-pointer';
-        document.getElementById('tagTabEvangelismBtn').className = 'px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all cursor-pointer';
-        renderTopTags('member');
-    });
-    document.getElementById('tagTabEvangelismBtn')?.addEventListener('click', () => {
-        dashTagTab = 'evangelism';
-        document.getElementById('tagTabEvangelismBtn').className = 'px-2.5 py-1 bg-orange-500 text-white transition-all cursor-pointer';
-        document.getElementById('tagTabMemberBtn').className = 'px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all cursor-pointer';
-        renderTopTags('evangelism');
-    });
+        renderList('member', 'topTagsMemberContainer');
+        renderList('evangelism', 'topTagsEvangelismContainer');
+    }
 
     window.openTagDetailsModal = function(tag, status) {
         const searchInput = document.getElementById('searchInput');
@@ -1741,7 +1733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 trendChartInstance = null;
             }
             dashTagData = { member: [], evangelism: [] };
-            renderTopTags(dashTagTab);
+            renderTopTags();
             return;
         }
 
@@ -1871,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toSorted = obj => Object.entries(obj).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count);
         dashTagData = { member: toSorted(memberTagCounts), evangelism: toSorted(evangelismTagCounts) };
-        renderTopTags(dashTagTab);
+        renderTopTags();
 
         // 6. 월별 추이 데이터 계산 및 Chart.js 그래프 렌더링
         const months = [];
