@@ -247,68 +247,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const icon = btn.querySelector('i');
         if (!wrapper) return;
 
-        const extraSessions = wrapper.querySelector('.extra-sessions');
-        const viewMoreBtn = wrapper.querySelector('button[onclick^="toggleSessions"]');
-
+        const containers = wrapper.querySelectorAll('.specific-session-container');
         const isWrapperHidden = wrapper.classList.contains('hidden');
-        const isAllShowing = !isWrapperHidden && (!extraSessions || extraSessions.style.display !== 'none');
+        const visibleContainers = wrapper.querySelectorAll('.specific-session-container:not(.hidden)');
+        
+        const isAllShowing = !isWrapperHidden && (visibleContainers.length === containers.length);
 
         if (isAllShowing) {
             wrapper.classList.add('hidden');
+            containers.forEach(c => c.classList.add('hidden'));
             if (icon) icon.style.transform = 'rotate(0deg)';
         } else {
             wrapper.classList.remove('hidden');
-            if (extraSessions) {
-                extraSessions.style.display = 'block';
-            }
-            if (viewMoreBtn) {
-                viewMoreBtn.style.display = 'none';
-            }
+            containers.forEach(c => c.classList.remove('hidden'));
             if (icon) icon.style.transform = 'rotate(180deg)';
         }
     };
 
-    window.toggleLatestSessionOnly = function(btn) {
+    window.toggleSpecificSession = function(btn, sessionId) {
         const card = btn.closest('.counseling-person-card');
         const wrapper = card.querySelector('.member-sessions-wrapper');
         if (!wrapper) return;
 
-        const extraSessions = wrapper.querySelector('.extra-sessions');
-        const viewMoreBtn = wrapper.querySelector('button[onclick^="toggleSessions"]');
-
-        const isWrapperHidden = wrapper.classList.contains('hidden');
-        const isOnlyLatestShowing = !isWrapperHidden && (!extraSessions || extraSessions.style.display === 'none');
-
-        if (isOnlyLatestShowing) {
-            wrapper.classList.add('hidden');
-        } else {
-            wrapper.classList.remove('hidden');
-            if (extraSessions) {
-                extraSessions.style.display = 'none';
-            }
-            if (viewMoreBtn) {
-                viewMoreBtn.style.display = 'block';
-                viewMoreBtn.textContent = `▼ 이전 상담 ${extraSessions.dataset.count}건 더 보기`;
-            }
-            const icon = card.querySelector('button[onclick^="toggleMemberSessions"] i');
-            if (icon) {
-                icon.style.transform = 'rotate(0deg)';
-            }
+        wrapper.classList.remove('hidden');
+        const targetContainer = wrapper.querySelector(`.specific-session-container[data-session-id="${sessionId}"]`);
+        if (targetContainer) {
+            targetContainer.classList.toggle('hidden');
         }
-    };
 
-    // ── 세션 접기/펼치기 ─────────────────────────────────────
-    window.toggleSessions = function(btn, memberId) {
-        const card = btn.closest('.counseling-person-card');
-        const extraSessions = card.querySelector('.extra-sessions');
-        if (!extraSessions) return;
-        const isHidden = extraSessions.style.display === 'none' || extraSessions.style.display === '';
-        extraSessions.style.display = isHidden ? 'block' : 'none';
-        btn.textContent = isHidden ? '▲ 접기' : `▼ 이전 상담 ${extraSessions.dataset.count}건 더 보기`;
-        
+        const visibleContainers = wrapper.querySelectorAll('.specific-session-container:not(.hidden)');
+        if (visibleContainers.length === 0) {
+            wrapper.classList.add('hidden');
+        }
+
+        const totalContainers = wrapper.querySelectorAll('.specific-session-container');
         const icon = card.querySelector('button[onclick^="toggleMemberSessions"] i');
         if (icon) {
-            icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (visibleContainers.length === totalContainers.length) {
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
         }
     };
 
@@ -327,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
         counselingList.innerHTML = data.map(member => {
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
             const latestSession = sessions[0] || null;
-            const extraSessions = sessions.slice(1);
 
             let daysDiffHtml = '';
             if (latestSession && latestSession.date) {
@@ -337,17 +315,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 daysDiffHtml = `<span class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>`;
             }
 
-            const latestSessionHtml = latestSession ? renderSessionCard(latestSession, member.id, true) : '';
-
-            const extraHtml = extraSessions.length > 0
-                ? `<div class="extra-sessions" style="display:none" data-count="${extraSessions.length}">
-                       ${extraSessions.map(s => renderSessionCard(s, member.id, false)).join('')}
-                   </div>
-                   <button type="button" onclick="toggleSessions(this, ${member.id})"
-                       class="mt-2 w-full text-center text-[10px] font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 py-1 border border-dashed border-indigo-200 dark:border-indigo-800/50 rounded-lg transition-colors cursor-pointer">
-                       ▼ 이전 상담 ${extraSessions.length}건 더 보기
-                   </button>`
-                : '';
+            const allSessionsHtml = sessions.map((s, idx) => {
+                const isLatest = idx === 0;
+                return `
+                    <div class="specific-session-container hidden" data-session-id="${s.session_id}">
+                        ${renderSessionCard(s, member.id, isLatest)}
+                    </div>
+                `;
+            }).join('');
 
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
             const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
@@ -359,12 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             ` : '';
 
-            const latestSessionDateHtml = latestSession ? `
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-1.5 flex items-center gap-1">
-                    <span>최근 상담일:</span>
-                    <button type="button" onclick="toggleLatestSessionOnly(this)" class="text-indigo-650 dark:text-indigo-400 underline font-black hover:text-indigo-800 dark:hover:text-indigo-300 cursor-pointer focus:outline-none">
-                        ${latestSession.date}
-                    </button>
+            const dateButtonsHtml = sessions.length > 0 ? `
+                <div class="flex gap-1.5 flex-wrap mt-1.5 items-center">
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-0.5">상담이력:</span>
+                    ${sessions.map(s => `
+                        <button type="button" onclick="toggleSpecificSession(this, '${s.session_id}')" class="px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-100 dark:border-slate-800 bg-indigo-50/60 dark:bg-slate-800/60 text-indigo-650 dark:text-slate-350 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition-colors cursor-pointer">
+                            ${s.date}
+                        </button>
+                    `).join('')}
                 </div>
             ` : '';
 
@@ -378,11 +355,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
                             ${daysDiffHtml}
                         </div>
-                        ${latestSessionDateHtml}
+                        ${dateButtonsHtml}
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
                         <div class="member-sessions-wrapper hidden w-full mt-2">
-                            ${latestSessionHtml}
-                            ${extraHtml}
+                            ${allSessionsHtml}
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
@@ -1641,6 +1617,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wrapper = card.querySelector('.member-sessions-wrapper');
                 if (wrapper) {
                     wrapper.classList.remove('hidden');
+                    wrapper.querySelectorAll('.specific-session-container').forEach(c => c.classList.remove('hidden'));
                 }
                 const icon = card.querySelector('.fa-chevron-down');
                 if (icon) {
