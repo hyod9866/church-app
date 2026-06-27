@@ -1715,16 +1715,16 @@ app.post('/api/attendance/toggle', async (req, res) => {
       .from('attendance')
       .select('id')
       .eq('meeting_id', meeting_id)
-      .eq('member_id', member_id)
-      .maybeSingle();
+      .eq('member_id', member_id);
 
     if (selectErr) throw selectErr;
 
-    if (existing) {
+    if (existing && existing.length > 0) {
+      const ids = existing.map(e => e.id);
       const { error: updateErr } = await supabase
         .from('attendance')
         .update({ is_present: is_present ? 1 : 0 })
-        .eq('id', existing.id);
+        .in('id', ids);
       if (updateErr) throw updateErr;
     } else {
       const { data: member, error: memErr } = await supabase
@@ -1761,16 +1761,16 @@ app.post('/api/attendance/testimony', async (req, res) => {
       .from('attendance')
       .select('id')
       .eq('meeting_id', meeting_id)
-      .eq('member_id', member_id)
-      .maybeSingle();
+      .eq('member_id', member_id);
 
     if (selectErr) throw selectErr;
 
-    if (existing) {
+    if (existing && existing.length > 0) {
+      const ids = existing.map(e => e.id);
       const { error: updateErr } = await supabase
         .from('attendance')
         .update({ testimony_snapshot: testimony || null })
-        .eq('id', existing.id);
+        .in('id', ids);
       if (updateErr) throw updateErr;
     } else {
       const { data: member, error: memErr } = await supabase
@@ -2215,7 +2215,8 @@ app.get('/api/counseling', async (req, res) => {
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
           last_counseling_tags: last ? last.tags : null,
-          last_counseling_session_id: last ? last.session_id : null
+          last_counseling_session_id: last ? last.session_id : null,
+          all_sessions: sessions
         };
       });
 
@@ -2390,9 +2391,10 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       await supabase.from('meetings').update({ date }).eq('id', meetingId);
       if (memberId) {
         const { data: existing } = await supabase.from('attendance')
-          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId).maybeSingle();
-        if (existing) {
-          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).eq('id', existing.id);
+          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId);
+        if (existing && existing.length > 0) {
+          const ids = existing.map(e => e.id);
+          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).in('id', ids);
         }
       }
     } else if (sessionId.startsWith('r_')) {
