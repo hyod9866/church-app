@@ -25,7 +25,7 @@ function injectEditorElements() {
             </div>
             <div class="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-slate-50/20 dark:bg-[#0B0F19]/60">
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">모임 명칭</label><input type="text" id="meetingTitle" class="w-full border-b border-slate-300 dark:border-slate-700/60 focus:border-blue-500 bg-transparent outline-none py-1.5 text-base md:text-lg font-black transition-colors dark:text-slate-100 dark:placeholder-slate-500" placeholder="예: 581구역모임"></div>
+                    <div class="col-span-2" id="meetingTitleField"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">모임 명칭</label><input type="text" id="meetingTitle" class="w-full border-b border-slate-300 dark:border-slate-700/60 focus:border-blue-500 bg-transparent outline-none py-1.5 text-base md:text-lg font-black transition-colors dark:text-slate-100 dark:placeholder-slate-500" placeholder="예: 581구역모임"></div>
                     <div>
                         <label id="meetingDateLabel" class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">날짜</label>
                         <input type="date" id="meetingDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
@@ -65,7 +65,7 @@ function injectEditorElements() {
                         </div>
                         <input type="date" id="meetingEndDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                     </div>
-                    <div class="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                    <div id="meetingRecurrenceSection" class="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800/80 pt-3">
                         <div>
                             <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">반복 설정</label>
                             <select id="meetingRecurrence" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
@@ -81,6 +81,7 @@ function injectEditorElements() {
                         </div>
                     </div>
                 </div>
+                <div id="sermonSection">
                 <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label><input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
                 <div class="grid grid-cols-2 gap-4 mt-3">
                     <div>
@@ -99,6 +100,7 @@ function injectEditorElements() {
                     </div>
                 </div>
                 <div id="directSermonTagField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 태그 (직접 입력)</label><input type="text" id="directSermonTag" placeholder="태그를 직접 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
+                </div>
                 <div id="memoField" class="hidden"><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">메모</label><textarea id="meetingMemo" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm h-24 bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></textarea></div>
                 
                 <!-- 외부설교 시 교회 검색 섹션 -->
@@ -115,7 +117,70 @@ function injectEditorElements() {
                 </div>
 
                 <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
-                <div class="mt-60 pt-8 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
+                <div id="extraAttendeesSection" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
+                <div id="counselingPanel" class="hidden space-y-4">
+    <div class="relative">
+        <label class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 block mb-1.5 uppercase tracking-wider">상담 대상자 *</label>
+        <input type="text" id="modalCounselingName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="이름을 입력하세요..." autocomplete="off">
+        <div id="modalCounselingSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden no-scrollbar"></div>
+        <input type="hidden" id="modalCounselingMemberId" value="">
+    </div>
+    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700/40 space-y-3">
+        <span class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">성도 구분</span>
+        <div>
+            <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">소속</span>
+            <div class="flex flex-wrap gap-1.5" id="modalCategoryBtns">
+                <button type="button" data-val="봉사회" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">봉사회</button>
+                <button type="button" data-val="청년회" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">청년회</button>
+                <button type="button" data-val="어머니회" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">어머니회</button>
+                <button type="button" data-val="은장회" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">은장회</button>
+                <button type="button" data-val="모름" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">모름</button>
+            </div>
+            <input type="hidden" id="modalCounselingCategory" value="">
+        </div>
+        <div class="flex gap-6">
+            <div class="flex-1">
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
+                <div class="flex gap-1.5" id="modalBsBtns">
+                    <button type="button" data-val="B" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">형제</button>
+                    <button type="button" data-val="S" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">자매</button>
+                </div>
+                <input type="hidden" id="modalCounselingBs" value="">
+            </div>
+        </div>
+    </div>
+    <div class="bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/30">
+        <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-2">상담 주제 태그 (복수 선택)</label>
+        <div class="flex flex-wrap gap-1.5 mb-2.5" id="modalCounselTagBtns">
+            <button type="button" data-tag="전도상담" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#전도상담</button>
+            <button type="button" data-tag="구원확신/의심" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#구원확신/의심</button>
+            <button type="button" data-tag="진로" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#진로</button>
+            <button type="button" data-tag="이성" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이성</button>
+            <button type="button" data-tag="죄" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#죄</button>
+            <button type="button" data-tag="자녀" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#자녀</button>
+            <button type="button" data-tag="부부관계" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#부부관계</button>
+            <button type="button" data-tag="가족" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#가족</button>
+            <button type="button" data-tag="성경질문" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#성경질문</button>
+            <button type="button" data-tag="이단" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이단</button>
+            <button type="button" data-tag="직장생활" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#직장생활</button>
+            <button type="button" data-tag="결혼" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#결혼</button>
+        </div>
+        <div class="flex gap-2 items-center">
+            <input type="text" id="modalCounselTagInput" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 입력 (예: 재정, 직장 등)">
+            <button type="button" id="modalAddCounselTag" class="px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 transition-all whitespace-nowrap">+ 추가</button>
+        </div>
+        <div id="modalCounselTagsPreview" class="mt-2 flex flex-wrap gap-1.5 min-h-[20px]"></div>
+        <input type="hidden" id="modalCounselingTags" value="">
+    </div>
+    <div>
+        <label class="text-[10px] font-black text-slate-400 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">상담 내용 *</label>
+        <textarea id="modalCounselingContent" rows="5" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="상담한 핵심 내용을 작성하세요..."></textarea>
+    </div>
+    <div>
+        <label class="text-[10px] font-black text-slate-400 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">비고 / 기타 메모</label>
+        <input type="text" id="modalCounselingRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="기타 특이사항이나 비고를 입력하세요...">
+    </div>
+</div>
             </div>
             <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800/50 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/35 active:scale-[0.98] text-red-500 dark:text-red-400 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700/60 py-3 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
         </div>
@@ -315,6 +380,146 @@ function bindEditorEvents() {
             flushTagInput();
         });
     }
+
+    // 개인상담 패널 이벤트 바인딩
+    // --- 이름 자동완성 ---
+    const modalNameInput = document.getElementById('modalCounselingName');
+    const modalSuggestions = document.getElementById('modalCounselingSuggestions');
+    const modalMemberIdInput = document.getElementById('modalCounselingMemberId');
+    if (modalNameInput && modalSuggestions) {
+        modalNameInput.addEventListener('input', async () => {
+            const val = modalNameInput.value.trim();
+            if (val.length < 1) { modalSuggestions.classList.add('hidden'); modalMemberIdInput.value = ''; return; }
+            try {
+                const res = await fetch(`/api/members/search?name=${encodeURIComponent(val)}&status=active`);
+                const list = await res.json();
+                if (!list.length) { modalSuggestions.classList.add('hidden'); return; }
+                modalSuggestions.innerHTML = list.slice(0, 8).map(m => `
+                    <div class="px-3 py-2.5 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
+                        data-id="${m.id}" data-name="${m.name}" data-category="${m.category || ''}" data-bs="${m.bs || ''}">
+                        <span>${m.name}</span>
+                        <span class="text-[10px] text-slate-400 font-normal">${m.category || ''} ${m.district || ''}</span>
+                    </div>`).join('');
+                modalSuggestions.classList.remove('hidden');
+            } catch(e) { modalSuggestions.classList.add('hidden'); }
+        });
+        modalSuggestions.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-id]');
+            if (!item) return;
+            modalNameInput.value = item.dataset.name;
+            modalMemberIdInput.value = item.dataset.id;
+            modalSuggestions.classList.add('hidden');
+            // 소속/성별 자동 세팅
+            if (item.dataset.category) {
+                document.getElementById('modalCounselingCategory').value = item.dataset.category;
+                document.querySelectorAll('.modal-cat-btn').forEach(b => {
+                    const isActive = b.dataset.val === item.dataset.category;
+                    b.classList.toggle('bg-indigo-600', isActive);
+                    b.classList.toggle('text-white', isActive);
+                    b.classList.toggle('border-indigo-600', isActive);
+                    b.classList.toggle('bg-white', !isActive);
+                    b.classList.toggle('dark:bg-slate-700', !isActive);
+                    b.classList.toggle('text-slate-600', !isActive);
+                    b.classList.toggle('dark:text-slate-300', !isActive);
+                });
+            }
+            if (item.dataset.bs) {
+                document.getElementById('modalCounselingBs').value = item.dataset.bs;
+                document.querySelectorAll('.modal-bs-btn').forEach(b => {
+                    const isActive = b.dataset.val === item.dataset.bs;
+                    const isBrother = b.dataset.val === 'B';
+                    b.classList.toggle('bg-blue-600', isActive && isBrother);
+                    b.classList.toggle('bg-pink-500', isActive && !isBrother);
+                    b.classList.toggle('text-white', isActive);
+                    b.classList.toggle('border-blue-600', isActive && isBrother);
+                    b.classList.toggle('border-pink-500', isActive && !isBrother);
+                    b.classList.toggle('bg-white', !isActive);
+                    b.classList.toggle('dark:bg-slate-700', !isActive);
+                    b.classList.toggle('text-slate-600', !isActive);
+                    b.classList.toggle('dark:text-slate-300', !isActive);
+                });
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!modalNameInput.contains(e.target) && !modalSuggestions.contains(e.target)) {
+                modalSuggestions.classList.add('hidden');
+            }
+        });
+    }
+
+    // --- 소속 버튼 ---
+    document.getElementById('modalCategoryBtns')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.modal-cat-btn');
+        if (!btn) return;
+        const val = btn.dataset.val;
+        document.getElementById('modalCounselingCategory').value = val;
+        document.querySelectorAll('.modal-cat-btn').forEach(b => {
+            const isActive = b.dataset.val === val;
+            b.classList.toggle('bg-indigo-600', isActive);
+            b.classList.toggle('text-white', isActive);
+            b.classList.toggle('border-indigo-600', isActive);
+            b.classList.toggle('bg-white', !isActive);
+            b.classList.toggle('dark:bg-slate-700', !isActive);
+            b.classList.toggle('text-slate-600', !isActive);
+            b.classList.toggle('dark:text-slate-300', !isActive);
+        });
+    });
+
+    // --- 성별 버튼 ---
+    document.getElementById('modalBsBtns')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.modal-bs-btn');
+        if (!btn) return;
+        const val = btn.dataset.val;
+        document.getElementById('modalCounselingBs').value = val;
+        document.querySelectorAll('.modal-bs-btn').forEach(b => {
+            const isActive = b.dataset.val === val;
+            const isBrother = b.dataset.val === 'B';
+            b.classList.toggle('bg-blue-600', isActive && isBrother);
+            b.classList.toggle('bg-pink-500', isActive && !isBrother);
+            b.classList.toggle('text-white', isActive);
+            b.classList.toggle('border-blue-600', isActive && isBrother);
+            b.classList.toggle('border-pink-500', isActive && !isBrother);
+            b.classList.toggle('bg-white', !isActive);
+            b.classList.toggle('dark:bg-slate-700', !isActive);
+            b.classList.toggle('text-slate-600', !isActive);
+            b.classList.toggle('dark:text-slate-300', !isActive);
+        });
+    });
+
+    // --- 상담 태그 프리셋 버튼 ---
+    document.getElementById('modalCounselTagBtns')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.mcounsel-tag-btn');
+        if (!btn) return;
+        const tag = '#' + btn.dataset.tag;
+        const hiddenInput = document.getElementById('modalCounselingTags');
+        let tags = hiddenInput.value ? hiddenInput.value.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
+        if (tags.includes(tag)) {
+            tags = tags.filter(t => t !== tag);
+        } else {
+            tags.push(tag);
+        }
+        hiddenInput.value = tags.join(' ');
+        renderModalCounselTags();
+    });
+
+    // --- 커스텀 태그 추가 ---
+    function addModalCustomTag() {
+        const input = document.getElementById('modalCounselTagInput');
+        if (!input) return;
+        const val = input.value.replace(/[#\s,]/g, '').trim();
+        if (!val) return;
+        const hiddenInput = document.getElementById('modalCounselingTags');
+        let tags = hiddenInput.value ? hiddenInput.value.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
+        const tag = '#' + val;
+        if (!tags.includes(tag)) tags.push(tag);
+        hiddenInput.value = tags.join(' ');
+        input.value = '';
+        renderModalCounselTags();
+    }
+    document.getElementById('modalAddCounselTag')?.addEventListener('click', addModalCustomTag);
+    document.getElementById('modalCounselTagInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addModalCustomTag(); }
+    });
 
     // Type Change -> Load attendance
     const meetingTypeEl = document.getElementById('meetingType');
@@ -620,6 +825,70 @@ function updateSelectedChurchUI() {
 // Populate UI for attendance list
 async function refreshAttendanceList() {
     const currentType = document.getElementById('meetingType').value;
+
+    // 개인상담 모드 전환
+    const counselingPanel = document.getElementById('counselingPanel');
+    const titleField = document.getElementById('meetingTitleField');
+    const recurrenceSection = document.getElementById('meetingRecurrenceSection');
+    const sermonSectionEl = document.getElementById('sermonSection');
+    const extraAttendeesSection = document.getElementById('extraAttendeesSection');
+
+    if (currentType === '상담') {
+        if (counselingPanel) counselingPanel.classList.remove('hidden');
+        if (titleField) titleField.classList.add('hidden');
+        if (recurrenceSection) recurrenceSection.classList.add('hidden');
+        if (sermonSectionEl) sermonSectionEl.classList.add('hidden');
+        if (extraAttendeesSection) extraAttendeesSection.classList.add('hidden');
+        const defaultAttSec2 = document.getElementById('defaultAttendanceSection');
+        if (defaultAttSec2) defaultAttSec2.classList.add('hidden');
+        const memoField2 = document.getElementById('memoField');
+        if (memoField2) memoField2.classList.add('hidden');
+        // 기존 상담 수정 시 attendance 데이터 로드
+        if (currentMeetingId) {
+            try {
+                const aRes = await fetch(`/api/meetings/${currentMeetingId}/attendance`);
+                const att = await aRes.json();
+                if (att.length > 0) {
+                    const person = att[0];
+                    const nameEl = document.getElementById('modalCounselingName');
+                    const memberIdEl = document.getElementById('modalCounselingMemberId');
+                    if (nameEl && !nameEl.value) nameEl.value = person.name || '';
+                    if (memberIdEl && !memberIdEl.value) memberIdEl.value = person.member_id || '';
+                    // testimony_snapshot: "태그들\n내용" 형식으로 저장됨
+                    const snap = person.testimony_snapshot || '';
+                    const firstNL = snap.indexOf('\n');
+                    let loadedTags = '', loadedContent = '';
+                    if (firstNL > -1 && snap.substring(0, firstNL).includes('#')) {
+                        loadedTags = snap.substring(0, firstNL).trim();
+                        loadedContent = snap.substring(firstNL + 1).trim();
+                    } else {
+                        loadedContent = snap;
+                    }
+                    const contentEl = document.getElementById('modalCounselingContent');
+                    if (contentEl && !contentEl.value) contentEl.value = loadedContent;
+                    if (loadedTags) {
+                        document.getElementById('modalCounselingTags').value = loadedTags;
+                        renderModalCounselTags();
+                    }
+                    // 메모 = remark
+                    const remarkEl = document.getElementById('modalCounselingRemark');
+                    if (remarkEl && !remarkEl.value) {
+                        const memoEl = document.getElementById('meetingMemo');
+                        if (memoEl) remarkEl.value = memoEl.value || '';
+                    }
+                }
+            } catch(e) { console.warn('counseling load err', e); }
+        }
+        return;
+    }
+
+    // 개인상담이 아닌 경우: 상담 패널 숨기고 일반 UI 복원
+    if (counselingPanel) counselingPanel.classList.add('hidden');
+    if (titleField) titleField.classList.remove('hidden');
+    if (recurrenceSection) recurrenceSection.classList.remove('hidden');
+    if (sermonSectionEl) sermonSectionEl.classList.remove('hidden');
+    if (extraAttendeesSection) extraAttendeesSection.classList.remove('hidden');
+
     let targetParams = new URLSearchParams({ status: 'active' });
     
     const endDateField = document.getElementById('meetingEndDateField');
@@ -657,7 +926,7 @@ async function refreshAttendanceList() {
         if (defaultAttSec) defaultAttSec.classList.remove('hidden');
         if (extraAttSec) extraAttSec.classList.remove('hidden');
         
-        if (['심방', '외부설교', '기타', '상담', '설교'].includes(currentType) || currentType.includes('모임')) {
+        if (['심방', '외부설교', '기타', '설교'].includes(currentType) || currentType.includes('모임')) {
             if (memoField) memoField.classList.remove('hidden');
         } else {
             if (memoField) memoField.classList.add('hidden');
@@ -688,7 +957,7 @@ async function refreshAttendanceList() {
         targetParams.append('category', '봉사회');
     } else if (currentType.includes('청년모임')) {
         targetParams.append('category', '청년회');
-    } else if (['설교', '외부설교', '심방', '기타', '상담'].includes(currentType)) {
+    } else if (['설교', '외부설교', '심방', '기타'].includes(currentType)) {
         document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
         if (currentMeetingId) {
             const aRes = await fetch(`/api/meetings/${currentMeetingId}/attendance`);
@@ -754,6 +1023,122 @@ async function refreshAttendanceList() {
     }
 }
 
+// 상담 태그 렌더링
+function renderModalCounselTags() {
+    const hiddenInput = document.getElementById('modalCounselingTags');
+    const preview = document.getElementById('modalCounselTagsPreview');
+    if (!hiddenInput || !preview) return;
+    const tagsStr = hiddenInput.value;
+    const tags = tagsStr ? tagsStr.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
+
+    // Sync active state on preset buttons
+    document.querySelectorAll('.mcounsel-tag-btn').forEach(btn => {
+        const tag = '#' + btn.dataset.tag;
+        if (tags.includes(tag)) {
+            btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+            btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+        } else {
+            btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+        }
+    });
+
+    preview.innerHTML = tags.map((t, i) => `<span class="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[11px] font-bold flex items-center gap-1">${t}<button type="button" onclick="removeModalCounselTag(${i})" class="text-red-400 hover:text-red-600 font-black text-[10px]">✕</button></span>`).join('');
+}
+
+window.removeModalCounselTag = function(idx) {
+    const hiddenInput = document.getElementById('modalCounselingTags');
+    if (!hiddenInput) return;
+    const tags = hiddenInput.value ? hiddenInput.value.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
+    tags.splice(idx, 1);
+    hiddenInput.value = tags.join(' ');
+    renderModalCounselTags();
+};
+
+function resetCounselingPanel() {
+    const fields = ['modalCounselingName', 'modalCounselingMemberId', 'modalCounselingCategory',
+                    'modalCounselingBs', 'modalCounselingTags', 'modalCounselingContent', 'modalCounselingRemark'];
+    fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const preview = document.getElementById('modalCounselTagsPreview');
+    if (preview) preview.innerHTML = '';
+    // Reset category/bs buttons
+    document.querySelectorAll('.modal-cat-btn').forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+        b.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+    });
+    document.querySelectorAll('.modal-bs-btn').forEach(b => {
+        b.classList.remove('bg-blue-600', 'bg-pink-500', 'text-white', 'border-blue-600', 'border-pink-500');
+        b.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-300');
+    });
+    document.querySelectorAll('.mcounsel-tag-btn').forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+        b.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+    });
+    const sugg = document.getElementById('modalCounselingSuggestions');
+    if (sugg) sugg.classList.add('hidden');
+}
+
+// 개인상담 저장
+async function handleSaveCounseling() {
+    const name = (document.getElementById('modalCounselingName')?.value || '').trim();
+    const memberId = document.getElementById('modalCounselingMemberId')?.value || '';
+    const date = document.getElementById('meetingDate')?.value || '';
+    const content = (document.getElementById('modalCounselingContent')?.value || '').trim();
+    const remark = (document.getElementById('modalCounselingRemark')?.value || '').trim();
+    const tags = (document.getElementById('modalCounselingTags')?.value || '').trim();
+    const category = document.getElementById('modalCounselingCategory')?.value || '';
+    const bs = document.getElementById('modalCounselingBs')?.value || '';
+
+    if (!name) return alert('상담 대상자 이름을 입력하세요.');
+    if (!date) return alert('날짜를 입력하세요.');
+    if (!content) return alert('상담 내용을 입력하세요.');
+
+    const saveBtn = document.getElementById('saveMeeting');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
+
+    try {
+        if (currentMeetingId) {
+            // 수정: PUT /api/counseling/:sessionId
+            // testimony_snapshot 재구성
+            let fullContent = '';
+            if (tags) fullContent = tags + '\n';
+            fullContent += content;
+            const res = await fetch(`/api/counseling/${currentMeetingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: fullContent, tags, remark_memo: remark || null })
+            });
+            if (!res.ok) throw new Error('수정 실패');
+        } else {
+            // 신규: POST /api/counseling
+            const res = await fetch('/api/counseling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: memberId ? parseInt(memberId) : null,
+                    name, date, content,
+                    tags: tags || null,
+                    remark_memo: remark || null,
+                    category: category || null,
+                    bs: bs || null,
+                    member_status: 'member'
+                })
+            });
+            if (!res.ok) throw new Error('저장 실패');
+        }
+
+        // 저장 후 모달 닫기 및 캘린더 새로고침
+        document.getElementById('meetingModal').classList.add('hidden');
+        if (typeof editorSaveCallback === 'function') editorSaveCallback();
+        if (typeof window.refetchEvents === 'function') window.refetchEvents();
+    } catch(err) {
+        console.error('counseling save error', err);
+        alert('상담 저장 중 오류가 발생했습니다.');
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장하기'; }
+    }
+}
+
 // Handle Save
 async function handleSaveMeeting() {
     // 저장 전 입력 중인 주제 태그 텍스트 자동 추가 (모바일에서 엔터 없이 저장하는 경우 대비)
@@ -767,6 +1152,12 @@ async function handleSaveMeeting() {
         } else {
             tagsInputEl.value = '';
         }
+    }
+
+    const typeCheck = document.getElementById('meetingType').value;
+    if (typeCheck === '상담') {
+        await handleSaveCounseling();
+        return;
     }
 
     const title = document.getElementById('meetingTitle').value.trim();
@@ -1092,7 +1483,8 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete) {
 
 async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
     currentMeetingId = id; extraAttendees = [];
-    
+    resetCounselingPanel();
+
     document.getElementById('meetingRecurrence').value = rrule_type || 'none';
     document.getElementById('meetingRecurrenceEndDate').value = rrule_end_date || '';
     
