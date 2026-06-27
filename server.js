@@ -1498,13 +1498,8 @@ app.get('/api/meetings', async (req, res) => {
     const districtTestimonyCountMap = {};
 
     if (presentAttendance) {
-      const seenAttendance = new Set(); // (meeting_id:member_id) 중복 방지
       presentAttendance.forEach(a => {
-        if (!Number(a.is_present)) return;
-
-        const dedupeKey = `${a.meeting_id}:${a.member_id}`;
-        if (seenAttendance.has(dedupeKey)) return;
-        seenAttendance.add(dedupeKey);
+        if (Number(a.is_present) !== 1) return;
 
         countMap[a.meeting_id] = (countMap[a.meeting_id] || 0) + 1;
         if (a.testimony_snapshot && a.testimony_snapshot.trim() !== '') {
@@ -1651,11 +1646,7 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
       
     if (error) throw error;
 
-    // member_id 기준 중복 제거 (동일 인원이 두 번 들어온 경우 마지막 행 우선)
-    const dedupeMap = new Map();
-    (data || []).forEach(a => dedupeMap.set(a.member_id, a));
-
-    const rows = Array.from(dedupeMap.values()).map(a => ({
+    const rows = (data || []).map(a => ({
       id: a.id,
       meeting_id: a.meeting_id,
       member_id: a.member_id,
@@ -1667,7 +1658,7 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
       district: a.members?.district || '',
       category: a.members?.category || ''
     }));
-
+    
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1715,16 +1706,16 @@ app.post('/api/attendance/toggle', async (req, res) => {
       .from('attendance')
       .select('id')
       .eq('meeting_id', meeting_id)
-      .eq('member_id', member_id);
+      .eq('member_id', member_id)
+      .maybeSingle();
 
     if (selectErr) throw selectErr;
 
-    if (existing && existing.length > 0) {
-      const ids = existing.map(e => e.id);
+    if (existing) {
       const { error: updateErr } = await supabase
         .from('attendance')
         .update({ is_present: is_present ? 1 : 0 })
-        .in('id', ids);
+        .eq('id', existing.id);
       if (updateErr) throw updateErr;
     } else {
       const { data: member, error: memErr } = await supabase
@@ -1761,16 +1752,16 @@ app.post('/api/attendance/testimony', async (req, res) => {
       .from('attendance')
       .select('id')
       .eq('meeting_id', meeting_id)
-      .eq('member_id', member_id);
+      .eq('member_id', member_id)
+      .maybeSingle();
 
     if (selectErr) throw selectErr;
 
-    if (existing && existing.length > 0) {
-      const ids = existing.map(e => e.id);
+    if (existing) {
       const { error: updateErr } = await supabase
         .from('attendance')
         .update({ testimony_snapshot: testimony || null })
-        .in('id', ids);
+        .eq('id', existing.id);
       if (updateErr) throw updateErr;
     } else {
       const { data: member, error: memErr } = await supabase
@@ -2215,8 +2206,7 @@ app.get('/api/counseling', async (req, res) => {
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
           last_counseling_tags: last ? last.tags : null,
-          last_counseling_session_id: last ? last.session_id : null,
-          all_sessions: sessions
+          last_counseling_session_id: last ? last.session_id : null
         };
       });
 
@@ -2256,16 +2246,20 @@ app.get('/api/counseling/:memberId', async (req, res) => {
       (attData || []).forEach(a => {
         const meet = meetingMap[a.meeting_id];
         if (!meet) return;
-        
+
         const parsed = parseCounselingContent(a.testimony_snapshot);
-        
+        const rawTitle = meet.title || '';
+        const counseleeName = rawTitle.replace(/\s*개인상담\s*$/, '').trim();
+
         sessions.push({
           date: meet.date,
           content: parsed.content,
           tags: parsed.tags,
           source: 'meeting',
           session_id: `m_${a.meeting_id}`,
-          meeting_id: a.meeting_id
+          meeting_id: a.meeting_id,
+          name: counseleeName,
+          memo: meet.memo || ''
         });
       });
     }
@@ -2376,7 +2370,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags } = req.body;
+  const { date, content, tags, remark_memo } = req.body;
 
   try {
     let fullContent = '';
@@ -2388,13 +2382,14 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       const meetingId = sessionId.replace('m_', '');
       const memberId = req.body.member_id;
 
-      await supabase.from('meetings').update({ date }).eq('id', meetingId);
+      const meetUpdate = { date };
+      if (remark_memo !== undefined) meetUpdate.memo = remark_memo;
+      await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
       if (memberId) {
         const { data: existing } = await supabase.from('attendance')
-          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId);
-        if (existing && existing.length > 0) {
-          const ids = existing.map(e => e.id);
-          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).in('id', ids);
+          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId).maybeSingle();
+        if (existing) {
+          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).eq('id', existing.id);
         }
       }
     } else if (sessionId.startsWith('r_')) {

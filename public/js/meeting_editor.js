@@ -1396,14 +1396,21 @@ async function handleSaveCounseling() {
     try {
         if (currentMeetingId) {
             // 수정: PUT /api/counseling/:sessionId
-            // testimony_snapshot 재구성
             let fullContent = '';
             if (tags) fullContent = tags + '\n';
             fullContent += content;
+            const editRemark = `[${method}상담][${counseleeType}]${remark ? ' ' + remark : ''}`;
             const res = await fetch(`/api/counseling/${currentMeetingId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: fullContent, tags, remark_memo: remark || null })
+                body: JSON.stringify({
+                    date,
+                    content: fullContent,
+                    tags,
+                    remark_memo: editRemark,
+                    member_id: document.getElementById('modalCounselingMemberId')?.value
+                        ? parseInt(document.getElementById('modalCounselingMemberId').value) : null
+                })
             });
             if (!res.ok) throw new Error('수정 실패');
         } else {
@@ -1720,6 +1727,108 @@ function openRecurrenceConfirmModal(onSingle, onAll) {
 
 // index.html의 app.js에서 접근 가능하도록 counseling 저장 함수 노출
 window.handleSaveCounseling = handleSaveCounseling;
+
+// 상담 기록 수정 전용 모달 열기
+window.openCounselingEditModal = function(data) {
+    // data = { sessionId, date, name, tags, content, memo, memberId, onSave }
+    injectEditorElements();
+
+    currentMeetingId = data.sessionId;
+    editorSaveCallback = data.onSave || null;
+
+    // 모달 초기화
+    resetCounselingPanel();
+
+    // 타이틀
+    const modalTitleEl = document.getElementById('modalTitle');
+    if (modalTitleEl) modalTitleEl.textContent = '상담 기록 수정';
+
+    // 일반 섹션 숨기고 counselingPanel 표시
+    ['meetingTitleField','meetingRecurrenceSection','sermonSection','extraAttendeesSection','defaultAttendanceSection'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+    const counselingPanel = document.getElementById('counselingPanel');
+    if (counselingPanel) counselingPanel.classList.remove('hidden');
+
+    // meetingType
+    const typeEl = document.getElementById('meetingType');
+    if (typeEl) typeEl.value = '개인상담';
+
+    // 삭제 버튼 숨김 (counseling_history에서 별도 처리)
+    const deleteBtn = document.getElementById('deleteMeeting');
+    if (deleteBtn) deleteBtn.classList.add('hidden');
+
+    // 날짜
+    const dateEl = document.getElementById('meetingDate');
+    if (dateEl) dateEl.value = data.date || '';
+
+    // 이름 / 익명 처리
+    const isAnon = (data.name === '익명');
+    const nameEl = document.getElementById('modalCounselingName');
+    if (nameEl) {
+        nameEl.value = data.name || '';
+        nameEl.disabled = isAnon;
+        nameEl.classList.toggle('opacity-50', isAnon);
+        nameEl.classList.toggle('cursor-not-allowed', isAnon);
+    }
+    const anonEl = document.getElementById('modalAnonymousCheck');
+    if (anonEl) anonEl.checked = isAnon;
+
+    // memberId
+    const memberIdEl = document.getElementById('modalCounselingMemberId');
+    if (memberIdEl) memberIdEl.value = data.memberId || '';
+
+    // memo 파싱 → 상담방식 + 대상유형 + 비고
+    const memo = data.memo || '';
+    const method = memo.includes('[전화상담]') ? '전화' : '대면';
+    const counseleeType = memo.includes('[전도대상자]') ? '전도대상자' : '성도';
+    const isSaint = counseleeType === '성도';
+
+    // 비고: 접두어 제거
+    const remarkStr = memo.replace(/\[(대면|전화)상담\]|\[(성도|전도대상자)\]/g, '').trim();
+    const remarkEl = document.getElementById('modalCounselingRemark');
+    if (remarkEl) remarkEl.value = remarkStr;
+
+    // 상담방식 버튼
+    const methodEl = document.getElementById('modalCounselingMethod');
+    if (methodEl) methodEl.value = method;
+    document.querySelectorAll('.modal-method-btn').forEach(b => {
+        const isActive = b.dataset.val === method;
+        b.classList.toggle('bg-indigo-600', isActive); b.classList.toggle('border-indigo-500', isActive); b.classList.toggle('text-white', isActive);
+        b.classList.toggle('bg-white', !isActive); b.classList.toggle('dark:bg-slate-700', !isActive); b.classList.toggle('text-slate-600', !isActive);
+        b.classList.toggle('dark:text-slate-300', !isActive); b.classList.toggle('border-slate-200', !isActive); b.classList.toggle('dark:border-slate-600', !isActive);
+    });
+
+    // 대상유형 버튼
+    const ctypeEl = document.getElementById('modalCounseleeType');
+    if (ctypeEl) ctypeEl.value = counseleeType;
+    document.querySelectorAll('.modal-ctype-btn').forEach(b => {
+        const isActive = b.dataset.val === counseleeType;
+        b.classList.toggle('bg-indigo-600', isActive); b.classList.toggle('border-indigo-500', isActive); b.classList.toggle('text-white', isActive);
+        b.classList.toggle('bg-white', !isActive); b.classList.toggle('dark:bg-slate-700', !isActive); b.classList.toggle('text-slate-600', !isActive);
+        b.classList.toggle('dark:text-slate-300', !isActive); b.classList.toggle('border-slate-200', !isActive); b.classList.toggle('dark:border-slate-600', !isActive);
+    });
+    const saintSection = document.getElementById('modalSaintOnlySection');
+    const saintPresets = document.getElementById('saintTagPresets');
+    const evangelistPresets = document.getElementById('evangelistTagPresets');
+    if (saintSection) saintSection.classList.toggle('hidden', !isSaint);
+    if (saintPresets) saintPresets.classList.toggle('hidden', !isSaint);
+    if (evangelistPresets) evangelistPresets.classList.toggle('hidden', isSaint);
+
+    // 태그
+    const tagsEl = document.getElementById('modalCounselingTags');
+    if (tagsEl) tagsEl.value = data.tags || '';
+    renderModalCounselTags();
+
+    // 상담 내용
+    const contentEl = document.getElementById('modalCounselingContent');
+    if (contentEl) contentEl.value = data.content || '';
+
+    // 모달 표시
+    const modal = document.getElementById('meetingModal');
+    if (modal) modal.classList.remove('hidden');
+};
 
 // Global Editor Entry Point
 window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDate, defaultStartTime, defaultEndTime) {

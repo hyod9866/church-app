@@ -245,13 +245,53 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = btn.closest('.counseling-person-card');
         const wrapper = card.querySelector('.member-sessions-wrapper');
         const icon = btn.querySelector('i');
-        
-        if (wrapper) {
-            if (wrapper.classList.contains('hidden')) {
-                wrapper.classList.remove('hidden');
-                icon.style.transform = 'rotate(180deg)';
-            } else {
-                wrapper.classList.add('hidden');
+        if (!wrapper) return;
+
+        const extraSessions = wrapper.querySelector('.extra-sessions');
+        const viewMoreBtn = wrapper.querySelector('button[onclick^="toggleSessions"]');
+
+        const isWrapperHidden = wrapper.classList.contains('hidden');
+        const isAllShowing = !isWrapperHidden && (!extraSessions || extraSessions.style.display !== 'none');
+
+        if (isAllShowing) {
+            wrapper.classList.add('hidden');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        } else {
+            wrapper.classList.remove('hidden');
+            if (extraSessions) {
+                extraSessions.style.display = 'block';
+            }
+            if (viewMoreBtn) {
+                viewMoreBtn.style.display = 'none';
+            }
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    };
+
+    window.toggleLatestSessionOnly = function(btn) {
+        const card = btn.closest('.counseling-person-card');
+        const wrapper = card.querySelector('.member-sessions-wrapper');
+        if (!wrapper) return;
+
+        const extraSessions = wrapper.querySelector('.extra-sessions');
+        const viewMoreBtn = wrapper.querySelector('button[onclick^="toggleSessions"]');
+
+        const isWrapperHidden = wrapper.classList.contains('hidden');
+        const isOnlyLatestShowing = !isWrapperHidden && (!extraSessions || extraSessions.style.display === 'none');
+
+        if (isOnlyLatestShowing) {
+            wrapper.classList.add('hidden');
+        } else {
+            wrapper.classList.remove('hidden');
+            if (extraSessions) {
+                extraSessions.style.display = 'none';
+            }
+            if (viewMoreBtn) {
+                viewMoreBtn.style.display = 'block';
+                viewMoreBtn.textContent = `▼ 이전 상담 ${extraSessions.dataset.count}건 더 보기`;
+            }
+            const icon = card.querySelector('button[onclick^="toggleMemberSessions"] i');
+            if (icon) {
                 icon.style.transform = 'rotate(0deg)';
             }
         }
@@ -265,6 +305,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isHidden = extraSessions.style.display === 'none' || extraSessions.style.display === '';
         extraSessions.style.display = isHidden ? 'block' : 'none';
         btn.textContent = isHidden ? '▲ 접기' : `▼ 이전 상담 ${extraSessions.dataset.count}건 더 보기`;
+        
+        const icon = card.querySelector('button[onclick^="toggleMemberSessions"] i');
+        if (icon) {
+            icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
     };
 
     function renderList(data) {
@@ -314,6 +359,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             ` : '';
 
+            const latestSessionDateHtml = latestSession ? `
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-1.5 flex items-center gap-1">
+                    <span>최근 상담일:</span>
+                    <button type="button" onclick="toggleLatestSessionOnly(this)" class="text-indigo-650 dark:text-indigo-400 underline font-black hover:text-indigo-800 dark:hover:text-indigo-300 cursor-pointer focus:outline-none">
+                        ${latestSession.date}
+                    </button>
+                </div>
+            ` : '';
+
             return `
                 <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
@@ -324,6 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
                             ${daysDiffHtml}
                         </div>
+                        ${latestSessionDateHtml}
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
                         <div class="member-sessions-wrapper hidden w-full mt-2">
                             ${latestSessionHtml}
