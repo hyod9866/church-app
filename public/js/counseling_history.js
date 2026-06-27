@@ -1013,6 +1013,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const cls = isSelected ? activeClasses : inactiveClasses;
             return `<button type="button" data-tag="${t}" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all ${cls}">#${t}</button>`;
         }).join('');
+
+        // 성별 버튼 라벨 변경 (성도: 형제/자매, 전도대상: 남자/여자)
+        const bsBtnB = document.querySelector('#bsBtnGroup button[data-val="B"]');
+        const bsBtnS = document.querySelector('#bsBtnGroup button[data-val="S"]');
+        if (bsBtnB && bsBtnS) {
+            if (status === 'evangelism') {
+                bsBtnB.textContent = '남자';
+                bsBtnS.textContent = '여자';
+            } else {
+                bsBtnB.textContent = '형제';
+                bsBtnS.textContent = '자매';
+            }
+        }
     }
 
     function updateTagsPreview() {
