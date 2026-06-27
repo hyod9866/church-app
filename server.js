@@ -2199,7 +2199,8 @@ app.get('/api/counseling', async (req, res) => {
         session_id: `m_${a.meeting_id}`,
         meeting_id: a.meeting_id,
         is_present: a.is_present,
-        member_status: memberMap[a.member_id]?.member_status || 'member'
+        member_status: memberMap[a.member_id]?.member_status || 'member',
+        remark_memo: meet.memo || ''
       });
     });
 
@@ -2207,7 +2208,14 @@ app.get('/api/counseling', async (req, res) => {
     (cRecords || []).forEach(r => {
       if (!memberCounselingMap[r.member_id]) memberCounselingMap[r.member_id] = [];
       
-      const parsed = parseCounselingContent(r.remark);
+      let rawRemark = r.remark || '';
+      let remarkMemo = '';
+      const match = rawRemark.match(/\(비고:\s*(.*?)\)\s*$/);
+      if (match) {
+        remarkMemo = match[1];
+        rawRemark = rawRemark.replace(/\(비고:\s*(.*?)\)\s*$/, '').trim();
+      }
+      const parsed = parseCounselingContent(rawRemark);
       
       memberCounselingMap[r.member_id].push({
         date: r.date,
@@ -2216,7 +2224,8 @@ app.get('/api/counseling', async (req, res) => {
         source: 'record',
         session_id: `r_${r.id}`,
         record_id: r.id,
-        member_status: memberMap[r.member_id]?.member_status || 'member'
+        member_status: memberMap[r.member_id]?.member_status || 'member',
+        remark_memo: remarkMemo
       });
     });
 

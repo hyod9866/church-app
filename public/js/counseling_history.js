@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentDate = card.dataset.date || '';
             const currentTags = card.dataset.tags || '';
             const currentStatus = card.dataset.memberStatus || 'member';
+            const currentMemo = card.dataset.remarkMemo || '';
             const bodyArea = card.querySelector('.counsel-session-body');
             const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
             const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
@@ -124,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="edit-tags-presets flex flex-wrap gap-1 mb-2"></div>
                         <div class="flex gap-1 items-center mb-2">
                             <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력...">
-                            <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
+                            <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
                         </div>
                         <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
                         <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
@@ -132,6 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div>
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
                         <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="3">${currentRemark}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
+                        <input type="text" class="counsel-edit-memo w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentMemo}" placeholder="비고 및 특이사항 입력...">
                     </div>
                     <div class="flex justify-end gap-1.5 mt-1">
                         <button type="button" class="save-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
@@ -217,13 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
                 const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
                 const newStatus = bodyArea.querySelector('.counsel-edit-status').value;
+                const newMemo = bodyArea.querySelector('.counsel-edit-memo').value.trim();
                 if (!newDate) return alert('날짜를 입력해주세요.');
                 const saveBtn = bodyArea.querySelector('.save-counsel-btn');
                 saveBtn.disabled = true; saveBtn.textContent = '저장중...';
                 try {
                     const res = await fetch(`/api/counseling/${sessionId}`, {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, member_id: parseInt(memberId) })
+                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, member_id: parseInt(memberId) })
                     });
                     if (res.ok) { loadStatusFn(); } else { alert('수정에 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
                 } catch (err) { console.error(err); alert('서버 오류로 인해 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
@@ -264,7 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-member-id="${memberId}"
                  data-date="${session.date || ''}"
                  data-tags="${session.tags || ''}"
-                 data-member-status="${session.member_status || 'member'}">
+                 data-member-status="${session.member_status || 'member'}"
+                 data-remark-memo="${session.remark_memo || ''}">
                 <div class="flex items-center gap-1.5 mb-1 pr-20">
                     ${latestLabel}
                     <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
@@ -282,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="counsel-session-body">
                     ${tagsHtml}
                     ${session.content ? `<div class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${session.content}</div>` : ''}
+                    ${session.remark_memo ? `<div class="counsel-remark-text bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200/50 dark:border-amber-900/30 text-[11px] font-black mt-2">📌 비고: ${session.remark_memo}</div>` : ''}
                 </div>
             </div>
         `;
