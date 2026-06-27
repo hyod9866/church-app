@@ -2325,9 +2325,10 @@ app.post('/api/counseling', async (req, res) => {
           church: church ? church.trim() : '교회정보없음',
           parish: parish ? parish.trim() : '교구정보없음',
           district: district ? district.trim() : '구역정보없음',
-          category: category || '봉사회',
+          category: category || '모름',
           bs: bs || 'S',
-          status: 'active'
+          status: 'active',
+          member_status: member_status || 'member'
         };
         const { data: newMem, error: insErr } = await supabase
           .from('members').insert(insertData).select('id').single();
