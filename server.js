@@ -2137,6 +2137,20 @@ function parseCounselingContent(rawText) {
   return { tags: tagsStr, content: cleanContent };
 }
 
+function parseMemoField(memoText) {
+  const match = (memoText || '').match(/^\[lead:(.*?)\]\s*(.*)/s);
+  if (match) {
+    return {
+      lead_target: match[1].trim(),
+      remark_memo: match[2].trim()
+    };
+  }
+  return {
+    lead_target: '',
+    remark_memo: (memoText || '').trim()
+  };
+}
+
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
 app.get('/api/counseling', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -2190,6 +2204,7 @@ app.get('/api/counseling', async (req, res) => {
       if (!memberCounselingMap[a.member_id]) memberCounselingMap[a.member_id] = [];
       
       const parsed = parseCounselingContent(a.testimony_snapshot);
+      const parsedMemo = parseMemoField(meet.memo);
       
       memberCounselingMap[a.member_id].push({
         date: meet.date,
@@ -2200,7 +2215,8 @@ app.get('/api/counseling', async (req, res) => {
         meeting_id: a.meeting_id,
         is_present: a.is_present,
         member_status: memberMap[a.member_id]?.member_status || 'member',
-        remark_memo: meet.memo || ''
+        lead_target: parsedMemo.lead_target,
+        remark_memo: parsedMemo.remark_memo
       });
     });
 
@@ -2216,6 +2232,7 @@ app.get('/api/counseling', async (req, res) => {
         rawRemark = rawRemark.replace(/\(비고:\s*(.*?)\)\s*$/, '').trim();
       }
       const parsed = parseCounselingContent(rawRemark);
+      const parsedMemo = parseMemoField(remarkMemo);
       
       memberCounselingMap[r.member_id].push({
         date: r.date,
@@ -2225,7 +2242,8 @@ app.get('/api/counseling', async (req, res) => {
         session_id: `r_${r.id}`,
         record_id: r.id,
         member_status: memberMap[r.member_id]?.member_status || 'member',
-        remark_memo: remarkMemo
+        lead_target: parsedMemo.lead_target,
+        remark_memo: parsedMemo.remark_memo
       });
     });
 
