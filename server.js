@@ -2339,7 +2339,6 @@ app.post('/api/counseling', async (req, res) => {
           await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
         }
       }
-    }
     } else {
       // 기존 성도 — 소속/구분 정보 업데이트 (입력값 있는 경우)
       const updateFields = {};
