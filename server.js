@@ -2305,24 +2305,41 @@ app.post('/api/counseling', async (req, res) => {
 
     // 1. 성도 조회 또는 신규 생성
     if (!finalMemberId) {
-      const insertData = {
-        name: name.trim(),
-        church: church ? church.trim() : '교회정보없음',
-        parish: parish ? parish.trim() : '교구정보없음',
-        district: district ? district.trim() : '구역정보없음',
-        category: category || '봉사회',
-        bs: bs || 'S',
-        status: 'active'
-      };
-      const { data: newMem, error: insErr } = await supabase
-        .from('members').insert(insertData).select('id').single();
-      if (insErr) throw insErr;
-      finalMemberId = newMem.id;
-
-      if (church || parish || district) {
-        const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
-        await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+      if (name.trim() === '익명') {
+        const { data: existingAnon, error: findErr } = await supabase
+          .from('members')
+          .select('id')
+          .eq('name', '익명')
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+        if (findErr) throw findErr;
+        if (existingAnon) {
+          finalMemberId = existingAnon.id;
+        }
       }
+
+      if (!finalMemberId) {
+        const insertData = {
+          name: name.trim(),
+          church: church ? church.trim() : '교회정보없음',
+          parish: parish ? parish.trim() : '교구정보없음',
+          district: district ? district.trim() : '구역정보없음',
+          category: category || '봉사회',
+          bs: bs || 'S',
+          status: 'active'
+        };
+        const { data: newMem, error: insErr } = await supabase
+          .from('members').insert(insertData).select('id').single();
+        if (insErr) throw insErr;
+        finalMemberId = newMem.id;
+
+        if (church || parish || district) {
+          const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
+          await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+        }
+      }
+    }
     } else {
       // 기존 성도 — 소속/구분 정보 업데이트 (입력값 있는 경우)
       const updateFields = {};
