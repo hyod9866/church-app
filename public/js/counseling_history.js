@@ -392,11 +392,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             ` : '';
 
+            const isEvangelismTarget = (latestSession && latestSession.member_status === 'evangelism') || (member.member_status === 'evangelism');
+            const nameColorClass = isEvangelismTarget 
+                ? 'text-orange-600 dark:text-orange-400 italic font-black' 
+                : 'text-indigo-600 dark:text-indigo-400 font-black';
+
             return `
                 <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 flex-wrap mb-1">
-                            <span onclick="openMemberHistoryModal(${member.id})" class="text-lg font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors">${member.name}</span>
+                            <span onclick="openMemberHistoryModal(${member.id})" class="text-lg hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors ${nameColorClass}">${member.name}</span>
                             ${toggleButtonHtml}
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
