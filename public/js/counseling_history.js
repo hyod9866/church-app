@@ -942,6 +942,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── 태그 상태 관리 ──
     let selectedTags = new Set();
 
+    function updatePresetTags(status) {
+        const btnGroup = document.getElementById('counselingTagsBtnGroup');
+        if (!btnGroup) return;
+
+        const memberTags = ['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'];
+        const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+
+        const tags = (status === 'evangelism') ? evangelismTags : memberTags;
+
+        btnGroup.innerHTML = tags.map(t => {
+            const isSelected = selectedTags.has(t);
+            const activeClasses = 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-600';
+            const inactiveClasses = 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60';
+            const cls = isSelected ? activeClasses : inactiveClasses;
+            return `<button type="button" data-tag="${t}" class="counsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white transition-all ${cls}">#${t}</button>`;
+        }).join('');
+    }
+
     function updateTagsPreview() {
         const preview = document.getElementById('selectedTagsPreview');
         const hiddenInput = document.getElementById('counselingTagsValue');
@@ -1043,6 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (groupId === 'memberStatusBtnGroup') {
                 const isMember = btn.dataset.val === 'member';
                 btn.classList.add(isMember ? 'border-emerald-400' : 'border-orange-400', isMember ? 'text-emerald-700' : 'text-orange-700', isMember ? 'dark:text-emerald-300' : 'dark:text-orange-300', isMember ? 'bg-emerald-50' : 'bg-orange-50', isMember ? 'dark:bg-emerald-950/30' : 'dark:bg-orange-950/30', isMember ? 'ring-emerald-400' : 'ring-orange-400');
+                updatePresetTags(btn.dataset.val);
             } else {
                 btn.classList.add('border-indigo-400', 'text-indigo-700', 'dark:text-indigo-300', 'bg-indigo-50', 'dark:bg-indigo-950/30', 'ring-indigo-400');
             }
@@ -1157,6 +1176,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bs) setGroupBtn('bsBtnGroup', 'counselingBs', bs);
 
             const targetMember = allStatus.find(s => s.id === memberId);
+            if (targetMember) {
+                const isMember = targetMember.member_status ? targetMember.member_status === 'member' : (targetMember.salvation_date && targetMember.salvation_date.trim() !== '');
+                const statusVal = isMember ? 'member' : 'evangelism';
+                setGroupBtn('memberStatusBtnGroup', 'counselingMemberStatus', statusVal);
+            }
+
             if (targetMember && targetMember.church && targetMember.church !== '교회정보없음') {
                 if (counselingChurchInput) counselingChurchInput.value = targetMember.church;
                 const matchedChurch = allChurches.find(c => c.name.trim() === targetMember.church.trim());
