@@ -312,10 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.classList.add('hidden');
             containers.forEach(c => c.classList.add('hidden'));
             if (icon) icon.style.transform = 'rotate(0deg)';
-        } else {
-            wrapper.classList.remove('hidden');
-            containers.forEach(c => c.classList.remove('hidden'));
-            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    };
+
     window.toggleSpecificSession = function(btn, sessionId) {
         const card = btn.closest('.counseling-person-card');
         const wrapper = card.querySelector('.member-sessions-wrapper');
