@@ -2019,6 +2019,12 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
         recEndDateField.classList.add('hidden');
     }
     
+    const container = document.getElementById('meetingPanelsContainer');
+    if (container) {
+        container.classList.remove('hidden');
+        setTimeout(() => { container.classList.remove('translate-x-full'); container.classList.add('translate-x-0'); }, 10);
+    }
+
     document.getElementById('meetingModal').classList.remove('hidden'); 
     
     const detailPanel = document.getElementById('meetingDetailPanel');
