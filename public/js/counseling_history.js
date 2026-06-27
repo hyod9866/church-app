@@ -680,18 +680,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (counselingMemoList) {
                 if (counselingSessions.length) {
                     counselingMemoList.innerHTML = counselingSessions.map(s => {
+                        const isEv = s.member_status === 'evangelism';
                         const tagsHtml = s.tags ? s.tags.trim().split(/\s+/).filter(t => t.startsWith('#'))
-                            .map(t => `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40">${t}</span>`)
+                            .map(t => {
+                                const cls = isEv 
+                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-750 dark:text-orange-300 border-orange-200/60 dark:border-orange-700/40'
+                                    : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-700/40';
+                                return `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${cls} border">${t}</span>`;
+                            })
                             .join('') : '';
                         const sourceLabel = s.source === 'meeting' 
                             ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-bold">달력</span>' 
                             : '<span class="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold">직접등록</span>';
+                        const memberBadge = isEv 
+                            ? '<span class="text-[9px] bg-orange-105 dark:bg-orange-950/30 text-orange-600 dark:text-orange-450 px-1.5 py-0.5 rounded font-bold border border-orange-200/60">전도대상</span>'
+                            : '';
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
                                     <div class="flex items-center gap-2">
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
                                         ${sourceLabel}
+                                        ${memberBadge}
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
@@ -745,20 +755,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             const remarkTextPara = card.querySelector('.counsel-remark-text');
                             const currentRemark = remarkTextPara.textContent.trim();
                             const currentTags = card.dataset.tags || '';
+                            const currentStatus = card.dataset.memberStatus || 'member';
+
+                            const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+                            const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
 
                             bodyArea.innerHTML = `
                                 <div class="flex flex-col gap-2 w-full">
-                                    <div>
-                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
-                                        <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                    <div class="flex gap-4">
+                                        <div class="flex-1">
+                                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
+                                            <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">대상자 상태</label>
+                                            <div class="inline-edit-status-group flex gap-1">
+                                                <button type="button" data-status="member" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'member' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">성도</button>
+                                                <button type="button" data-status="evangelism" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'evangelism' ? 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">전도대상</button>
+                                            </div>
+                                            <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
+                                        </div>
                                     </div>
                                     <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
-                                        <div class="edit-tags-presets flex flex-wrap gap-1 mb-2">
-                                            ${['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'].map(t => {
-                                                return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 dark:border-indigo-850/60 transition-all">${t}</button>`;
-                                            }).join('')}
-                                        </div>
+                                        <div class="edit-tags-presets flex flex-wrap gap-1 mb-2"></div>
                                         <div class="flex gap-1 items-center mb-2">
                                             <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력 추가...">
                                             <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
@@ -779,6 +799,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             // 태그 상태 관리
                             let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.substring(1)));
+                            let selectedStatus = currentStatus;
+
+                            function updateModalPresetTags(status) {
+                                const presetsContainer = bodyArea.querySelector('.edit-tags-presets');
+                                if (!presetsContainer) return;
+                                
+                                const tagsList = status === 'evangelism' ? evangelismTags : memberTags;
+                                presetsContainer.innerHTML = tagsList.map(t => {
+                                    const isSelected = activeTags.has(t);
+                                    const cls = isSelected 
+                                        ? 'bg-indigo-600 text-white border-indigo-600' 
+                                        : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60';
+                                    return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${cls}">${t}</button>`;
+                                }).join('');
+                            }
 
                             function updateModalEditTags() {
                                 const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
@@ -804,8 +839,28 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
 
-                            // 초기 태그 렌더링
+                            // 초기 태그 및 프리셋 렌더링
+                            updateModalPresetTags(selectedStatus);
                             updateModalEditTags();
+
+                            // 대상자 상태 버튼 클릭 이벤트
+                            bodyArea.querySelectorAll('.inline-edit-status-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    selectedStatus = btn.dataset.status;
+                                    bodyArea.querySelector('.counsel-edit-status').value = selectedStatus;
+                                    bodyArea.querySelectorAll('.inline-edit-status-btn').forEach(b => {
+                                        const bStatus = b.dataset.status;
+                                        const isActive = bStatus === selectedStatus;
+                                        b.className = `inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                                            isActive 
+                                                ? (bStatus === 'member' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
+                                                : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'
+                                        }`;
+                                    });
+                                    updateModalPresetTags(selectedStatus);
+                                    updateModalEditTags();
+                                });
+                            });
 
                             // 프리셋 클릭
                             bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
@@ -868,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const res = await fetch(`/api/counseling/${sessionId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_id: parseInt(memberId) })
+                                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: selectedStatus, member_id: parseInt(memberId) })
                                     });
                                     if (res.ok) {
                                         openMemberHistoryModal(id);
