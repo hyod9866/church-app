@@ -2388,17 +2388,21 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo } = req.body;
+  const { date, content, tags, remark_memo, member_status, member_id } = req.body;
 
   try {
     let fullContent = '';
     if (tags && tags.trim()) fullContent = tags.trim() + '\n';
     fullContent += content ? content.trim() : '';
 
+    const memberId = member_id ? parseInt(member_id) : null;
+    if (memberId && member_status) {
+      await supabase.from('members').update({ member_status }).eq('id', memberId);
+    }
+
     if (sessionId.startsWith('m_')) {
       // meetings + attendance 방식
       const meetingId = sessionId.replace('m_', '');
-      const memberId = req.body.member_id;
 
       const meetUpdate = { date };
       if (remark_memo !== undefined) meetUpdate.memo = remark_memo;
