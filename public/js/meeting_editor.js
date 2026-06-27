@@ -118,13 +118,13 @@ function injectEditorElements() {
 
                 <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
                 <div id="extraAttendeesSection" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
-                <div id="counselingPanel" class="hidden space-y-4">
+                 <div id="counselingPanel" class="hidden space-y-4">
     <div class="relative">
-        <div class="flex items-center justify-between mb-1.5">
-            <label class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">상담 대상자 *</label>
-            <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                <input type="checkbox" id="modalAnonymousCheck" class="w-3.5 h-3.5 rounded accent-indigo-600">
-                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">익명</span>
+        <div class="flex justify-between items-center mb-1.5">
+            <label class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 block uppercase tracking-wider">상담 대상자 *</label>
+            <label class="inline-flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="modalAnonymousCheck" class="rounded text-indigo-600 focus:ring-indigo-500 border-slate-350 w-3.5 h-3.5">
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">익명으로 등록</span>
             </label>
         </div>
         <input type="text" id="modalCounselingName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="이름을 입력하세요..." autocomplete="off">
@@ -132,15 +132,8 @@ function injectEditorElements() {
         <input type="hidden" id="modalCounselingMemberId" value="">
     </div>
     <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700/40 space-y-3">
-        <div class="flex items-center justify-between">
-            <span class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">성도 구분</span>
-            <div class="flex gap-1" id="modalCounseleeTypeBtns">
-                <button type="button" data-val="성도" class="modal-ctype-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all">성도</button>
-                <button type="button" data-val="전도대상자" class="modal-ctype-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">전도대상자</button>
-            </div>
-            <input type="hidden" id="modalCounseleeType" value="성도">
-        </div>
-        <div id="modalSaintOnlySection">
+        <span class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">성도 구분</span>
+        <div>
             <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">소속</span>
             <div class="flex flex-wrap gap-1.5" id="modalCategoryBtns">
                 <button type="button" data-val="봉사회" class="modal-cat-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">봉사회</button>
@@ -151,20 +144,28 @@ function injectEditorElements() {
             </div>
             <input type="hidden" id="modalCounselingCategory" value="">
         </div>
-        <div class="flex gap-6">
-            <div class="flex-1">
-                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
-                <div class="flex gap-1.5" id="modalBsBtns">
-                    <button type="button" data-val="B" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">형제</button>
-                    <button type="button" data-val="S" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">자매</button>
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5" id="modalBsLabel">성별(형제/자매)</span>
+                <div class="flex gap-1" id="modalBsBtns">
+                    <button type="button" data-val="B" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">형제</button>
+                    <button type="button" data-val="S" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">자매</button>
                 </div>
                 <input type="hidden" id="modalCounselingBs" value="">
             </div>
-            <div class="flex-1">
+            <div>
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상태</span>
+                <div class="flex gap-1" id="modalMemberStatusBtns">
+                    <button type="button" data-val="member" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 transition-all text-center">성도</button>
+                    <button type="button" data-val="evangelism" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전도대상</button>
+                </div>
+                <input type="hidden" id="modalCounselingMemberStatus" value="member">
+            </div>
+            <div>
                 <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상담 방식</span>
-                <div class="flex gap-1.5" id="modalCounselMethodBtns">
-                    <button type="button" data-val="대면" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all">대면</button>
-                    <button type="button" data-val="전화" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">전화</button>
+                <div class="flex gap-1" id="modalCounselMethodBtns">
+                    <button type="button" data-val="대면" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all text-center">대면</button>
+                    <button type="button" data-val="전화" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전화</button>
                 </div>
                 <input type="hidden" id="modalCounselingMethod" value="대면">
             </div>
@@ -172,34 +173,19 @@ function injectEditorElements() {
     </div>
     <div class="bg-indigo-50/60 dark:bg-indigo-950/20 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/30">
         <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-2">상담 주제 태그 (복수 선택)</label>
-        <div id="modalCounselTagBtns">
-            <!-- 성도 전용 프리셋 -->
-            <div id="saintTagPresets" class="flex flex-wrap gap-1.5 mb-2.5">
-                <button type="button" data-tag="전도상담" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#전도상담</button>
-                <button type="button" data-tag="구원확신/의심" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#구원확신/의심</button>
-                <button type="button" data-tag="진로" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#진로</button>
-                <button type="button" data-tag="이성" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이성</button>
-                <button type="button" data-tag="죄" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#죄</button>
-                <button type="button" data-tag="자녀" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#자녀</button>
-                <button type="button" data-tag="부부관계" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#부부관계</button>
-                <button type="button" data-tag="가족" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#가족</button>
-                <button type="button" data-tag="성경질문" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#성경질문</button>
-                <button type="button" data-tag="이단" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이단</button>
-                <button type="button" data-tag="직장생활" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#직장생활</button>
-                <button type="button" data-tag="결혼" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#결혼</button>
-            </div>
-            <!-- 전도대상자 전용 프리셋 -->
-            <div id="evangelistTagPresets" class="hidden flex flex-wrap gap-1.5 mb-2.5">
-                <button type="button" data-tag="첫방문" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#첫방문</button>
-                <button type="button" data-tag="전도시도" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#전도시도</button>
-                <button type="button" data-tag="복음제시" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#복음제시</button>
-                <button type="button" data-tag="구원확신" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#구원확신</button>
-                <button type="button" data-tag="교회정착" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#교회정착</button>
-                <button type="button" data-tag="관심있음" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#관심있음</button>
-                <button type="button" data-tag="반응없음" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#반응없음</button>
-                <button type="button" data-tag="가족반대" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#가족반대</button>
-                <button type="button" data-tag="재방문예정" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#재방문예정</button>
-            </div>
+        <div class="flex flex-wrap gap-1.5 mb-2.5" id="modalCounselTagBtns">
+            <button type="button" data-tag="전도상담" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#전도상담</button>
+            <button type="button" data-tag="구원확신/의심" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#구원확신/의심</button>
+            <button type="button" data-tag="진로" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#진로</button>
+            <button type="button" data-tag="이성" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이성</button>
+            <button type="button" data-tag="죄" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#죄</button>
+            <button type="button" data-tag="자녀" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#자녀</button>
+            <button type="button" data-tag="부부관계" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#부부관계</button>
+            <button type="button" data-tag="가족" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#가족</button>
+            <button type="button" data-tag="성경질문" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#성경질문</button>
+            <button type="button" data-tag="이단" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#이단</button>
+            <button type="button" data-tag="직장생활" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#직장생활</button>
+            <button type="button" data-tag="결혼" class="mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all">#결혼</button>
         </div>
         <div class="flex gap-2 items-center">
             <input type="text" id="modalCounselTagInput" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 입력 (예: 재정, 직장 등)">
