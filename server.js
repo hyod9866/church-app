@@ -524,6 +524,19 @@ app.get('/api/run-migration-temp', async (req, res) => {
       logs.push("Column end_time in meetings already exists.");
     }
 
+    const checkMemStatusRes = await clientDirect.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='members' AND column_name='member_status'
+    `);
+    if (checkMemStatusRes.rows.length === 0) {
+      logs.push("members member_status does not exist. Adding column...");
+      await clientDirect.query("ALTER TABLE members ADD COLUMN member_status VARCHAR(50) DEFAULT 'member';");
+      logs.push("Column member_status added to members successfully.");
+    } else {
+      logs.push("Column member_status in members already exists.");
+    }
+
     logs.push("Reloading schema cache...");
     await clientDirect.query("NOTIFY pgrst, 'reload schema';");
     logs.push("Schema cache reloaded successfully!");
@@ -588,6 +601,19 @@ app.get('/api/run-migration-temp', async (req, res) => {
         logs.push("Column end_time added to meetings successfully.");
       } else {
         logs.push("Column end_time in meetings already exists.");
+      }
+
+      const checkMemStatusPoolerRes = await clientPooler.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='members' AND column_name='member_status'
+      `);
+      if (checkMemStatusPoolerRes.rows.length === 0) {
+        logs.push("members member_status does not exist. Adding column...");
+        await clientPooler.query("ALTER TABLE members ADD COLUMN member_status VARCHAR(50) DEFAULT 'member';");
+        logs.push("Column member_status added to members successfully.");
+      } else {
+        logs.push("Column member_status in members already exists.");
       }
 
       logs.push("Reloading schema cache...");
