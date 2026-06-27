@@ -2144,9 +2144,12 @@ app.get('/api/counseling', async (req, res) => {
     // 1. members 전체 조회
     const { data: members, error: memErr } = await supabase
       .from('members')
-      .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date')
+      .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
       .eq('status', 'active');
     if (memErr) throw memErr;
+
+    const memberMap = {};
+    (members || []).forEach(m => { memberMap[m.id] = m; });
 
     // 2. meetings(type='상담') 조회
     const { data: counselingMeetings, error: meetErr } = await supabase
@@ -2195,7 +2198,8 @@ app.get('/api/counseling', async (req, res) => {
         source: 'meeting',
         session_id: `m_${a.meeting_id}`,
         meeting_id: a.meeting_id,
-        is_present: a.is_present
+        is_present: a.is_present,
+        member_status: memberMap[a.member_id]?.member_status || 'member'
       });
     });
 
@@ -2211,7 +2215,8 @@ app.get('/api/counseling', async (req, res) => {
         tags: parsed.tags,
         source: 'record',
         session_id: `r_${r.id}`,
-        record_id: r.id
+        record_id: r.id,
+        member_status: memberMap[r.member_id]?.member_status || 'member'
       });
     });
 
@@ -2232,6 +2237,7 @@ app.get('/api/counseling', async (req, res) => {
           church: m.church,
           parish: m.parish,
           salvation_date: m.salvation_date,
+          member_status: m.member_status || 'member',
           counseling_count: sessions.length,
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
