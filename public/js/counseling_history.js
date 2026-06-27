@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="counsel-session-body">
                     ${tagsHtml}
                     ${session.content ? `<div class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${session.content}</div>` : ''}
-                    ${session.remark_memo ? `<div class="counsel-remark-text bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200/50 dark:border-amber-900/30 text-[11px] font-black mt-2">📌 비고: ${session.remark_memo}</div>` : ''}
+                    ${session.remark_memo ? `<div class="counsel-remark-text bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-350 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-bold mt-2">📌 비고: ${session.remark_memo}</div>` : ''}
                 </div>
             </div>
         `;
@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
                 <div class="counsel-body-area bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
                                     <p class="counsel-remark-text text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${s.content || '(내용 없음)'}</p>
-                                    ${s.remark_memo ? `<div class="counsel-remark-text bg-amber-50/50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200/50 dark:border-amber-900/30 text-[11px] font-black mt-2">📌 비고: ${s.remark_memo}</div>` : ''}
+                                    ${s.remark_memo ? `<div class="counsel-remark-text bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-350 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-bold mt-2">📌 비고: ${s.remark_memo}</div>` : ''}
                                 </div>
                             </div>
                         `;
