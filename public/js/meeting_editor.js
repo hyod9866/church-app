@@ -466,7 +466,34 @@ function bindEditorEvents() {
     }
 
     // 개인상담 패널 이벤트 바인딩
-    // --- 이름 자동완성 ---
+    const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+    const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+
+    function updateModalPresetTags(status) {
+        const container = document.getElementById('modalCounselTagBtns');
+        if (!container) return;
+        
+        container.querySelectorAll('.mcounsel-tag-btn:not(.custom-counsel-tag)').forEach(b => b.remove());
+        
+        const tags = status === 'evangelism' ? evangelismTags : memberTags;
+        const borderCls = status === 'evangelism' 
+            ? 'border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white hover:border-orange-500' 
+            : 'border-indigo-200 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-650 hover:text-white hover:border-indigo-650';
+        
+        const fragment = document.createDocumentFragment();
+        tags.forEach(t => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.tag = t;
+            btn.className = `mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-white dark:bg-slate-800 transition-all cursor-pointer ${borderCls}`;
+            btn.textContent = '#' + t;
+            fragment.appendChild(btn);
+        });
+        
+        container.insertBefore(fragment, container.firstChild);
+    }
+
+    // 이름 자동완성
     const modalNameInput = document.getElementById('modalCounselingName');
     const modalSuggestions = document.getElementById('modalCounselingSuggestions');
     const modalMemberIdInput = document.getElementById('modalCounselingMemberId');
@@ -480,7 +507,7 @@ function bindEditorEvents() {
                 if (!list.length) { modalSuggestions.classList.add('hidden'); return; }
                 modalSuggestions.innerHTML = list.slice(0, 8).map(m => `
                     <div class="px-3 py-2.5 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
-                        data-id="${m.id}" data-name="${m.name}" data-category="${m.category || ''}" data-bs="${m.bs || ''}">
+                        data-id="${m.id}" data-name="${m.name}" data-category="${m.category || ''}" data-bs="${m.bs || ''}" data-member-status="${m.member_status || 'member'}">
                         <span>${m.name}</span>
                         <span class="text-[10px] text-slate-400 font-normal">${m.category || ''} ${m.district || ''}</span>
                     </div>`).join('');
@@ -523,6 +550,27 @@ function bindEditorEvents() {
                     b.classList.toggle('dark:text-slate-300', !isActive);
                 });
             }
+            if (item.dataset.memberStatus) {
+                const val = item.dataset.memberStatus;
+                document.getElementById('modalCounselingMemberStatus').value = val;
+                document.querySelectorAll('.modal-status-btn').forEach(b => {
+                    const isActive = b.dataset.val === val;
+                    b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
+                        isActive 
+                            ? (val === 'member' ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-400 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
+                            : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-350'
+                    }`;
+                });
+                const isEv = val === 'evangelism';
+                const bsLabel = document.getElementById('modalBsLabel');
+                if (bsLabel) bsLabel.textContent = isEv ? '성별(남자/여자)' : '성별(형제/자매)';
+                document.querySelectorAll('.modal-bs-btn').forEach(b => {
+                    const bVal = b.dataset.val;
+                    if (bVal === 'B') b.textContent = isEv ? '남자' : '형제';
+                    if (bVal === 'S') b.textContent = isEv ? '여자' : '자매';
+                });
+                updateModalPresetTags(val);
+            }
         });
         document.addEventListener('click', (e) => {
             if (!modalNameInput.contains(e.target) && !modalSuggestions.contains(e.target)) {
@@ -531,7 +579,7 @@ function bindEditorEvents() {
         });
     }
 
-    // --- 소속 버튼 ---
+    // 소속 버튼
     document.getElementById('modalCategoryBtns')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.modal-cat-btn');
         if (!btn) return;
@@ -549,7 +597,7 @@ function bindEditorEvents() {
         });
     });
 
-    // --- 성별 버튼 ---
+    // 성별 버튼
     document.getElementById('modalBsBtns')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.modal-bs-btn');
         if (!btn) return;
@@ -570,7 +618,7 @@ function bindEditorEvents() {
         });
     });
 
-    // --- 상담 방식 버튼 (대면/전화) ---
+    // 상담 방식 버튼 (대면/전화)
     document.getElementById('modalCounselMethodBtns')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.modal-method-btn');
         if (!btn) return;
@@ -590,7 +638,7 @@ function bindEditorEvents() {
         });
     });
 
-    // --- 익명 체크박스 ---
+    // 익명 체크박스
     document.getElementById('modalAnonymousCheck')?.addEventListener('change', (e) => {
         const nameInput = document.getElementById('modalCounselingName');
         const sugg = document.getElementById('modalCounselingSuggestions');
@@ -607,33 +655,31 @@ function bindEditorEvents() {
         }
     });
 
-    // --- 성도/전도대상자 유형 토글 ---
-    document.getElementById('modalCounseleeTypeBtns')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('.modal-ctype-btn');
+    // 성도/전도대상 구분 토글
+    document.getElementById('modalMemberStatusBtns')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.modal-status-btn');
         if (!btn) return;
         const val = btn.dataset.val;
-        const ctypeInput = document.getElementById('modalCounseleeType');
-        if (ctypeInput) ctypeInput.value = val;
-        document.querySelectorAll('.modal-ctype-btn').forEach(b => {
+        document.getElementById('modalCounselingMemberStatus').value = val;
+        document.querySelectorAll('.modal-status-btn').forEach(b => {
             const isActive = b.dataset.val === val;
-            b.classList.toggle('bg-indigo-600', isActive);
-            b.classList.toggle('border-indigo-500', isActive);
-            b.classList.toggle('text-white', isActive);
-            b.classList.toggle('bg-white', !isActive);
-            b.classList.toggle('dark:bg-slate-700', !isActive);
-            b.classList.toggle('text-slate-600', !isActive);
-            b.classList.toggle('dark:text-slate-300', !isActive);
-            b.classList.toggle('border-slate-200', !isActive);
-            b.classList.toggle('dark:border-slate-600', !isActive);
+            b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
+                isActive 
+                    ? (val === 'member' ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-400 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
+                    : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-350'
+            }`;
         });
-        const isSaint = val === '성도';
-        const saintSection = document.getElementById('modalSaintOnlySection');
-        const saintPresets = document.getElementById('saintTagPresets');
-        const evangelistPresets = document.getElementById('evangelistTagPresets');
-        if (saintSection) saintSection.classList.toggle('hidden', !isSaint);
-        if (saintPresets) saintPresets.classList.toggle('hidden', !isSaint);
-        if (evangelistPresets) evangelistPresets.classList.toggle('hidden', isSaint);
-        // 유형 전환 시 태그 선택 초기화
+        
+        const isEv = val === 'evangelism';
+        const bsLabel = document.getElementById('modalBsLabel');
+        if (bsLabel) bsLabel.textContent = isEv ? '성별(남자/여자)' : '성별(형제/자매)';
+        document.querySelectorAll('.modal-bs-btn').forEach(b => {
+            const bVal = b.dataset.val;
+            if (bVal === 'B') b.textContent = isEv ? '남자' : '형제';
+            if (bVal === 'S') b.textContent = isEv ? '여자' : '자매';
+        });
+
+        updateModalPresetTags(val);
         const hiddenInput = document.getElementById('modalCounselingTags');
         if (hiddenInput) hiddenInput.value = '';
         renderModalCounselTags();
@@ -1054,6 +1100,76 @@ async function refreshAttendanceList() {
                     const memberIdEl = document.getElementById('modalCounselingMemberId');
                     if (nameEl && !nameEl.value) nameEl.value = person.name || '';
                     if (memberIdEl && !memberIdEl.value) memberIdEl.value = person.member_id || '';
+
+                    // 익명 체크박스 복원
+                    const isAnon = person.name === '익명';
+                    const anonCheck = document.getElementById('modalAnonymousCheck');
+                    if (anonCheck) {
+                        anonCheck.checked = isAnon;
+                        if (isAnon && nameEl) {
+                            nameEl.disabled = true;
+                            nameEl.classList.add('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+
+                    // 구분/성별/상태 버튼 복원
+                    const val = person.member_status || 'member';
+                    const statusInput = document.getElementById('modalCounselingMemberStatus');
+                    if (statusInput) statusInput.value = val;
+                    document.querySelectorAll('.modal-status-btn').forEach(b => {
+                        const isActive = b.dataset.val === val;
+                        b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
+                            isActive 
+                                ? (val === 'member' ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-400 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
+                                : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-350'
+                        }`;
+                    });
+
+                    // 성별 라벨명 및 텍스트 동기화
+                    const isEv = val === 'evangelism';
+                    const bsLabel = document.getElementById('modalBsLabel');
+                    if (bsLabel) bsLabel.textContent = isEv ? '성별(남자/여자)' : '성별(형제/자매)';
+                    document.querySelectorAll('.modal-bs-btn').forEach(b => {
+                        const bVal = b.dataset.val;
+                        if (bVal === 'B') b.textContent = isEv ? '남자' : '형제';
+                        if (bVal === 'S') b.textContent = isEv ? '여자' : '자매';
+                    });
+
+                    // 소속 버튼 복원
+                    if (person.category) {
+                        document.getElementById('modalCounselingCategory').value = person.category;
+                        document.querySelectorAll('.modal-cat-btn').forEach(b => {
+                            const isActive = b.dataset.val === person.category;
+                            b.classList.toggle('bg-indigo-600', isActive);
+                            b.classList.toggle('text-white', isActive);
+                            b.classList.toggle('border-indigo-600', isActive);
+                            b.classList.toggle('bg-white', !isActive);
+                            b.classList.toggle('dark:bg-slate-700', !isActive);
+                            b.classList.toggle('text-slate-600', !isActive);
+                            b.classList.toggle('dark:text-slate-300', !isActive);
+                        });
+                    }
+
+                    // 성별 버튼 복원
+                    if (person.bs) {
+                        document.getElementById('modalCounselingBs').value = person.bs;
+                        document.querySelectorAll('.modal-bs-btn').forEach(b => {
+                            const isActive = b.dataset.val === person.bs;
+                            const isBrother = b.dataset.val === 'B';
+                            b.classList.toggle('bg-blue-600', isActive && isBrother);
+                            b.classList.toggle('bg-pink-500', isActive && !isBrother);
+                            b.classList.toggle('text-white', isActive);
+                            b.classList.toggle('border-blue-600', isActive && isBrother);
+                            b.classList.toggle('border-pink-500', isActive && !isBrother);
+                            b.classList.toggle('bg-white', !isActive);
+                            b.classList.toggle('dark:bg-slate-700', !isActive);
+                            b.classList.toggle('text-slate-600', !isActive);
+                            b.classList.toggle('dark:text-slate-300', !isActive);
+                        });
+                    }
+
+                    updateModalPresetTags(val);
+
                     // testimony_snapshot: "태그들\n내용" 형식으로 저장됨
                     const snap = person.testimony_snapshot || '';
                     const firstNL = snap.indexOf('\n');
@@ -1310,6 +1426,7 @@ function resetCounselingPanel() {
     fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const preview = document.getElementById('modalCounselTagsPreview');
     if (preview) preview.innerHTML = '';
+    
     // Reset category/bs buttons
     document.querySelectorAll('.modal-cat-btn').forEach(b => {
         b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
@@ -1348,27 +1465,26 @@ function resetCounselingPanel() {
     const nameInput = document.getElementById('modalCounselingName');
     if (nameInput) { nameInput.disabled = false; nameInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
 
-    // 성도/전도대상자 유형 리셋 → 성도
-    const ctypeInput = document.getElementById('modalCounseleeType');
-    if (ctypeInput) ctypeInput.value = '성도';
-    document.querySelectorAll('.modal-ctype-btn').forEach(b => {
-        const isActive = b.dataset.val === '성도';
-        b.classList.toggle('bg-indigo-600', isActive);
-        b.classList.toggle('border-indigo-500', isActive);
-        b.classList.toggle('text-white', isActive);
-        b.classList.toggle('bg-white', !isActive);
-        b.classList.toggle('dark:bg-slate-700', !isActive);
-        b.classList.toggle('text-slate-600', !isActive);
-        b.classList.toggle('dark:text-slate-300', !isActive);
-        b.classList.toggle('border-slate-200', !isActive);
-        b.classList.toggle('dark:border-slate-600', !isActive);
+    // 성도/전도대상 구분 리셋
+    const statusInput = document.getElementById('modalCounselingMemberStatus');
+    if (statusInput) statusInput.value = 'member';
+    document.querySelectorAll('.modal-status-btn').forEach(b => {
+        const isActive = b.dataset.val === 'member';
+        b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
+            isActive 
+                ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400'
+                : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-350'
+        }`;
     });
-    const saintSection = document.getElementById('modalSaintOnlySection');
-    const saintPresets = document.getElementById('saintTagPresets');
-    const evangelistPresets = document.getElementById('evangelistTagPresets');
-    if (saintSection) saintSection.classList.remove('hidden');
-    if (saintPresets) saintPresets.classList.remove('hidden');
-    if (evangelistPresets) evangelistPresets.classList.add('hidden');
+    const bsLabel = document.getElementById('modalBsLabel');
+    if (bsLabel) bsLabel.textContent = '성별(형제/자매)';
+    document.querySelectorAll('.modal-bs-btn').forEach(b => {
+        const bVal = b.dataset.val;
+        if (bVal === 'B') b.textContent = '형제';
+        if (bVal === 'S') b.textContent = '자매';
+    });
+
+    updateModalPresetTags('member');
 }
 
 // 개인상담 저장
@@ -1382,7 +1498,7 @@ async function handleSaveCounseling() {
     const category = document.getElementById('modalCounselingCategory')?.value || '';
     const bs = document.getElementById('modalCounselingBs')?.value || '';
     const method = document.getElementById('modalCounselingMethod')?.value || '대면';
-    const counseleeType = document.getElementById('modalCounseleeType')?.value || '성도';
+    const memberStatus = document.getElementById('modalCounselingMemberStatus')?.value || 'member';
     const isAnonymous = document.getElementById('modalAnonymousCheck')?.checked || false;
     const finalName = isAnonymous ? '익명' : name;
 
@@ -1393,13 +1509,15 @@ async function handleSaveCounseling() {
     const saveBtn = document.getElementById('saveMeeting');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
 
+    const statusLabel = memberStatus === 'evangelism' ? '전도대상' : '성도';
+
     try {
         if (currentMeetingId) {
             // 수정: PUT /api/counseling/:sessionId
             let fullContent = '';
             if (tags) fullContent = tags + '\n';
             fullContent += content;
-            const editRemark = `[${method}상담][${counseleeType}]${remark ? ' ' + remark : ''}`;
+            const editRemark = `[${method}상담][${statusLabel}]${remark ? ' ' + remark : ''}`;
             const res = await fetch(`/api/counseling/${currentMeetingId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -1408,6 +1526,7 @@ async function handleSaveCounseling() {
                     content: fullContent,
                     tags,
                     remark_memo: editRemark,
+                    member_status: memberStatus,
                     member_id: document.getElementById('modalCounselingMemberId')?.value
                         ? parseInt(document.getElementById('modalCounselingMemberId').value) : null
                 })
@@ -1415,16 +1534,15 @@ async function handleSaveCounseling() {
             if (!res.ok) throw new Error('수정 실패');
         } else {
             // 신규: POST /api/counseling
-            const memberStatus = counseleeType === '전도대상자' ? 'evangelist' : 'member';
             const res = await fetch('/api/counseling', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    member_id: (counseleeType === '성도' && memberId) ? parseInt(memberId) : null,
+                    member_id: (memberStatus === 'member' && memberId) ? parseInt(memberId) : null,
                     name: finalName, date, content,
                     tags: tags || null,
-                    remark_memo: `[${method}상담][${counseleeType}]${remark ? ' ' + remark : ''}`,
-                    category: counseleeType === '성도' ? (category || null) : null,
+                    remark_memo: `[${method}상담][${statusLabel}]${remark ? ' ' + remark : ''}`,
+                    category: category || null,
                     bs: bs || null,
                     member_status: memberStatus
                 })

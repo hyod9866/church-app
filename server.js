@@ -1639,7 +1639,9 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
         members (
           name,
           district,
-          category
+          category,
+          member_status,
+          bs
         )
       `)
       .eq('meeting_id', req.params.id);
@@ -1656,7 +1658,9 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
       category_snapshot: a.category_snapshot,
       name: a.members?.name || '',
       district: a.members?.district || '',
-      category: a.members?.category || ''
+      category: a.members?.category || '',
+      member_status: a.members?.member_status || 'member',
+      bs: a.members?.bs || ''
     }));
     
     res.json(rows);
