@@ -247,12 +247,12 @@ window.toggleAttendanceChip = function(el) {
     el.dataset.present = isNowPresent ? '1' : '0';
     if (isNowPresent) {
         el.className = el.className
-            .replace(/bg-slate-100|dark:bg-slate-800|text-slate-600|dark:text-slate-400|border-slate-200|dark:border-slate-700\/60/g, '').trim();
+            .replace(/bg-slate-200|dark:bg-slate-700|text-slate-700|dark:text-slate-200|border-slate-300|dark:border-slate-600/g, '').trim();
         el.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-sm');
     } else {
         el.className = el.className
             .replace(/bg-blue-600|text-white|border-blue-600|shadow-sm/g, '').trim();
-        el.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400', 'border-slate-200', 'dark:border-slate-700/60');
+        el.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-600');
     }
     updateTestimonySection();
     updateAttendanceCount();
@@ -810,7 +810,7 @@ async function refreshAttendanceList() {
         const test = (a ? (a.testimony_snapshot || '') : '').replace(/"/g, '&quot;');
         const cls = isP
             ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700/60';
+            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600';
         return `<button type="button" class="attendance-chip ${cls} border rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95"
             data-id="${m.id}" data-name="${m.name}" data-district="${m.district || ''}" data-present="${isP ? '1' : '0'}" data-testimony="${test}"
             onclick="toggleAttendanceChip(this)">${m.name}</button>`;
