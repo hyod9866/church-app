@@ -1489,7 +1489,7 @@ app.get('/api/meetings', async (req, res) => {
     const { data: presentAttendance, error: attErr } = await supabase
       .from('attendance')
       .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
-      .eq('is_present', true);
+      .eq('is_present', 1);
     if (attErr) throw attErr;
 
     const countMap = {};
@@ -1500,7 +1500,7 @@ app.get('/api/meetings', async (req, res) => {
     if (presentAttendance) {
       const seenAttendance = new Set(); // (meeting_id:member_id) 중복 방지
       presentAttendance.forEach(a => {
-        if (!a.is_present) return;
+        if (!Number(a.is_present)) return;
 
         const dedupeKey = `${a.meeting_id}:${a.member_id}`;
         if (seenAttendance.has(dedupeKey)) return;
