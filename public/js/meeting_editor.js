@@ -564,6 +564,20 @@ function bindEditorEvents() {
 
     // --- 상담 태그 프리셋 버튼 ---
     document.getElementById('modalCounselTagBtns')?.addEventListener('click', (e) => {
+        // × 삭제 버튼 처리 (커스텀 태그 삭제)
+        const delSpan = e.target.closest('.counsel-tag-del');
+        if (delSpan) {
+            e.stopPropagation();
+            const tag = delSpan.dataset.deltag;
+            removeCustomCounselTagFromLS(tag);
+            delSpan.closest('button').remove();
+            const hiddenInput = document.getElementById('modalCounselingTags');
+            let tags = hiddenInput.value ? hiddenInput.value.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
+            tags = tags.filter(t => t !== '#' + tag);
+            hiddenInput.value = tags.join(' ');
+            renderModalCounselTags();
+            return;
+        }
         const btn = e.target.closest('.mcounsel-tag-btn');
         if (!btn) return;
         const tag = '#' + btn.dataset.tag;
@@ -578,12 +592,42 @@ function bindEditorEvents() {
         renderModalCounselTags();
     });
 
-    // --- 커스텀 태그 추가 ---
+    // --- 커스텀 태그 관리 (localStorage) ---
+    const COUNSEL_TAG_LS_KEY = 'church_counsel_custom_tags';
+
+    function getCustomCounselTags() {
+        try { return JSON.parse(localStorage.getItem(COUNSEL_TAG_LS_KEY) || '[]'); } catch { return []; }
+    }
+    function saveCustomCounselTagToLS(tag) {
+        const tags = getCustomCounselTags();
+        if (!tags.includes(tag)) { tags.push(tag); localStorage.setItem(COUNSEL_TAG_LS_KEY, JSON.stringify(tags)); }
+    }
+    function removeCustomCounselTagFromLS(tag) {
+        localStorage.setItem(COUNSEL_TAG_LS_KEY, JSON.stringify(getCustomCounselTags().filter(t => t !== tag)));
+    }
+    function appendCustomCounselTagBtn(tag) {
+        const container = document.getElementById('modalCounselTagBtns');
+        if (!container || container.querySelector(`[data-tag="${CSS.escape(tag)}"]`)) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.tag = tag;
+        btn.className = 'mcounsel-tag-btn custom-counsel-tag flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800/60 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 transition-all';
+        btn.innerHTML = `#${tag}<span class="counsel-tag-del ml-0.5 text-red-400 hover:text-red-500 font-black text-[11px] leading-none" data-deltag="${tag}">×</span>`;
+        container.appendChild(btn);
+    }
+    function loadCustomCounselTags() {
+        getCustomCounselTags().forEach(tag => appendCustomCounselTagBtn(tag));
+    }
+
     function addModalCustomTag() {
         const input = document.getElementById('modalCounselTagInput');
         if (!input) return;
         const val = input.value.replace(/[#\s,]/g, '').trim();
         if (!val) return;
+        // 프리셋으로 저장 & 버튼 추가
+        saveCustomCounselTagToLS(val);
+        appendCustomCounselTagBtn(val);
+        // 선택 상태에도 추가
         const hiddenInput = document.getElementById('modalCounselingTags');
         let tags = hiddenInput.value ? hiddenInput.value.split(/\s+/).filter(t => t.startsWith('#') && t.length > 1) : [];
         const tag = '#' + val;
@@ -596,6 +640,9 @@ function bindEditorEvents() {
     document.getElementById('modalCounselTagInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addModalCustomTag(); }
     });
+
+    // 저장된 커스텀 태그 초기 로드
+    loadCustomCounselTags();
 
     // Type Change -> Load attendance
     const meetingTypeEl = document.getElementById('meetingType');

@@ -1563,55 +1563,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.openTagDetailsModal = function(tag, status) {
-        const modal = document.getElementById('counselingTagModal');
-        const title = document.getElementById('counselingTagModalTitle');
-        const content = document.getElementById('counselingTagModalContent');
-        if (!modal || !content) return;
-
-        title.innerHTML = `<i class="fa-solid fa-hashtag text-[11px] text-indigo-200"></i> ${tag} - 상세 상담 이력 (${status === 'evangelism' ? '전도대상' : '성도'})`;
-
-        const matching = [];
-        allStatus.forEach(member => {
-            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
-            const memberStatus = isMember ? 'member' : 'evangelism';
-            if (memberStatus !== status) return;
-
-            const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
-            sessions.forEach(s => {
-                const tags = s.tags || '';
-                const tagsArr = tags.split(/\s+/).map(t => t.replace('#', '').trim()).filter(Boolean);
-                if (tagsArr.includes(tag)) {
-                    matching.push({ member, session: s });
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = `#${tag}`;
+            applyFilters();
+            
+            // 모든 검색 결과 카드의 상담 이력을 자동으로 펼침
+            document.querySelectorAll('.counseling-person-card').forEach(card => {
+                const wrapper = card.querySelector('.member-sessions-wrapper');
+                if (wrapper) {
+                    wrapper.classList.remove('hidden');
+                }
+                const icon = card.querySelector('.fa-chevron-down');
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
                 }
             });
-        });
 
-        matching.sort((a, b) => b.session.date.localeCompare(a.session.date));
-
-        if (matching.length === 0) {
-            content.innerHTML = `<p class="text-slate-450 dark:text-slate-400 italic text-xs text-center py-8">해당 태그를 포함한 상담 기록이 없습니다.</p>`;
-        } else {
-            content.innerHTML = matching.map(item => {
-                const tagsHtml = item.session.tags ? item.session.tags.trim().split(/\s+/).filter(t => t.startsWith('#'))
-                    .map(t => `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30">${t}</span>`)
-                    .join('') : '';
-                return `
-                    <div class="p-3.5 bg-slate-50 dark:bg-[#0B0F19] rounded-xl border border-slate-200/60 dark:border-slate-800/80 flex flex-col gap-2">
-                        <div class="flex justify-between items-center text-xs border-b border-slate-200/50 dark:border-slate-800 pb-1.5">
-                            <div class="flex items-center gap-1.5 font-bold">
-                                <span class="text-indigo-650 dark:text-indigo-400 text-sm font-black">${item.member.name}</span>
-                                <span class="text-[10px] text-slate-450 dark:text-slate-400 font-bold">${item.member.position || ''} (${item.member.category || ''})</span>
-                            </div>
-                            <span class="text-slate-550 dark:text-slate-400 font-bold">${item.session.date}</span>
-                        </div>
-                        ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
-                        <p class="text-xs text-slate-700 dark:text-slate-350 font-bold whitespace-pre-wrap leading-relaxed">📝 ${item.session.content || '(내용 없음)'}</p>
-                    </div>
-                `;
-            }).join('');
+            // 필터/검색 영역으로 스크롤 이동
+            const filtersDiv = searchInput.closest('div').parentElement;
+            if (filtersDiv) {
+                filtersDiv.scrollIntoView({ behavior: 'smooth' });
+            }
         }
-
-        modal.classList.remove('hidden');
     };
 
     function renderTrendChart(months, memberData, evData) {
