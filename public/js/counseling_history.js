@@ -1268,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const targetMember = allStatus.find(s => s.id === memberId);
             if (targetMember) {
-                const isMember = targetMember.member_status ? targetMember.member_status === 'member' : (targetMember.salvation_date && targetMember.salvation_date.trim() !== '');
+                const isMember = targetMember.member_status !== 'evangelism';
                 const statusVal = isMember ? 'member' : 'evangelism';
                 setGroupBtn('memberStatusBtnGroup', 'counselingMemberStatus', statusVal);
             }
@@ -1793,7 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
         data.forEach(member => {
-            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
+            const isMember = member.member_status !== 'evangelism';
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
             sessions.forEach(s => {
                 totalCount++;
@@ -1813,9 +1813,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('totalCounselCount', `${totalCount} 건`);
         setEl('totalCounselSplit', `(성도 ${memberTotalCount}건 / 전도 ${evTotalCount}건)`);
 
-        // 2. 성도 vs 전도대상 (member_status 우선, 없으면 salvation_date 기준)
+        // 2. 성도 vs 전도대상 (member_status 우선)
         const totalPeople = data.length || 1;
-        const memberCount = data.filter(s => s.member_status ? s.member_status === 'member' : (s.salvation_date && s.salvation_date.trim() !== '')).length;
+        const memberCount = data.filter(s => s.member_status !== 'evangelism').length;
         const targetCount = totalPeople - memberCount;
         const memberPct = Math.round((memberCount / totalPeople) * 100);
         const targetPct = 100 - memberPct;
@@ -1861,7 +1861,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let evTotal = 0;
 
         data.forEach(s => {
-            const isMember = s.member_status ? s.member_status === 'member' : (s.salvation_date && s.salvation_date.trim() !== '');
+            const isMember = s.member_status !== 'evangelism';
             const cat = s.category || '모름';
             const normalizedCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
             if (isMember) {
@@ -1900,7 +1900,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const memberTagCounts = {}, evangelismTagCounts = {};
         data.forEach(s => {
             if (!s.last_counseling_tags) return;
-            const isMember = s.member_status ? s.member_status === 'member' : (s.salvation_date && s.salvation_date.trim() !== '');
+            const isMember = s.member_status !== 'evangelism';
             const bucket = isMember ? memberTagCounts : evangelismTagCounts;
             s.last_counseling_tags.split(/\s+/).filter(t => t.startsWith('#')).forEach(t => {
                 const tag = t.substring(1);
@@ -1925,7 +1925,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         data.forEach(member => {
-            const isMember = member.member_status ? member.member_status === 'member' : (member.salvation_date && member.salvation_date.trim() !== '');
+            const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
             
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
