@@ -2351,7 +2351,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, church, parish, district, category, bs, member_status } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2407,8 +2407,8 @@ app.post('/api/counseling', async (req, res) => {
 
     // 2. meetings에 개인상담 일정 생성
     const meetingTitle = `${name} 개인상담`;
-    let finalMemo = '';
-    if (remark_memo && remark_memo.trim()) finalMemo = remark_memo.trim();
+    const finalLead = lead_target ? lead_target.trim() : '';
+    const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
 
     const { data: newMeeting, error: meetErr } = await supabase
       .from('meetings')
@@ -2443,7 +2443,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, member_status, member_id } = req.body;
+  const { date, content, tags, remark_memo, lead_target, member_status, member_id } = req.body;
 
   try {
     let fullContent = '';
@@ -2465,7 +2465,9 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       const meetingId = sessionId.replace('m_', '');
 
       const meetUpdate = { date };
-      if (remark_memo !== undefined) meetUpdate.memo = remark_memo;
+      const finalLead = lead_target ? lead_target.trim() : '';
+      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      meetUpdate.memo = finalMemo;
       await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
       if (memberId) {
         const { data: existing } = await supabase.from('attendance')
@@ -2477,7 +2479,10 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
     } else if (sessionId.startsWith('r_')) {
       // member_records 방식 (레거시)
       const recordId = sessionId.replace('r_', '');
-      const remarkText = fullContent ? `[상담] ${fullContent}` : '[상담] 내용 없음';
+      let remarkText = fullContent ? `[상담] ${fullContent}` : '[상담] 내용 없음';
+      const finalLead = lead_target ? lead_target.trim() : '';
+      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      remarkText += ` (비고: ${finalMemo})`;
       await supabase.from('member_records').update({ date, remark: remarkText }).eq('id', recordId);
     }
 

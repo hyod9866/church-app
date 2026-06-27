@@ -367,43 +367,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lastDate = new Date(latestSession.date);
                 lastDate.setHours(0, 0, 0, 0);
                 const daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-                daysDiffHtml = `<span class="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>`;
+                daysDiffHtml = `<span class="text-[10px] bg-indigo-50 dark:bg-indigo-955/40 text-indigo-650 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold">${daysDiff}일 전(최근 상담)</span>`;
             }
-
-            const allSessionsHtml = sessions.map((s, idx) => {
-                const isLatest = idx === 0;
-                return `
-                    <div class="specific-session-container hidden" data-session-id="${s.session_id}">
-                        ${renderSessionCard(s, member.id, isLatest)}
-                    </div>
-                `;
-            }).join('');
 
             const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
             const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
 
-            const hasSessions = sessions.length > 0;
+            const latestLeadTarget = latestSession && latestSession.lead_target ? latestSession.lead_target : '';
+            let leadTargetHtml = '';
+            if (latestLeadTarget) {
+                const isHash = latestLeadTarget.startsWith('#');
+                const cleanName = isHash ? latestLeadTarget.slice(1).trim() : latestLeadTarget;
+                if (isHash) {
+                    leadTargetHtml = `<span class="text-[10px] bg-amber-100 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900/40 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                } else {
+                    leadTargetHtml = `<span class="text-[10px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
+                }
+            }
+
+            const hasSessions = latestSession !== null;
             const toggleButtonHtml = hasSessions ? `
                 <button type="button" onclick="toggleMemberSessions(this)" class="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer focus:outline-none flex items-center justify-center w-5 h-5">
-                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-sm"></i>
+                    <i class="fa-solid fa-chevron-up transition-transform duration-200 text-sm"></i>
                 </button>
-            ` : '';
-
-            const dateButtonsHtml = sessions.length > 0 ? `
-                <div class="flex gap-1.5 flex-wrap mt-1.5 items-center">
-                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-0.5">상담이력:</span>
-                    ${sessions.map(s => `
-                        <button type="button" onclick="toggleSpecificSession(this, '${s.session_id}')" class="px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-100 dark:border-slate-800 bg-indigo-50/60 dark:bg-slate-800/60 text-indigo-650 dark:text-slate-350 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition-colors cursor-pointer">
-                            ${s.date}
-                        </button>
-                    `).join('')}
-                </div>
             ` : '';
 
             const isEvangelismTarget = (latestSession && latestSession.member_status === 'evangelism') || (member.member_status === 'evangelism');
             const nameColorClass = isEvangelismTarget 
                 ? 'text-orange-600 dark:text-orange-400 italic font-black' 
-                : 'text-indigo-600 dark:text-indigo-400 font-black';
+                : 'text-indigo-650 dark:text-indigo-400 font-black';
 
             return `
                 <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
@@ -413,12 +405,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${toggleButtonHtml}
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
                             <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
+                            ${leadTargetHtml}
                             ${daysDiffHtml}
                         </div>
-                        ${dateButtonsHtml}
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
-                        <div class="member-sessions-wrapper hidden w-full mt-2">
-                            ${allSessionsHtml}
+                        <div class="member-sessions-wrapper w-full mt-2">
+                            ${latestSession ? renderSessionCard(latestSession, member.id, true) : ''}
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
