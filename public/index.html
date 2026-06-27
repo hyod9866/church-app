@@ -426,7 +426,7 @@
                     <span class="md:hidden">P.M.P</span>
                     <span class="hidden md:flex flex-col text-left leading-none">
                         <span class="text-sm md:text-base font-black tracking-wider">Pastoral Ministry</span>
-                        <span class="text-[10px] text-blue-200/90 font-bold mt-0.5">Program</span>
+                        <span class="text-xs text-blue-200/90 font-bold mt-0.5">Program</span>
                     </span>
                 </h1>
             </a>
@@ -626,13 +626,7 @@
                         <!-- 개인상담 패널 -->
                         <div id="counselingPanel" class="hidden space-y-4">
     <div class="relative">
-        <div class="flex justify-between items-center mb-1.5">
-            <label class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 block uppercase tracking-wider">상담 대상자 *</label>
-            <label class="inline-flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" id="modalAnonymousCheck" class="rounded text-indigo-600 focus:ring-indigo-500 border-slate-350 w-3.5 h-3.5">
-                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">익명으로 등록</span>
-            </label>
-        </div>
+        <label class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 block mb-1.5 uppercase tracking-wider">상담 대상자 *</label>
         <input type="text" id="modalCounselingName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="이름을 입력하세요..." autocomplete="off">
         <div id="modalCounselingSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden no-scrollbar"></div>
         <input type="hidden" id="modalCounselingMemberId" value="">
@@ -650,28 +644,20 @@
             </div>
             <input type="hidden" id="modalCounselingCategory" value="">
         </div>
-        <div class="grid grid-cols-3 gap-3">
-            <div>
-                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5" id="modalBsLabel">성별(형제/자매)</span>
-                <div class="flex gap-1" id="modalBsBtns">
-                    <button type="button" data-val="B" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">형제</button>
-                    <button type="button" data-val="S" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">자매</button>
+        <div class="flex gap-6">
+            <div class="flex-1">
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
+                <div class="flex gap-1.5" id="modalBsBtns">
+                    <button type="button" data-val="B" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">형제</button>
+                    <button type="button" data-val="S" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">자매</button>
                 </div>
                 <input type="hidden" id="modalCounselingBs" value="">
             </div>
-            <div>
-                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상태</span>
-                <div class="flex gap-1" id="modalMemberStatusBtns">
-                    <button type="button" data-val="member" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 transition-all text-center">성도</button>
-                    <button type="button" data-val="evangelism" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전도대상</button>
-                </div>
-                <input type="hidden" id="modalCounselingMemberStatus" value="member">
-            </div>
-            <div>
+            <div class="flex-1">
                 <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상담 방식</span>
-                <div class="flex gap-1" id="modalCounselMethodBtns">
-                    <button type="button" data-val="대면" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all text-center">대면</button>
-                    <button type="button" data-val="전화" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전화</button>
+                <div class="flex gap-1.5" id="modalCounselMethodBtns">
+                    <button type="button" data-val="대면" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all">대면</button>
+                    <button type="button" data-val="전화" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">전화</button>
                 </div>
                 <input type="hidden" id="modalCounselingMethod" value="대면">
             </div>
