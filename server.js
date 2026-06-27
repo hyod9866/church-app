@@ -2206,7 +2206,8 @@ app.get('/api/counseling', async (req, res) => {
           last_counseling_date: last ? last.date : null,
           last_counseling_content: last ? last.content : null,
           last_counseling_tags: last ? last.tags : null,
-          last_counseling_session_id: last ? last.session_id : null
+          last_counseling_session_id: last ? last.session_id : null,
+          all_sessions: sessions
         };
       });
 
