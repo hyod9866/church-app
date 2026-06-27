@@ -15,6 +15,13 @@ let editorDeleteCallback = null;
 function injectEditorElements() {
     // 1. Inject meetingModal into meetingPanelsContainer if not exists
     const container = document.getElementById('meetingPanelsContainer');
+    // 칩 UI가 없는 구버전 모달이 DOM에 남아있으면 제거 후 재주입
+    const staleModal = document.getElementById('meetingModal');
+    if (staleModal && !document.getElementById('attendanceChipGrid')) {
+        staleModal.remove();
+        const boundFlag = document.getElementById('meetingModal');
+        if (boundFlag) boundFlag._eventsBound = false;
+    }
     if (container && !document.getElementById('meetingModal')) {
         const modalHTML = `
         <!-- Add/Edit Meeting Panel -->
