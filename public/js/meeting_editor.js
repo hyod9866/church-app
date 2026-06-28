@@ -2034,8 +2034,60 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingTitle').value = title;
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
-    document.getElementById('meetingType').value = type;
     document.getElementById('meetingSermonBible').value = sermon_bible || '';
+
+    // Dynamically rebuild meetingType options based on the current user's default parish districts
+    const meetingTypeSelect = document.getElementById('meetingType');
+    if (meetingTypeSelect) {
+        let districts = [];
+        try {
+            const profileRes = await fetch('/api/users/default-profile');
+            const profile = profileRes.ok ? await profileRes.json() : null;
+            if (profile && profile.parish) {
+                // Find parish id first
+                const parishesRes = await fetch(`/api/parishes`);
+                const parishes = await parishesRes.json();
+                const matchedParish = parishes.find(p => p.name.trim() === profile.parish.trim());
+                if (matchedParish) {
+                    const districtsRes = await fetch(`/api/districts?parish_id=${matchedParish.id}`);
+                    districts = await districtsRes.json();
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load dynamic districts in meeting editor:', err);
+        }
+
+        const distNames = districts.length > 0 ? districts.map(d => d.name) : ['581구역', '582구역', '583구역'];
+        
+        let selectHTML = '';
+        // 1. Dynamic District options
+        distNames.forEach(dName => {
+            const cleanName = dName.replace(/구역$/, '');
+            selectHTML += `<option value="${cleanName}구역모임">${cleanName}구역모임</option>`;
+        });
+        // 2. Dynamic Group (조) options
+        distNames.forEach(dName => {
+            const cleanName = dName.replace(/구역$/, '');
+            selectHTML += `<option value="${cleanName}조모임">${cleanName}조모임</option>`;
+        });
+        // 3. Common options
+        selectHTML += `
+            <option value="교구전체모임">교구전체모임</option>
+            <option value="교구형제모임">교구형제모임</option>
+            <option value="교구청년모임">교구청년모임</option>
+            <option value="교구임원모임">교구임원모임</option>
+            <option value="심방">심방</option>
+            <option value="상담">개인상담</option>
+            <option value="설교">내부설교</option>
+            <option value="외부설교">외부설교</option>
+            <option value="교회행사">교회행사</option>
+            <option value="기타">기타 모임</option>
+        `;
+        meetingTypeSelect.innerHTML = selectHTML;
+    }
+    if (meetingTypeSelect) {
+        meetingTypeSelect.value = type;
+    }
     
     if (sermon_tags) {
         currentSermonTagsList = sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0);
