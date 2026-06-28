@@ -746,20 +746,21 @@
                             <span class="text-slate-400 dark:text-slate-500 font-medium normal-case">(자동입력 · 직접 변경 가능)</span>
                         </span>
                         
-                        <!-- 소속, 성별, 상태, 상담유형 한 줄에 배치 -->
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <!-- 소속 -->
-                            <div>
-                                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">소속</span>
-                                <div id="categoryBtnGroup" class="flex flex-wrap gap-1.5">
-                                    <button type="button" data-val="봉사회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">봉사회</button>
-                                    <button type="button" data-val="청년회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">청년회</button>
-                                    <button type="button" data-val="어머니회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">어머니회</button>
-                                    <button type="button" data-val="은장회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">은장회</button>
-                                    <button type="button" data-val="모름" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">모름</button>
-                                </div>
-                                <input type="hidden" id="counselingCategory" value="">
+                        <!-- 1층: 소속 단독 배치 -->
+                        <div>
+                            <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">소속</span>
+                            <div id="categoryBtnGroup" class="flex flex-wrap gap-1.5">
+                                <button type="button" data-val="봉사회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">봉사회</button>
+                                <button type="button" data-val="청년회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">청년회</button>
+                                <button type="button" data-val="어머니회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">어머니회</button>
+                                <button type="button" data-val="은장회" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">은장회</button>
+                                <button type="button" data-val="모름" class="category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-300 transition-all">모름</button>
                             </div>
+                            <input type="hidden" id="counselingCategory" value="">
+                        </div>
+
+                        <!-- 2층: 성별, 상태, 상담 유형 배치 -->
+                        <div class="grid grid-cols-3 gap-4">
                             <!-- 성별 -->
                             <div>
                                 <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
@@ -789,7 +790,7 @@
                             </div>
                         </div>
 
-                        <!-- 인도대상 / 모임 한 줄 아래로 단독 배치 -->
+                        <!-- 3층: 인도대상 / 모임 배치 -->
                         <div>
                             <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">인도대상 / 모임</span>
                             <input type="text" id="counselingLeadTarget" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="예: #홍길동 또는 모임명 입력...">
