@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allStatus = [];
     let currentMemberData = null;
+    let filterYearMonth = null; // 'YYYY-MM' format or null
 
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
@@ -40,6 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
         let filtered = allStatus.filter(s => {
+            if (filterYearMonth) {
+                const sessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
+                const hasSessionInMonth = sessions.some(session => session.date && session.date.startsWith(filterYearMonth));
+                if (!hasSessionInMonth) return false;
+            }
             if (query) {
                 const nameMatch = (s.name || '').toLowerCase().includes(query);
                 const dateMatch = (s.last_counseling_date || '').includes(query);
@@ -401,7 +407,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const allSessionsHtml = sessions.map((s, idx) => {
                 const isLatest = idx === 0;
-                const hiddenClass = 'hidden'; // Always hidden initially
+                // If filterYearMonth is active and this session matches, or if no filter but we normally hide, 
+                // we check if it matches the current filterMonth to auto-expand.
+                const matchesFilter = filterYearMonth && s.date && s.date.startsWith(filterYearMonth);
+                const hiddenClass = matchesFilter ? '' : 'hidden';
                 return `
                     <div class="specific-session-container ${hiddenClass}" data-session-id="${s.session_id}">
                         ${renderSessionCard(s, member.id, isLatest)}
@@ -425,9 +434,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const hasSessions = sessions.length > 0;
+            // If filtering, chevron should start pointing up since we auto-expand the wrapper
+            const chevronIconClass = filterYearMonth ? 'fa-chevron-up' : 'fa-chevron-down';
             const toggleButtonHtml = hasSessions ? `
                 <button type="button" onclick="toggleMemberSessions(this)" class="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer focus:outline-none flex items-center justify-center w-5 h-5">
-                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-sm"></i>
+                    <i class="fa-solid ${chevronIconClass} transition-transform duration-200 text-sm"></i>
                 </button>
             ` : '';
 
@@ -447,6 +458,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? 'text-orange-600 dark:text-orange-400 italic font-black' 
                 : 'text-indigo-650 dark:text-indigo-400 font-black';
 
+            // Wrapper is open if filterYearMonth is active
+            const wrapperHiddenClass = filterYearMonth ? '' : 'hidden';
+
             return `
                 <div class="counseling-person-card bg-white dark:bg-[#131B2E] rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex items-start p-4 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                     <div class="flex-1 min-w-0">
@@ -460,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
                         ${dateButtonsHtml}
-                        <div class="member-sessions-wrapper w-full mt-2 hidden">
+                        <div class="member-sessions-wrapper w-full mt-2 ${wrapperHiddenClass}">
                             ${allSessionsHtml}
                         </div>
                     </div>
@@ -1868,6 +1882,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]
             },
             options: {
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedYm = months[index]; // 'YYYY-MM'
+                        if (clickedYm) {
+                            filterYearMonth = clickedYm;
+                            applyFilters();
+                            
+                            // Scroll list into view
+                            const searchInput = document.getElementById('searchInput');
+                            if (searchInput) {
+                                const filtersDiv = searchInput.closest('div').parentElement;
+                                if (filtersDiv) {
+                                    filtersDiv.scrollIntoView({ behavior: 'smooth' });
+                                }
+                            }
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -2137,6 +2173,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 localStorage.setItem('counseling_dashboard_collapsed', 'false');
             }
+        });
+    }
+
+    // 당월 상담 / 누적 상담 필터 카드 이벤트 바인딩
+    const btnFilterMonthly = document.getElementById('btnFilterMonthly');
+    const btnFilterTotal = document.getElementById('btnFilterTotal');
+    if (btnFilterMonthly) {
+        btnFilterMonthly.addEventListener('click', () => {
+            const now = new Date();
+            const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            if (filterYearMonth === ym) {
+                filterYearMonth = null; // Toggle off
+            } else {
+                filterYearMonth = ym; // Set to current month
+            }
+            applyFilters();
+        });
+    }
+    if (btnFilterTotal) {
+        btnFilterTotal.addEventListener('click', () => {
+            filterYearMonth = null; // Reset filter
+            applyFilters();
         });
     }
 });
