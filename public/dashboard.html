@@ -320,15 +320,18 @@
             <select id="yearSelect" class="bg-blue-800 dark:bg-slate-800 dark:border-slate-700/50 text-white border border-blue-500 dark:border-slate-700/50 rounded-lg px-2 py-1.5 font-bold focus:outline-none transition duration-200">
                 <!-- Years will be populated dynamically -->
             </select>
+            <select id="globalChurchSelect" class="bg-blue-800 dark:bg-slate-800 dark:border-slate-700/50 text-white border border-blue-500 dark:border-slate-700/50 rounded-lg px-2 py-1.5 font-bold focus:outline-none transition duration-200">
+                <option value="">교회 선택</option>
+            </select>
+            <select id="globalParishSelect" class="bg-blue-800 dark:bg-slate-800 dark:border-slate-700/50 text-white border border-blue-500 dark:border-slate-700/50 rounded-lg px-2 py-1.5 font-bold focus:outline-none transition duration-200">
+                <option value="">교구 선택</option>
+            </select>
             <p id="dashboardRange" class="text-xs text-blue-200 dark:text-slate-400 hidden md:block mr-2">작년 12월 ~ 올해 11월 기준</p>
             <input type="text" id="memberSearch" placeholder="이름 검색..." class="text-gray-900 border-none rounded-lg px-3 py-1.5 w-32 md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-400">
             
             <div class="flex items-center gap-2">
                 <select id="sidebarDistrictFilter" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="전체">모든 구역</option>
-                    <option value="581구역">581구역</option>
-                    <option value="582구역">582구역</option>
-                    <option value="583구역">583구역</option>
                 </select>
                 <select id="sidebarCategoryFilter" class="text-gray-900 border-none rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="전체">모든 회별</option>

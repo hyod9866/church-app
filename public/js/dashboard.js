@@ -8,6 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortOrder = document.getElementById('sortOrder');
     const dashboardRange = document.getElementById('dashboardRange');
     
+    const globalChurchSelect = document.getElementById('globalChurchSelect');
+    const globalParishSelect = document.getElementById('globalParishSelect');
+
+    let loadedDistricts = ['581', '582', '583']; // Default fallback districts
+    let currentChurchName = '서울중앙교회';
+    let currentParishName = '부곡교구';
+
     // Sidebar elements
     const sidebar = document.getElementById('sidebar');
     const toggleSidebarBtn = document.getElementById('toggleSidebar');
@@ -399,8 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function prepareChartData(allMeetings, allMembers) {
         // 1. District Monthly
         const districtLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-        const districtIds = ['581', '582', '583'];
-        const districtColors = ['#2563eb', '#dc2626', '#16a34a'];
+        const districtIds = loadedDistricts;
+        const colorPalette = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0d9488'];
         const districtDatasets = districtIds.map((dist, idx) => {
             const data = new Array(12).fill(0);
             allMeetings.forEach(m => {
@@ -411,7 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     data[month] += count;
                 }
             });
-            return { label: `${dist}구역`, data, borderColor: districtColors[idx], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
+            const color = colorPalette[idx % colorPalette.length];
+            return { label: `${dist}구역`, data, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
         });
         updateChart('district', districtLabels, districtDatasets);
 
@@ -429,7 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     data[month] += count;
                 }
             });
-            return { label: `${dist}조`, data, borderColor: districtColors[idx], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
+            const color = colorPalette[idx % colorPalette.length];
+            return { label: `${dist}조`, data, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
         });
         updateChart('group', districtLabels, groupDatasets);
 
@@ -534,8 +543,122 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // -------------------------------------------------------------
+    // 동적 교회 / 교구 / 구역 바인딩 및 프로필 연동
+    // -------------------------------------------------------------
+    async function initGlobalFilters() {
+        try {
+            // 1. 프로필 정보 획득
+            const profileRes = await fetch('/api/users/default-profile');
+            const profile = profileRes.ok ? await profileRes.json() : { church: '서울중앙교회', parish: '부곡교구' };
+            currentChurchName = profile.church || '서울중앙교회';
+            currentParishName = profile.parish || '부곡교구';
+
+            // 2. 전체 교회 로드
+            const churchesRes = await fetch('/api/churches/all');
+            const churches = await churchesRes.json();
+            globalChurchSelect.innerHTML = churches.map(c => `
+                <option value="${c.id}" ${c.name === currentChurchName ? 'selected' : ''} data-name="${c.name}">${c.name}</option>
+            `).join('');
+
+            // 3. 교구 로드
+            const selectedChurchId = globalChurchSelect.value;
+            if (selectedChurchId) {
+                await updateParishDropdown(selectedChurchId, currentParishName);
+            }
+        } catch (e) {
+            console.error('Failed to init global filters:', e);
+            // Fallback load
+            await updateDistrictFilters();
+            loadDashboardData(yearSelect.value);
+        }
+    }
+
+    async function updateParishDropdown(churchId, selectParishName = '') {
+        try {
+            const res = await fetch(`/api/parishes?church_id=${churchId}`);
+            const parishes = await res.json();
+            
+            if (parishes.length > 0) {
+                globalParishSelect.innerHTML = parishes.map(p => `
+                    <option value="${p.id}" ${p.name === selectParishName ? 'selected' : ''} data-name="${p.name}">${p.name}</option>
+                `).join('');
+            } else {
+                globalParishSelect.innerHTML = '<option value="">교구 없음</option>';
+            }
+
+            await updateDistrictFilters();
+            loadDashboardData(yearSelect.value);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function updateDistrictFilters() {
+        const parishId = globalParishSelect.value;
+        if (!parishId) {
+            loadedDistricts = ['581', '582', '583']; // Fallback
+            updateSidebarDistrictFilter();
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/districts?parish_id=${parishId}`);
+            const districts = await res.json();
+            
+            if (districts.length > 0) {
+                // 숫자만 추출해서 loadedDistricts 생성 (그래프 렌더링에 사용)
+                loadedDistricts = districts.map(d => d.name.replace(/[^0-9]/g, ''));
+                
+                // 사이드바 구역 필터 옵션도 동적으로 빌드
+                updateSidebarDistrictFilter(districts);
+            } else {
+                loadedDistricts = [];
+                updateSidebarDistrictFilter([]);
+            }
+        } catch (e) {
+            console.error('Error loading districts:', e);
+            loadedDistricts = ['581', '582', '583'];
+            updateSidebarDistrictFilter();
+        }
+    }
+
+    function updateSidebarDistrictFilter(districts = null) {
+        if (!sidebarDistrictFilter) return;
+        
+        if (!districts || districts.length === 0) {
+            sidebarDistrictFilter.innerHTML = `
+                <option value="전체">모든 구역</option>
+                <option value="581구역">581구역</option>
+                <option value="582구역">582구역</option>
+                <option value="583구역">583구역</option>
+            `;
+            return;
+        }
+
+        sidebarDistrictFilter.innerHTML = `
+            <option value="전체">모든 구역</option>
+            ${districts.map(d => `
+                <option value="${d.name}">${d.name}</option>
+            `).join('')}
+        `;
+    }
+
+    // 글로벌 선택 이벤트 리스너 바인딩
+    if (globalChurchSelect) {
+        globalChurchSelect.addEventListener('change', () => {
+            updateParishDropdown(globalChurchSelect.value);
+        });
+    }
+
+    if (globalParishSelect) {
+        globalParishSelect.addEventListener('change', () => {
+            updateDistrictFilters().then(() => loadDashboardData(yearSelect.value));
+        });
+    }
+
     // Initial Load
-    loadDashboardData(yearSelect.value);
+    initGlobalFilters();
 
     // Testimony Modal Popup functions
     window.showTestimonyPopup = function(name, info, title, content) {
