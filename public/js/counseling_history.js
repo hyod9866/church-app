@@ -458,8 +458,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${leadTargetHtml}
                             ${daysDiffHtml}
                         </div>
-                        ${dateButtonsHtml}
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
+                        ${dateButtonsHtml}
                         <div class="member-sessions-wrapper w-full mt-2 hidden">
                             ${allSessionsHtml}
                         </div>
