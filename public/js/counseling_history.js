@@ -1749,6 +1749,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = document.getElementById('counselingDate').value;
             const content = document.getElementById('counselingMemoContent').value.trim();
             const remark_memo = document.getElementById('counselingRemark').value.trim();
+            const lead_target = document.getElementById('counselingLeadTarget')?.value.trim() || '';
             const tagsValue = document.getElementById('counselingTagsValue').value;
             const category = document.getElementById('counselingCategory').value;
             const bs = document.getElementById('counselingBs').value;
@@ -1771,6 +1772,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         name, date, content,
                         tags: tagsValue || null,
                         remark_memo: remark_memo || null,
+                        lead_target: lead_target || null,
                         church: church || null,
                         parish: parish || null,
                         district: district || null,
