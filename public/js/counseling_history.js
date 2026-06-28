@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="counsel-session-body">
                     ${tagsHtml}
-                    ${session.content ? `<div class="counsel-content-text text-gray-500 dark:text-slate-400 italic mt-1 pr-10">📝 ${session.content}</div>` : ''}
+                    ${session.content ? `<div class="counsel-content-text text-slate-800 dark:text-slate-250 font-black mt-1 pr-10">📝 ${session.content}</div>` : ''}
                     ${session.remark_memo ? `<div class="counsel-remark-text bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-350 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-bold mt-2">📌 비고: ${session.remark_memo}</div>` : ''}
                 </div>
             </div>
