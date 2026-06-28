@@ -323,15 +323,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!wrapper) return;
 
         const containers = wrapper.querySelectorAll('.specific-session-container');
-        const isWrapperHidden = wrapper.classList.contains('hidden');
-        const visibleContainers = wrapper.querySelectorAll('.specific-session-container:not(.hidden)');
         
-        const isAllShowing = !isWrapperHidden && (visibleContainers.length === containers.length);
+        // Find if we are currently hiding any sessions (if so, we want to expand all)
+        const anyHidden = Array.from(containers).some(c => c.classList.contains('hidden')) || wrapper.classList.contains('hidden');
 
-        if (isAllShowing) {
+        if (anyHidden) {
+            // Expand all
+            wrapper.classList.remove('hidden');
+            containers.forEach(c => c.classList.remove('hidden'));
+            if (icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        } else {
+            // Collapse all
             wrapper.classList.add('hidden');
             containers.forEach(c => c.classList.add('hidden'));
-            if (icon) icon.style.transform = 'rotate(0deg)';
+            if (icon) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
         }
     };
 
@@ -390,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const allSessionsHtml = sessions.map((s, idx) => {
                 const isLatest = idx === 0;
-                const hiddenClass = isLatest ? '' : 'hidden';
+                const hiddenClass = 'hidden'; // Always hidden initially
                 return `
                     <div class="specific-session-container ${hiddenClass}" data-session-id="${s.session_id}">
                         ${renderSessionCard(s, member.id, isLatest)}
@@ -416,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasSessions = sessions.length > 0;
             const toggleButtonHtml = hasSessions ? `
                 <button type="button" onclick="toggleMemberSessions(this)" class="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer focus:outline-none flex items-center justify-center w-5 h-5">
-                    <i class="fa-solid fa-chevron-up transition-transform duration-200 text-sm"></i>
+                    <i class="fa-solid fa-chevron-down transition-transform duration-200 text-sm"></i>
                 </button>
             ` : '';
 
@@ -449,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         ${dateButtonsHtml}
                         ${member.family_relation ? `<div class="text-[11px] text-gray-500 mb-2 font-medium italic">가족: ${member.family_relation}</div>` : ''}
-                        <div class="member-sessions-wrapper w-full mt-2">
+                        <div class="member-sessions-wrapper w-full mt-2 hidden">
                             ${allSessionsHtml}
                         </div>
                     </div>
@@ -1115,6 +1126,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('저장에 실패했습니다.');
             }
         } catch (e) { console.error(e); alert('에러가 발생했습니다.'); }
+    };
+
+    window.openMemberHistoryModalByName = async function(name) {
+        try {
+            const res = await fetch(`/api/members/filter?q=${encodeURIComponent(name)}`);
+            const suggestions = await res.json();
+            const matched = suggestions.find(s => s.name.trim() === name.trim());
+            if (matched) {
+                openMemberHistoryModal(matched.id);
+            } else {
+                alert(`'${name}' 성도 정보를 찾을 수 없습니다.`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('성도 정보를 조회하는 중 오류가 발생했습니다.');
+        }
     };
 
     loadStatus();
