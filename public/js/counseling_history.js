@@ -1485,19 +1485,23 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error('Error loading churches:', e); }
     }
 
+    let activeChurchIndex = -1;
+    let activeNameIndex = -1;
+
     if (counselingChurchInput) {
         counselingChurchInput.addEventListener('input', () => {
             const val = counselingChurchInput.value.trim().toLowerCase();
             if (counselingChurchId) counselingChurchId.value = '';
             if (counselingParish) { counselingParish.innerHTML = '<option value="">교구 선택</option>'; counselingParish.disabled = true; }
             if (counselingDistrict) { counselingDistrict.innerHTML = '<option value="">구역 선택</option>'; counselingDistrict.disabled = true; }
+            activeChurchIndex = -1;
             if (!val) { if (counselingChurchSuggestions) counselingChurchSuggestions.classList.add('hidden'); return; }
             const filtered = allChurches.filter(c => c.name.toLowerCase().includes(val));
             if (counselingChurchSuggestions) {
                 if (filtered.length > 0) {
-                    counselingChurchSuggestions.innerHTML = filtered.map(c => `
-                        <div class="church-search-item p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800" 
-                             data-id="${c.id}" data-name="${c.name}">${c.name}</div>
+                    counselingChurchSuggestions.innerHTML = filtered.map((c, i) => `
+                        <div class="church-search-item p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800 transition-colors" 
+                             data-id="${c.id}" data-name="${c.name}" data-index="${i}">${c.name}</div>
                     `).join('');
                     counselingChurchSuggestions.classList.remove('hidden');
                 } else {
@@ -1506,16 +1510,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        counselingChurchInput.addEventListener('keydown', async (e) => {
+            if (!counselingChurchSuggestions || counselingChurchSuggestions.classList.contains('hidden')) return;
+            const items = counselingChurchSuggestions.querySelectorAll('.church-search-item');
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeChurchIndex = (activeChurchIndex + 1) % items.length;
+                updateActiveChurchHighlight(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeChurchIndex = (activeChurchIndex - 1 + items.length) % items.length;
+                updateActiveChurchHighlight(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const indexToSelect = activeChurchIndex >= 0 ? activeChurchIndex : 0;
+                if (items[indexToSelect]) {
+                    selectChurchItem(items[indexToSelect]);
+                }
+            } else if (e.key === 'Escape') {
+                counselingChurchSuggestions.classList.add('hidden');
+            } else if (e.key === 'Tab') {
+                // If suggestions are visible, select the current active one (or first one) and close
+                const indexToSelect = activeChurchIndex >= 0 ? activeChurchIndex : 0;
+                if (items[indexToSelect]) {
+                    selectChurchItem(items[indexToSelect]);
+                }
+            }
+        });
+    }
+
+    function updateActiveChurchHighlight(items) {
+        items.forEach((item, idx) => {
+            if (idx === activeChurchIndex) {
+                item.classList.add('bg-indigo-50', 'dark:bg-slate-700', 'text-indigo-800', 'dark:text-white');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-indigo-800', 'dark:text-white');
+            }
+        });
+    }
+
+    async function selectChurchItem(item) {
+        counselingChurchInput.value = item.dataset.name;
+        counselingChurchId.value = item.dataset.id;
+        counselingChurchSuggestions.classList.add('hidden');
+        await loadParishes(item.dataset.id);
+        // Move focus to next input
+        if (counselingParish) {
+            counselingParish.focus();
+        }
     }
 
     if (counselingChurchSuggestions) {
         counselingChurchSuggestions.addEventListener('click', async (e) => {
             const item = e.target.closest('.church-search-item');
             if (!item) return;
-            counselingChurchInput.value = item.dataset.name;
-            counselingChurchId.value = item.dataset.id;
-            counselingChurchSuggestions.classList.add('hidden');
-            await loadParishes(item.dataset.id);
+            selectChurchItem(item);
         });
     }
 
@@ -1556,6 +1609,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (counselingName) {
         counselingName.addEventListener('input', async () => {
             const val = counselingName.value.trim();
+            activeNameIndex = -1;
             if (!val) {
                 if (counselingNameSuggestions) counselingNameSuggestions.classList.add('hidden');
                 if (counselingMemberId) counselingMemberId.value = '';
@@ -1567,9 +1621,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const suggestions = await res.json();
                 if (counselingNameSuggestions) {
                     if (suggestions.length > 0) {
-                        counselingNameSuggestions.innerHTML = suggestions.map(s => `
-                            <div class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800 flex justify-between items-center" 
-                                 data-id="${s.id}" data-name="${s.name}" data-church="${s.church || ''}" data-parish="${s.parish || ''}" data-district="${s.district || ''}" data-category="${s.category || ''}" data-bs="${s.bs || ''}">
+                        counselingNameSuggestions.innerHTML = suggestions.map((s, i) => `
+                            <div class="name-search-item p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer border-b border-slate-100 dark:border-slate-800 flex justify-between items-center transition-colors" 
+                                 data-id="${s.id}" data-name="${s.name}" data-church="${s.church || ''}" data-parish="${s.parish || ''}" data-district="${s.district || ''}" data-category="${s.category || ''}" data-bs="${s.bs || ''}" data-index="${i}">
                                 <span>${s.name} <span class="text-xs font-medium text-slate-400">(${s.position || '성도'})</span></span>
                                 <span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold">${s.church || '교회정보없음'}</span>
                             </div>
@@ -1588,43 +1642,91 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (e) { console.error(e); }
         });
+
+        counselingName.addEventListener('keydown', async (e) => {
+            if (!counselingNameSuggestions || counselingNameSuggestions.classList.contains('hidden')) return;
+            const items = counselingNameSuggestions.querySelectorAll('.name-search-item');
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeNameIndex = (activeNameIndex + 1) % items.length;
+                updateActiveNameHighlight(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeNameIndex = (activeNameIndex - 1 + items.length) % items.length;
+                updateActiveNameHighlight(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const indexToSelect = activeNameIndex >= 0 ? activeNameIndex : 0;
+                if (items[indexToSelect]) {
+                    selectNameItem(items[indexToSelect]);
+                }
+            } else if (e.key === 'Escape') {
+                counselingNameSuggestions.classList.add('hidden');
+            } else if (e.key === 'Tab') {
+                const indexToSelect = activeNameIndex >= 0 ? activeNameIndex : 0;
+                if (items[indexToSelect]) {
+                    selectNameItem(items[indexToSelect]);
+                }
+            }
+        });
+    }
+
+    function updateActiveNameHighlight(items) {
+        items.forEach((item, idx) => {
+            if (idx === activeNameIndex) {
+                item.classList.add('bg-indigo-50', 'dark:bg-slate-700', 'text-indigo-800', 'dark:text-white');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-indigo-800', 'dark:text-white');
+            }
+        });
+    }
+
+    async function selectNameItem(item) {
+        const { id, name, church, parish, district, category, bs } = item.dataset;
+        if (counselingName) counselingName.value = name;
+        if (counselingMemberId) counselingMemberId.value = id;
+        if (counselingNameSuggestions) counselingNameSuggestions.classList.add('hidden');
+        if (newMemberBadgeContainer) newMemberBadgeContainer.classList.add('hidden');
+        // 소속/성별 자동 채우기
+        if (category) setGroupBtn('categoryBtnGroup', 'counselingCategory', category);
+        if (bs) setGroupBtn('bsBtnGroup', 'counselingBs', bs);
+        if (church && church !== '교회정보없음') {
+            await loadChurches();
+            if (counselingChurchInput) counselingChurchInput.value = church;
+            const matchedChurch = allChurches.find(c => c.name.trim() === church.trim());
+            const churchId = matchedChurch ? matchedChurch.id : null;
+            if (counselingChurchId) counselingChurchId.value = churchId || '';
+            if (churchId) {
+                await loadParishes(churchId);
+                setTimeout(async () => {
+                    if (parish && parish !== '교구정보없음' && counselingParish) {
+                        counselingParish.value = parish;
+                        const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
+                        const parishId = selectedOpt ? selectedOpt.dataset.id : null;
+                        if (parishId) {
+                            await loadDistricts(parishId);
+                            setTimeout(() => {
+                                if (district && district !== '구역정보없음' && counselingDistrict) counselingDistrict.value = district;
+                            }, 300);
+                        }
+                    }
+                }, 300);
+            }
+        }
+        // Move focus to next input
+        if (counselingChurchInput) {
+            counselingChurchInput.focus();
+        }
     }
 
     if (counselingNameSuggestions) {
         counselingNameSuggestions.addEventListener('click', async (e) => {
-            const item = e.target.closest('[data-id]');
+            const item = e.target.closest('.name-search-item');
             if (!item) return;
-            const { id, name, church, parish, district, category, bs } = item.dataset;
-            if (counselingName) counselingName.value = name;
-            if (counselingMemberId) counselingMemberId.value = id;
-            if (counselingNameSuggestions) counselingNameSuggestions.classList.add('hidden');
-            if (newMemberBadgeContainer) newMemberBadgeContainer.classList.add('hidden');
-            // 소속/성별 자동 채우기
-            if (category) setGroupBtn('categoryBtnGroup', 'counselingCategory', category);
-            if (bs) setGroupBtn('bsBtnGroup', 'counselingBs', bs);
-            if (church && church !== '교회정보없음') {
-                await loadChurches();
-                if (counselingChurchInput) counselingChurchInput.value = church;
-                const matchedChurch = allChurches.find(c => c.name.trim() === church.trim());
-                const churchId = matchedChurch ? matchedChurch.id : null;
-                if (counselingChurchId) counselingChurchId.value = churchId || '';
-                if (churchId) {
-                    await loadParishes(churchId);
-                    setTimeout(async () => {
-                        if (parish && parish !== '교구정보없음' && counselingParish) {
-                            counselingParish.value = parish;
-                            const selectedOpt = counselingParish.options[counselingParish.selectedIndex];
-                            const parishId = selectedOpt ? selectedOpt.dataset.id : null;
-                            if (parishId) {
-                                await loadDistricts(parishId);
-                                setTimeout(() => {
-                                    if (district && district !== '구역정보없음' && counselingDistrict) counselingDistrict.value = district;
-                                }, 300);
-                            }
-                        }
-                    }, 300);
-                }
-            }
+            selectNameItem(item);
         });
     }
 
