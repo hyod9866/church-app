@@ -1883,8 +1883,11 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             options: {
                 onClick: (event, elements) => {
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
+                    // Get closest index using getElementsAtEventForMode
+                    const chart = trendChartInstance;
+                    const activePoints = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    if (activePoints && activePoints.length > 0) {
+                        const index = activePoints[0].index;
                         const clickedYm = months[index]; // 'YYYY-MM'
                         if (clickedYm) {
                             filterYearMonth = clickedYm;
@@ -1902,7 +1905,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 onHover: (event, chartElement) => {
-                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    const chart = trendChartInstance;
+                    const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    event.native.target.style.cursor = (points && points.length > 0) ? 'pointer' : 'default';
                 },
                 responsive: true,
                 maintainAspectRatio: false,
