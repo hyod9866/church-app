@@ -2377,22 +2377,39 @@ app.post('/api/counseling', async (req, res) => {
     let finalMemberId = member_id;
 
     // 1. 성도 조회 또는 신규 생성
-    if (!finalMemberId) {
-      if (name.trim() === '익명') {
-        const { data: existingAnon, error: findErr } = await supabase
-          .from('members')
-          .select('id')
-          .eq('name', '익명')
-          .eq('status', 'active')
-          .limit(1)
-          .maybeSingle();
-        if (findErr) throw findErr;
-        if (existingAnon) {
-          finalMemberId = existingAnon.id;
-        }
-      }
+    // 만약 이름이 '익명'이고 member_id가 비어있다면, 새로운 개별 '익명' 성도를 매번 생성합니다.
+    if (name.trim() === '익명' && !member_id) {
+      const insertData = {
+        name: name.trim(),
+        church: church ? church.trim() : '교회정보없음',
+        parish: parish ? parish.trim() : '교구정보없음',
+        district: district ? district.trim() : '구역정보없음',
+        category: category || '모름',
+        bs: bs || 'S',
+        status: 'active',
+        member_status: member_status || 'member'
+      };
+      const { data: newMem, error: insErr } = await supabase
+        .from('members').insert(insertData).select('id').single();
+      if (insErr) throw insErr;
+      finalMemberId = newMem.id;
 
-      if (!finalMemberId) {
+      if (church || parish || district) {
+        const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
+        await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+      }
+    } else if (!finalMemberId) {
+      // 일반적인 성도 등록/조회 로직 (여기서는 프론트에서 member_id 없이 이름만 온 경우 이름 중복을 확인해서 ID를 잡습니다)
+      const { data: existing, error: findErr } = await supabase
+        .from('members').select('id').eq('name', name.trim()).eq('status', 'active');
+      
+      if (findErr) throw findErr;
+
+      if (existing && existing.length > 0) {
+        // 이름이 같은 기존 성도가 있다면 그 성도의 ID를 가져옴
+        finalMemberId = existing[0].id;
+      } else {
+        // 신규 성도 생성
         const insertData = {
           name: name.trim(),
           church: church ? church.trim() : '교회정보없음',
