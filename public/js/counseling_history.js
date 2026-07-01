@@ -969,6 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const currentRemark = remarkTextPara.textContent.trim();
                             const currentMemo = card.dataset.remarkMemo || '';
                             const currentLeadTarget = card.dataset.leadTarget || '';
+                            const currentCounselingMethod = card.dataset.counselingMethod || '대면';
 
                             const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
                             const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
@@ -988,6 +989,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </div>
                                             <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 방법</label>
+                                        <div class="inline-edit-method-group flex gap-1">
+                                            <button type="button" data-method="대면" class="inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentCounselingMethod === '대면' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">🤝 대면</button>
+                                            <button type="button" data-method="전화" class="inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentCounselingMethod === '전화' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">📞 전화</button>
+                                        </div>
+                                        <input type="hidden" class="counsel-edit-method" value="${currentCounselingMethod}">
                                     </div>
                                     <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
@@ -1083,6 +1092,22 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             });
 
+                            // 대면/전화 방법 버튼 토글
+                            bodyArea.querySelectorAll('.inline-edit-method-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const newMethod = btn.dataset.method;
+                                    bodyArea.querySelector('.counsel-edit-method').value = newMethod;
+                                    bodyArea.querySelectorAll('.inline-edit-method-btn').forEach(b => {
+                                        const isActive = b.dataset.method === newMethod;
+                                        b.className = `inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                                            isActive
+                                                ? (b.dataset.method === '대면' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-amber-500 border-amber-500 text-white')
+                                                : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                                        }`;
+                                    });
+                                });
+                            });
+
                             // 프리셋 클릭
                             bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
                                 const btn = ev.target.closest('.inline-edit-tag-btn');
@@ -1144,7 +1169,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const res = await fetch(`/api/counseling/${sessionId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: selectedStatus, member_id: parseInt(memberId) })
+                                        body: JSON.stringify({
+                                            date: newDate,
+                                            content: newContent,
+                                            tags: newTags,
+                                            member_status: selectedStatus,
+                                            counseling_method: bodyArea.querySelector('.counsel-edit-method')?.value || '대면',
+                                            member_id: parseInt(memberId)
+                                        })
                                     });
                                     if (res.ok) {
                                         openMemberHistoryModal(id);

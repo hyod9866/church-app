@@ -1504,7 +1504,13 @@ async function handleSaveCounseling() {
             if (tags) fullContent = tags + '\n';
             fullContent += content;
             const editRemark = `[${method}상담][${statusLabel}]${remark ? ' ' + remark : ''}`;
-            const res = await fetch(`/api/counseling/${currentMeetingId}`, {
+            // currentMeetingId는 캘린더 진입 시(openGlobalMeetingEditor) meetings 테이블의
+            // 원본 숫자 id로 세팅된다. /api/counseling/:sessionId는 'm_'(meetings 기반) 또는
+            // 'r_'(레거시 member_records 기반) 접두어가 없으면 아무 것도 갱신하지 않고
+            // {success:true}만 반환하므로, 접두어가 없는 경우 여기서 'm_'을 붙여준다.
+            const rawId = String(currentMeetingId);
+            const sessionId = /^(m_|r_)/.test(rawId) ? rawId : `m_${rawId}`;
+            const res = await fetch(`/api/counseling/${sessionId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
