@@ -2256,20 +2256,22 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙');
         updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름');
 
-        // 5-2. 대면 vs 전화상담 건수 집계 및 비율
+        // 5-2. 대면 vs 전화상담 현황 — "사람(명)" 기준으로 집계
+        // (다른 분포들과 동일하게 인원수 기준으로 통일. 한 사람이 대면+전화 둘 다 있으면 양쪽 모두에 카운팅)
         let faceCount = 0;
         let phoneCount = 0;
         data.forEach(m => {
             const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
-            sessions.forEach(sess => {
-                if (sess.counseling_method === '대면') faceCount++;
-                else if (sess.counseling_method === '전화') phoneCount++;
-            });
+            const hasFace = sessions.some(sess => sess.counseling_method === '대면');
+            const hasPhone = sessions.some(sess => sess.counseling_method === '전화');
+            if (hasFace) faceCount++;
+            if (hasPhone) phoneCount++;
         });
-        const totalMethods = (faceCount + phoneCount) || 1;
-        const facePct = Math.round((faceCount / totalMethods) * 100);
-        const phonePct = 100 - facePct;
-        setEl('counselingMethodRatioText', `대면 ${faceCount}건 / 전화 ${phoneCount}건`);
+        // 비율은 전체 인원 대비(대면만 or 전화만 진행한 비율)로 표시
+        const totalForMethod = totalPeople || 1;
+        const facePct = Math.round((faceCount / totalForMethod) * 100);
+        const phonePct = Math.round((phoneCount / totalForMethod) * 100);
+        setEl('counselingMethodRatioText', `대면 ${faceCount}명 / 전화 ${phoneCount}명`);
         updateRatioBar('methodFaceRatioBar', facePct, '대면');
         updateRatioBar('methodPhoneRatioBar', phonePct, '전화');
 
