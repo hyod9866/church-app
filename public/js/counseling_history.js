@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let filterChurch = null;         // 'seoul' | 'other'
     let filterMemberCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     let filterEvangelismCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
+    let filterCounselingMethod = null; // '대면' | '전화'
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
     // ──────────────────────────────────────────────────
@@ -96,7 +97,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (normCat !== filterEvangelismCategory) return false;
             }
 
-            // 8. 텍스트 검색 쿼리 필터
+            // 8. 대면 vs 전화상담 유형 필터 (최근 상담 기록의 유형 기준)
+            if (filterCounselingMethod) {
+                const sessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
+                // 만약 월별 필터가 켜져 있으면 해당 월에 진행된 세션 중 해당 유형이 있는지 검사하고,
+                // 그렇지 않으면 전체 세션 중 하나라도 해당 유형이 있는지 검사합니다.
+                const hasMatchingMethod = sessions.some(sess => {
+                    const matchesMonth = !filterYearMonth || (sess.date && sess.date.startsWith(filterYearMonth));
+                    const matchesMethod = sess.counseling_method === filterCounselingMethod;
+                    return matchesMonth && matchesMethod;
+                });
+                if (!hasMatchingMethod) return false;
+            }
+
+            // 9. 텍스트 검색 쿼리 필터
             if (query) {
                 const nameMatch = (s.name || '').toLowerCase().includes(query);
                 const dateMatch = (s.last_counseling_date || '').includes(query);
@@ -2147,10 +2161,12 @@ document.addEventListener('DOMContentLoaded', () => {
             setEl('memberGenderRatioText', '형제 0명 / 자매 0명');
             setEl('evangelismGenderRatioText', '남자 0명 / 여자 0명');
             setEl('churchRatioText', '서울중앙 0명 / 타교회 0명');
+            setEl('counselingMethodRatioText', '대면 0건 / 전화 0건');
             ['memberRatioBar','targetRatioBar','memberBrotherRatioBar','memberSisterRatioBar',
              'evangelismMaleRatioBar','evangelismFemaleRatioBar','seoulChurchRatioBar','otherChurchRatioBar',
              'memberBongsaRatioBar','memberEomeoniRatioBar','memberCheongnyeonRatioBar','memberEunjangRatioBar','memberUnknownRatioBar',
-             'evangelismBongsaRatioBar','evangelismEomeoniRatioBar','evangelismCheongnyeonRatioBar','evangelismEunjangRatioBar','evangelismUnknownRatioBar'
+             'evangelismBongsaRatioBar','evangelismEomeoniRatioBar','evangelismCheongnyeonRatioBar','evangelismEunjangRatioBar','evangelismUnknownRatioBar',
+             'methodFaceRatioBar', 'methodPhoneRatioBar'
             ].forEach(id => {
                 const el = document.getElementById(id); if (el) { el.style.width = '0%'; el.textContent = ''; }
             });
@@ -2239,6 +2255,23 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('churchRatioText', `서울중앙 ${seoulCount}명 / 타교회 ${otherCount}명`);
         updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙');
         updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름');
+
+        // 5-2. 대면 vs 전화상담 건수 집계 및 비율
+        let faceCount = 0;
+        let phoneCount = 0;
+        data.forEach(m => {
+            const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
+            sessions.forEach(sess => {
+                if (sess.counseling_method === '대면') faceCount++;
+                else if (sess.counseling_method === '전화') phoneCount++;
+            });
+        });
+        const totalMethods = (faceCount + phoneCount) || 1;
+        const facePct = Math.round((faceCount / totalMethods) * 100);
+        const phonePct = 100 - facePct;
+        setEl('counselingMethodRatioText', `대면 ${faceCount}건 / 전화 ${phoneCount}건`);
+        updateRatioBar('methodFaceRatioBar', facePct, '대면');
+        updateRatioBar('methodPhoneRatioBar', phonePct, '전화');
 
         // 6. 성도 및 전도대상 각각의 소속회 분포 계산
         const memberCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
@@ -2552,6 +2585,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             return filterEvangelismCategory;
+        }
+    );
+
+    // 7. 대면 vs 전화상담 토글 필터
+    setupRatioToggle('btnFilterCounselingMethod', ['methodFaceRatioBar', 'methodPhoneRatioBar'],
+        (id) => id === 'methodFaceRatioBar' ? '대면' : '전화',
+        (val) => {
+            const isSame = filterCounselingMethod === val;
+            filterCounselingMethod = isSame ? null : val;
+            if (isSame) {
+                document.getElementById('methodFaceRatioBar').style.boxShadow = 'none';
+                document.getElementById('methodPhoneRatioBar').style.boxShadow = 'none';
+            }
+            return filterCounselingMethod;
         }
     );
 });
