@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!sessionId) return;
                 if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
                     try {
-                        const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                        const res = await fetch(`/api/counseling/${sessionId}?member_id=${memberId}`, { method: 'DELETE' });
                         if (res.ok) { loadStatusFn(); } else { alert('삭제에 실패했습니다.'); }
                     } catch (err) { console.error(err); alert('서버 오류로 인해 삭제에 실패했습니다.'); }
                 }
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             deleteBtn.addEventListener('click', async () => {
                                 if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
                                     try {
-                                        const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                                        const res = await fetch(`/api/counseling/${sessionId}?member_id=${memberId}`, { method: 'DELETE' });
                                         if (res.ok) {
                                             openMemberHistoryModal(id);
                                             loadStatus();

@@ -2620,27 +2620,36 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 // DELETE /api/counseling/:sessionId — 개별 상담 삭제
 app.delete('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
+  const { member_id } = req.query; // ?member_id=123 형태로 받음
   try {
     if (sessionId.startsWith('m_')) {
-      // meetings + attendance 방식
       const meetingId = sessionId.replace('m_', '');
-      
-      // 1. attendance에서 해당 meeting_id 기록 삭제
-      const { error: attErr } = await supabase
-        .from('attendance')
-        .delete()
-        .eq('meeting_id', meetingId);
-      if (attErr) throw attErr;
 
-      // 2. meetings에서 해당 id 일정 삭제
-      const { error: meetErr } = await supabase
-        .from('meetings')
-        .delete()
-        .eq('id', meetingId);
-      if (meetErr) throw meetErr;
+      if (member_id) {
+        // 1-A. 해당 성도의 attendance 행만 삭제 (다른 성도 기록 보호)
+        const { error: attErr } = await supabase
+          .from('attendance')
+          .delete()
+          .eq('meeting_id', meetingId)
+          .eq('member_id', member_id);
+        if (attErr) throw attErr;
+
+        // 1-B. 삭제 후 해당 meeting에 남은 참석자가 0명이면 meeting 자체도 삭제
+        const { data: remaining } = await supabase
+          .from('attendance')
+          .select('id')
+          .eq('meeting_id', meetingId);
+        if (!remaining || remaining.length === 0) {
+          await supabase.from('meetings').delete().eq('id', meetingId);
+        }
+      } else {
+        // member_id 없는 경우(하위호환) — attendance 전체 + meeting 삭제
+        await supabase.from('attendance').delete().eq('meeting_id', meetingId);
+        await supabase.from('meetings').delete().eq('id', meetingId);
+      }
 
     } else if (sessionId.startsWith('r_')) {
-      // member_records 방식 (레거시)
+      // member_records 방식 (레거시) — 단일 행이므로 그대로 삭제
       const recordId = sessionId.replace('r_', '');
       const { error: recErr } = await supabase
         .from('member_records')
