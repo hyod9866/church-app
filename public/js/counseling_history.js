@@ -499,7 +499,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (member.category) parts.push(member.category);
-            const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
+            
+            // 전도대상의 성별(bs) 표기 방식 구분: 전도대상은 '남자/여자', 성도는 '형제/자매'
+            const isEv = (member.member_status === 'evangelism');
+            let bsLabel = '';
+            if (member.bs === 'B') {
+                bsLabel = isEv ? '남자' : '형제';
+            } else if (member.bs === 'S') {
+                bsLabel = isEv ? '여자' : '자매';
+            }
             if (bsLabel) parts.push(bsLabel);
 
             const displayInfoText = parts.join(' · ');
