@@ -1160,29 +1160,16 @@ app.delete('/api/members/records/:id', async (req, res) => {
 
 app.put('/api/members/records/:id', async (req, res) => {
   const { id } = req.params;
-  let { date, status, remark } = req.body;
+  const { date, status, remark } = req.body;
   try {
     const { data: row, error: findError } = await supabase
       .from('member_records')
-      .select('member_id, remark')
+      .select('member_id')
       .eq('id', id)
       .single();
       
     if (findError || !row) return res.status(500).json({ error: 'Record not found' });
     const memberId = row.member_id;
-
-    // COUNSELING 기록은 상담 관리 포맷([상담] ... (비고: ...))을 보존/적용
-    // 프론트에서 순수 내용만 보내줄 수도 있으므로, 포맷이 없으면 자동으로 감싸줌
-    if (status === 'COUNSELING' && remark) {
-      if (!remark.startsWith('[상담]') && !remark.startsWith('[lead:')) {
-        // 기존 remark에서 (비고: ...) 부분을 추출해 보존
-        const oldRemark = row.remark || '';
-        const bigoMatch = oldRemark.match(/\(비고:\s*(.*?)\)\s*$/);
-        const oldBigo = bigoMatch ? bigoMatch[1] : '';
-        remark = `[상담] ${remark.trim()}`;
-        if (oldBigo) remark += ` (비고: ${oldBigo})`;
-      }
-    }
     
     const { error: updateError } = await supabase
       .from('member_records')
@@ -1977,11 +1964,30 @@ app.patch('/api/members/:id', async (req, res) => {
 
 app.get('/api/visitation/status', async (req, res) => {
     try {
-        const { data: members, error: memErr } = await supabase
+        // 담당자(강효근) 본인의 현재 소속 교회/교구 조회 — 발령이 나면 관리 대상이 그 교회로 자동 전환되도록
+        const { data: myProfile, error: profErr } = await supabase
             .from('members')
-            .select('id, name, district, category, position, family_relation')
+            .select('church, parish')
+            .eq('name', '강효근')
+            .single();
+        if (profErr) console.error('visitation scope profile lookup failed:', profErr);
+        const myChurch = (myProfile && myProfile.church) || '서울중앙교회';
+        const myParish = (myProfile && myProfile.parish) || '부곡교구';
+
+        const { data: rawMembers, error: memErr } = await supabase
+            .from('members')
+            .select('id, name, district, category, position, family_relation, church, parish, member_status')
             .eq('status', 'active');
         if (memErr) throw memErr;
+
+        // 담당 범위 필터: 서울중앙교회면 담당 교구까지 일치해야 하고, 그 외 교회는 교회 전체가 대상.
+        // 전도대상자(member_status = 'evangelism')는 아직 정식 성도가 아니므로 심방 대상에서 제외(상담 관리에서 별도 관리).
+        const members = (rawMembers || []).filter(m => {
+            const inScope = myChurch === '서울중앙교회'
+                ? (m.church === myChurch && m.parish === myParish)
+                : (m.church === myChurch);
+            return inScope && m.member_status !== 'evangelism';
+        });
 
         const { data: meetings, error: meetErr } = await supabase
             .from('meetings')
@@ -2023,30 +2029,18 @@ app.get('/api/visitation/status', async (req, res) => {
             }
         });
 
-        // member_records의 상담 데이터도 병합 (memo를 원문 대신 파싱 후 정제된 내용으로 변환하여 마크업 노출 방지)
+        // member_records의 상담 데이터도 병합
         if (cRecords) {
             cRecords.forEach(r => {
                 if (!memberVisitations[r.member_id]) {
                     memberVisitations[r.member_id] = [];
                 }
-                // [상담], (비고: ...) 등 내부 마크업을 제거하고 순수 내용만 추출
-                let rawRemark = r.remark || '';
-                let remarkMemo = '';
-                const remarkMatch = rawRemark.match(/\(비고:\s*(.*?)\)\s*$/);
-                if (remarkMatch) {
-                    remarkMemo = remarkMatch[1];
-                    rawRemark = rawRemark.replace(/\(비고:\s*(.*?)\)\s*$/, '').trim();
-                }
-                const parsedContent = parseCounselingContent(rawRemark);
-                const parsedMemo = parseMemoField(remarkMemo);
                 memberVisitations[r.member_id].push({
                     id: 'c_' + r.date + '_' + Math.random().toString(36).substring(2, 7),
                     title: '상담',
                     date: r.date,
                     sermon_title: null,
-                    memo: parsedContent.content || '',  // 정제된 순수 내용만 반환
-                    tags: parsedContent.tags || '',
-                    lead_target: parsedMemo.lead_target || '',
+                    memo: r.remark,
                     type: '상담'
                 });
             });
@@ -2222,19 +2216,17 @@ function parseCounselingContent(rawText) {
 }
 
 function parseMemoField(memoText) {
-  const text = memoText || '';
-  // [lead:...] 파싱
-  const leadMatch = text.match(/\[lead:(.*?)\]/);
-  const lead_target = leadMatch ? leadMatch[1].trim() : '';
-  // [method:...] 파싱
-  const methodMatch = text.match(/\[method:(.*?)\]/);
-  const counseling_method = methodMatch ? methodMatch[1].trim() : '대면';
-  // 나머지 remark_memo (태그들 제거)
-  const remark_memo = text
-    .replace(/\[lead:.*?\]/g, '')
-    .replace(/\[method:.*?\]/g, '')
-    .trim();
-  return { lead_target, counseling_method, remark_memo };
+  const match = (memoText || '').match(/^\[lead:(.*?)\]\s*(.*)/s);
+  if (match) {
+    return {
+      lead_target: match[1].trim(),
+      remark_memo: match[2].trim()
+    };
+  }
+  return {
+    lead_target: '',
+    remark_memo: (memoText || '').trim()
+  };
 }
 
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
@@ -2262,13 +2254,12 @@ app.get('/api/counseling', async (req, res) => {
     const meetingMap = {};
     (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
 
-    // 3. 해당 meetings의 attendance 조회 (is_present=1인 것만 — 심방 API와 동일한 기준으로 카운트 통일)
+    // 3. 해당 meetings의 attendance 조회 (모든 성도 포함 - is_present 무관)
     let attRows = [];
     if (counselingMeetingIds.length > 0) {
       const { data: attData, error: attErr } = await supabase
         .from('attendance')
         .select('member_id, meeting_id, testimony_snapshot, is_present')
-        .eq('is_present', 1)
         .in('meeting_id', counselingMeetingIds);
       if (attErr) throw attErr;
       attRows = attData || [];
@@ -2303,7 +2294,6 @@ app.get('/api/counseling', async (req, res) => {
         is_present: a.is_present,
         member_status: memberMap[a.member_id]?.member_status || 'member',
         lead_target: parsedMemo.lead_target,
-        counseling_method: parsedMemo.counseling_method || '대면',
         remark_memo: parsedMemo.remark_memo
       });
     });
@@ -2457,7 +2447,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status, counseling_method } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2531,8 +2521,7 @@ app.post('/api/counseling', async (req, res) => {
     // 2. meetings에 개인상담 일정 생성
     const meetingTitle = `${name} 개인상담`;
     const finalLead = lead_target ? lead_target.trim() : '';
-    const finalMethod = counseling_method || '대면';
-    const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
+    const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
 
     const { data: newMeeting, error: meetErr } = await supabase
       .from('meetings')
@@ -2567,7 +2556,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, lead_target, member_status, member_id, counseling_method } = req.body;
+  const { date, content, tags, remark_memo, lead_target, member_status, member_id } = req.body;
 
   try {
     let fullContent = '';
@@ -2575,20 +2564,13 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
     fullContent += content ? content.trim() : '';
 
     const memberId = member_id ? parseInt(member_id) : null;
-    if (memberId) {
-      const updateFields = {};
-      if (member_status) updateFields.member_status = member_status;
-      if (req.body.category) updateFields.category = req.body.category;
-      if (req.body.bs) updateFields.bs = req.body.bs;
-      
-      if (Object.keys(updateFields).length > 0) {
-        const { data: updRes, error: updErr } = await supabase.from('members').update(updateFields).eq('id', memberId).select();
-        if (updErr) {
-          console.error('Error updating member details in PUT:', updErr);
-          throw updErr;
-        }
-        console.log('Successfully updated member details in PUT:', updRes);
+    if (memberId && member_status) {
+      const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
+      if (updErr) {
+        console.error('Error updating member status in PUT:', updErr);
+        throw updErr;
       }
+      console.log('Successfully updated member status in PUT:', updRes);
     }
 
     if (sessionId.startsWith('m_')) {
@@ -2597,8 +2579,7 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 
       const meetUpdate = { date };
       const finalLead = lead_target ? lead_target.trim() : '';
-      const finalMethod = counseling_method || '대면';
-      const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
+      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
       meetUpdate.memo = finalMemo;
       await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
       if (memberId) {
@@ -2628,36 +2609,27 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 // DELETE /api/counseling/:sessionId — 개별 상담 삭제
 app.delete('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { member_id } = req.query; // ?member_id=123 형태로 받음
   try {
     if (sessionId.startsWith('m_')) {
+      // meetings + attendance 방식
       const meetingId = sessionId.replace('m_', '');
+      
+      // 1. attendance에서 해당 meeting_id 기록 삭제
+      const { error: attErr } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('meeting_id', meetingId);
+      if (attErr) throw attErr;
 
-      if (member_id) {
-        // 1-A. 해당 성도의 attendance 행만 삭제 (다른 성도 기록 보호)
-        const { error: attErr } = await supabase
-          .from('attendance')
-          .delete()
-          .eq('meeting_id', meetingId)
-          .eq('member_id', member_id);
-        if (attErr) throw attErr;
-
-        // 1-B. 삭제 후 해당 meeting에 남은 참석자가 0명이면 meeting 자체도 삭제
-        const { data: remaining } = await supabase
-          .from('attendance')
-          .select('id')
-          .eq('meeting_id', meetingId);
-        if (!remaining || remaining.length === 0) {
-          await supabase.from('meetings').delete().eq('id', meetingId);
-        }
-      } else {
-        // member_id 없는 경우(하위호환) — attendance 전체 + meeting 삭제
-        await supabase.from('attendance').delete().eq('meeting_id', meetingId);
-        await supabase.from('meetings').delete().eq('id', meetingId);
-      }
+      // 2. meetings에서 해당 id 일정 삭제
+      const { error: meetErr } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meetingId);
+      if (meetErr) throw meetErr;
 
     } else if (sessionId.startsWith('r_')) {
-      // member_records 방식 (레거시) — 단일 행이므로 그대로 삭제
+      // member_records 방식 (레거시)
       const recordId = sessionId.replace('r_', '');
       const { error: recErr } = await supabase
         .from('member_records')
