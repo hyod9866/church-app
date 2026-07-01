@@ -2575,13 +2575,20 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
     fullContent += content ? content.trim() : '';
 
     const memberId = member_id ? parseInt(member_id) : null;
-    if (memberId && member_status) {
-      const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
-      if (updErr) {
-        console.error('Error updating member status in PUT:', updErr);
-        throw updErr;
+    if (memberId) {
+      const updateFields = {};
+      if (member_status) updateFields.member_status = member_status;
+      if (req.body.category) updateFields.category = req.body.category;
+      if (req.body.bs) updateFields.bs = req.body.bs;
+      
+      if (Object.keys(updateFields).length > 0) {
+        const { data: updRes, error: updErr } = await supabase.from('members').update(updateFields).eq('id', memberId).select();
+        if (updErr) {
+          console.error('Error updating member details in PUT:', updErr);
+          throw updErr;
+        }
+        console.log('Successfully updated member details in PUT:', updRes);
       }
-      console.log('Successfully updated member status in PUT:', updRes);
     }
 
     if (sessionId.startsWith('m_')) {

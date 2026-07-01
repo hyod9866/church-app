@@ -1519,6 +1519,9 @@ async function handleSaveCounseling() {
                     tags,
                     remark_memo: editRemark,
                     member_status: memberStatus,
+                    counseling_method: method,
+                    category: document.getElementById('modalCounselingCategory')?.value || null,
+                    bs: document.getElementById('modalCounselingBs')?.value || null,
                     member_id: document.getElementById('modalCounselingMemberId')?.value
                         ? parseInt(document.getElementById('modalCounselingMemberId').value) : null
                 })

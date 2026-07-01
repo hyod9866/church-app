@@ -172,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentMemo = card.dataset.remarkMemo || '';
             const currentLeadTarget = card.dataset.leadTarget || '';
             const currentCounselingMethod = card.dataset.counselingMethod || '대면';
+            const currentCategory = card.dataset.category || '모름';
+            const currentBs = card.dataset.bs || '';
             const bodyArea = card.querySelector('.counsel-session-body');
             const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
             const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
@@ -193,6 +195,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button type="button" data-status="evangelism" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'evangelism' ? 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">전도대상</button>
                             </div>
                             <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
+                        </div>
+                    </div>
+                    <!-- 소속 및 성별 선택 -->
+                    <div class="bg-slate-50 dark:bg-slate-800/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 space-y-2 mt-1">
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">소속</span>
+                            <div class="inline-edit-category-group flex flex-wrap gap-1">
+                                ${['봉사회', '청년회', '어머니회', '은장회', '모름'].map(c => `
+                                    <button type="button" data-category="${c}" class="inline-edit-category-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${currentCategory === c ? 'bg-indigo-650 border-indigo-650 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">${c}</button>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" class="counsel-edit-category" value="${currentCategory}">
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">성별</span>
+                            <div class="inline-edit-bs-group flex gap-1">
+                                <button type="button" data-bs="B" class="inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentBs === 'B' ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">${currentStatus === 'evangelism' ? '남자' : '형제'}</button>
+                                <button type="button" data-bs="S" class="inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentBs === 'S' ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">${currentStatus === 'evangelism' ? '여자' : '자매'}</button>
+                            </div>
+                            <input type="hidden" class="counsel-edit-bs" value="${currentBs}">
                         </div>
                     </div>
                     <div>
@@ -283,8 +305,53 @@ document.addEventListener('DOMContentLoaded', () => {
                                 : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'
                         }`;
                     });
+
+                    // 성별 레이블 동적 변경 (성도 -> 형제/자매, 전도대상 -> 남자/여자)
+                    const bsButtons = bodyArea.querySelectorAll('.inline-edit-bs-btn');
+                    if (bsButtons.length >= 2) {
+                        if (selectedStatus === 'evangelism') {
+                            bsButtons[0].textContent = '남자';
+                            bsButtons[1].textContent = '여자';
+                        } else {
+                            bsButtons[0].textContent = '형제';
+                            bsButtons[1].textContent = '자매';
+                        }
+                    }
+
                     updateEditPresetTags(selectedStatus);
                     updateInlineTags();
+                });
+            });
+
+            // 소속회 버튼 토글
+            bodyArea.querySelectorAll('.inline-edit-category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newCat = btn.dataset.category;
+                    bodyArea.querySelector('.counsel-edit-category').value = newCat;
+                    bodyArea.querySelectorAll('.inline-edit-category-btn').forEach(b => {
+                        const isActive = b.dataset.category === newCat;
+                        b.className = `inline-edit-category-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                            isActive
+                                ? 'bg-indigo-650 border-indigo-650 text-white'
+                                : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                        }`;
+                    });
+                });
+            });
+
+            // 성별 버튼 토글
+            bodyArea.querySelectorAll('.inline-edit-bs-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newBs = btn.dataset.bs;
+                    bodyArea.querySelector('.counsel-edit-bs').value = newBs;
+                    bodyArea.querySelectorAll('.inline-edit-bs-btn').forEach(b => {
+                        const isActive = b.dataset.bs === newBs;
+                        b.className = `inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                            isActive
+                                ? (newBs === 'B' ? 'bg-blue-500 border-blue-500 text-white' : 'bg-pink-500 border-pink-500 text-white')
+                                : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                        }`;
+                    });
                 });
             });
 
@@ -331,10 +398,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!newDate) return alert('날짜를 입력해주세요.');
                 const saveBtn = bodyArea.querySelector('.save-counsel-btn');
                 saveBtn.disabled = true; saveBtn.textContent = '저장중...';
+                const newCategory = bodyArea.querySelector('.counsel-edit-category').value;
+                const newBs = bodyArea.querySelector('.counsel-edit-bs').value;
                 try {
                     const res = await fetch(`/api/counseling/${sessionId}`, {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, lead_target: newLeadTarget, counseling_method: newMethod, member_id: parseInt(memberId) })
+                        body: JSON.stringify({
+                            date: newDate,
+                            content: newContent,
+                            tags: newTags,
+                            member_status: newStatus,
+                            remark_memo: newMemo,
+                            lead_target: newLeadTarget,
+                            counseling_method: newMethod,
+                            category: newCategory,
+                            bs: newBs,
+                            member_id: parseInt(memberId)
+                        })
                     });
                     if (res.ok) { loadStatusFn(); } else { alert('수정에 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
                 } catch (err) { console.error(err); alert('서버 오류로 인해 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
@@ -358,7 +438,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 세션 하나를 렌더하는 헬퍼 ───────────────────────────
-    function renderSessionCard(session, memberId, isLatest) {
+    function renderSessionCard(session, member, isLatest) {
+        const memberId = typeof member === 'object' ? member.id : member;
+        const category = typeof member === 'object' ? (member.category || '모름') : '모름';
+        const bs = typeof member === 'object' ? (member.bs || '') : '';
+
         const isEv = session.member_status === 'evangelism';
         const methodBadge = session.counseling_method && session.counseling_method !== '대면'
             ? `<span class="text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${session.counseling_method}</span>`
@@ -390,7 +474,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-member-status="${session.member_status || 'member'}"
                  data-lead-target="${session.lead_target || ''}"
                  data-remark-memo="${session.remark_memo || ''}"
-                 data-counseling-method="${session.counseling_method || '대면'}">
+                 data-counseling-method="${session.counseling_method || '대면'}"
+                 data-category="${category}"
+                 data-bs="${bs}">
                 <div class="flex items-center gap-1.5 mb-1 pr-20">
                     ${latestLabel}
                     <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
@@ -507,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hiddenClass = matchesFilter ? '' : 'hidden';
                 return `
                     <div class="specific-session-container ${hiddenClass}" data-session-id="${s.session_id}">
-                        ${renderSessionCard(s, member.id, isLatest)}
+                        ${renderSessionCard(s, member, isLatest)}
                     </div>
                 `;
             }).join('');
@@ -905,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}" data-remark-memo="${s.remark_memo || ''}" data-lead-target="${s.lead_target || ''}">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}" data-remark-memo="${s.remark_memo || ''}" data-lead-target="${s.lead_target || ''}" data-category="${member.category || '모름'}" data-bs="${member.bs || ''}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
                                     <div class="flex items-center gap-2">
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
@@ -970,6 +1056,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const currentMemo = card.dataset.remarkMemo || '';
                             const currentLeadTarget = card.dataset.leadTarget || '';
                             const currentCounselingMethod = card.dataset.counselingMethod || '대면';
+                            const currentCategory = card.dataset.category || '모름';
+                            const currentBs = card.dataset.bs || '';
 
                             const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
                             const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
@@ -988,6 +1076,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <button type="button" data-status="evangelism" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'evangelism' ? 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">전도대상</button>
                                             </div>
                                             <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
+                                        </div>
+                                    </div>
+                                    <!-- 소속 및 성별 선택 -->
+                                    <div class="bg-slate-50 dark:bg-slate-800/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 space-y-2 mt-1">
+                                        <div>
+                                            <span class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">소속</span>
+                                            <div class="inline-edit-category-group flex flex-wrap gap-1">
+                                                ${['봉사회', '청년회', '어머니회', '은장회', '모름'].map(c => `
+                                                    <button type="button" data-category="${c}" class="inline-edit-category-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${currentCategory === c ? 'bg-indigo-650 border-indigo-650 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">${c}</button>
+                                                `).join('')}
+                                            </div>
+                                            <input type="hidden" class="counsel-edit-category" value="${currentCategory}">
+                                        </div>
+                                        <div>
+                                            <span class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">성별</span>
+                                            <div class="inline-edit-bs-group flex gap-1">
+                                                <button type="button" data-bs="B" class="inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentBs === 'B' ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">${currentStatus === 'evangelism' ? '남자' : '형제'}</button>
+                                                <button type="button" data-bs="S" class="inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentBs === 'S' ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">${currentStatus === 'evangelism' ? '여자' : '자매'}</button>
+                                            </div>
+                                            <input type="hidden" class="counsel-edit-bs" value="${currentBs}">
                                         </div>
                                     </div>
                                     <div>
@@ -1087,8 +1195,53 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'
                                         }`;
                                     });
+
+                                    // 성별 레이블 동적 변경 (성도 -> 형제/자매, 전도대상 -> 남자/여자)
+                                    const bsButtons = bodyArea.querySelectorAll('.inline-edit-bs-btn');
+                                    if (bsButtons.length >= 2) {
+                                        if (selectedStatus === 'evangelism') {
+                                            bsButtons[0].textContent = '남자';
+                                            bsButtons[1].textContent = '여자';
+                                        } else {
+                                            bsButtons[0].textContent = '형제';
+                                            bsButtons[1].textContent = '자매';
+                                        }
+                                    }
+
                                     updateModalPresetTags(selectedStatus);
                                     updateModalEditTags();
+                                });
+                            });
+
+                            // 소속회 버튼 토글
+                            bodyArea.querySelectorAll('.inline-edit-category-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const newCat = btn.dataset.category;
+                                    bodyArea.querySelector('.counsel-edit-category').value = newCat;
+                                    bodyArea.querySelectorAll('.inline-edit-category-btn').forEach(b => {
+                                        const isActive = b.dataset.category === newCat;
+                                        b.className = `inline-edit-category-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                                            isActive
+                                                ? 'bg-indigo-650 border-indigo-650 text-white'
+                                                : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                                        }`;
+                                    });
+                                });
+                            });
+
+                            // 성별 버튼 토글
+                            bodyArea.querySelectorAll('.inline-edit-bs-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const newBs = btn.dataset.bs;
+                                    bodyArea.querySelector('.counsel-edit-bs').value = newBs;
+                                    bodyArea.querySelectorAll('.inline-edit-bs-btn').forEach(b => {
+                                        const isActive = b.dataset.bs === newBs;
+                                        b.className = `inline-edit-bs-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                                            isActive
+                                                ? (newBs === 'B' ? 'bg-blue-500 border-blue-500 text-white' : 'bg-pink-500 border-pink-500 text-white')
+                                                : 'bg-white border-slate-200 text-slate-650 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                                        }`;
+                                    });
                                 });
                             });
 
@@ -1166,6 +1319,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 saveBtn.disabled = true;
                                 saveBtn.textContent = '저장중...';
                                 try {
+                                    const newCategory = bodyArea.querySelector('.counsel-edit-category').value;
+                                    const newBs = bodyArea.querySelector('.counsel-edit-bs').value;
                                     const res = await fetch(`/api/counseling/${sessionId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
@@ -1175,6 +1330,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                             tags: newTags,
                                             member_status: selectedStatus,
                                             counseling_method: bodyArea.querySelector('.counsel-edit-method')?.value || '대면',
+                                            category: newCategory,
+                                            bs: newBs,
                                             member_id: parseInt(memberId)
                                         })
                                     });
