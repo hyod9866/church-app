@@ -2125,14 +2125,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. 당월 및 누적 상담 건수 계산
+        const now = new Date();
+        const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         let totalCount = 0, monthlyCount = 0;
         let memberTotalCount = 0, memberMonthlyCount = 0;
         let evTotalCount = 0, evMonthlyCount = 0;
-
-        const now = new Date();
-        const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
         data.forEach(member => {
             const isMember = member.member_status !== 'evangelism';
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
