@@ -1210,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
 
             // Attendance History
-            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
+            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
             
             function isMandatoryMeeting(member, meeting) {
                 const mType = meeting.type || '';

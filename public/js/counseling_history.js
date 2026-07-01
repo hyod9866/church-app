@@ -890,7 +890,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 출석 히스토리 탭
-            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '설교' && h.type !== '외부설교' && h.date <= todayStr);
+            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= todayStr);
             function isMandatoryMeeting(member, meeting) {
                 const mType = meeting.type || '';
                 const mDistMatch = mType.match(/\d+/);
