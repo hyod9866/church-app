@@ -660,7 +660,7 @@ app.get('/api/members/search', async (req, res) => {
     if (district && district !== '전체') {
       query = query.eq('district', district);
     }
-    if (parish && parish !== '전체') {
+    if (parish && parish !== '전체' && parish !== 'all') {
       query = query.eq('parish', parish);
     }
     if (church && church !== '전체') {
@@ -1304,11 +1304,30 @@ app.put('/api/churches/:id', async (req, res) => {
   const { id } = req.params;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
+      // 1. 기존 교회 이름을 조회
+      const { data: oldChurch, error: findError } = await supabase
+          .from('churches')
+          .select('name')
+          .eq('id', id)
+          .single();
+      if (findError) throw findError;
+
+      // 2. 교회 정보 업데이트
       const { error } = await supabase
           .from('churches')
           .update({ name, address })
           .eq('id', id);
       if (error) throw error;
+
+      // 3. 기존 교회 이름을 가졌던 성도들의 church 컬럼 텍스트 일괄 수정 (Cascade Update)
+      if (oldChurch && oldChurch.name !== name) {
+          const { error: memberUpdateErr } = await supabase
+              .from('members')
+              .update({ church: name })
+              .eq('church', oldChurch.name);
+          if (memberUpdateErr) console.error('Failed to cascade update members church:', memberUpdateErr);
+      }
+
       res.json({ status: 'success' });
   } catch (err) {
       res.status(500).json({ error: err.message });
@@ -1384,11 +1403,30 @@ app.put('/api/parishes/:id', async (req, res) => {
   const { id } = req.params;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
+      // 1. 기존 교구 이름을 조회
+      const { data: oldParish, error: findError } = await supabase
+          .from('parishes')
+          .select('name')
+          .eq('id', id)
+          .single();
+      if (findError) throw findError;
+
+      // 2. 교구 정보 업데이트
       const { error } = await supabase
           .from('parishes')
           .update({ name, parish_no: parish_no ? parseInt(parish_no) : null })
           .eq('id', id);
       if (error) throw error;
+
+      // 3. 기존 교구 이름을 가졌던 성도들의 parish 컬럼 텍스트 일괄 수정 (Cascade Update)
+      if (oldParish && oldParish.name !== name) {
+          const { error: memberUpdateErr } = await supabase
+              .from('members')
+              .update({ parish: name })
+              .eq('parish', oldParish.name);
+          if (memberUpdateErr) console.error('Failed to cascade update members parish:', memberUpdateErr);
+      }
+
       res.json({ status: 'success' });
   } catch (err) {
       res.status(500).json({ error: err.message });
@@ -1459,11 +1497,32 @@ app.put('/api/districts/:id', async (req, res) => {
   const { id } = req.params;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
+      // 1. 기존 구역 정보와 교구 정보 조회
+      const { data: oldDist, error: findError } = await supabase
+          .from('districts')
+          .select('name, parishes(name)')
+          .eq('id', id)
+          .single();
+      if (findError) throw findError;
+
+      // 2. 구역 이름 업데이트
       const { error } = await supabase
           .from('districts')
           .update({ name })
           .eq('id', id);
       if (error) throw error;
+
+      // 3. 기존 구역 이름을 가졌고 해당 교구에 속한 성도들의 district 컬럼 텍스트 일괄 수정 (Cascade Update)
+      const parishName = oldDist && oldDist.parishes ? oldDist.parishes.name : null;
+      if (oldDist && oldDist.name !== name && parishName) {
+          const { error: memberUpdateErr } = await supabase
+              .from('members')
+              .update({ district: name })
+              .eq('district', oldDist.name)
+              .eq('parish', parishName);
+          if (memberUpdateErr) console.error('Failed to cascade update members district:', memberUpdateErr);
+      }
+
       res.json({ status: 'success' });
   } catch (err) {
       res.status(500).json({ error: err.message });
