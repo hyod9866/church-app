@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>`;
             
             // Attendance History
-            const filteredHistory = history.filter(h => h.type !== '심방' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
+            const filteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
             
             const getMeetingCategory = (type) => {
                 if (type.includes('구역모임')) return 'district';
