@@ -672,9 +672,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (counselingMemoList) {
                 if (cMemos.length) {
                     counselingMemoList.innerHTML = cMemos.map(r => {
-                        const memoText = r.remark || '';
+                    const rawRemark = r.remark || '';
+                        // [상담], (비고: ...) 등 내부 마크업을 제거하고 순수 내용만 표시
+                        let cleanRemark = rawRemark.replace(/^\[상담\]\s*/g, '').trim();
+                        const bigoMatch = cleanRemark.match(/\(비고:\s*(.*?)\)\s*$/);
+                        const bigoText = bigoMatch ? bigoMatch[1] : '';
+                        cleanRemark = cleanRemark.replace(/\(비고:\s*(.*?)\)\s*$/, '').trim();
+                        const memoText = cleanRemark || '(내용 없음)';
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-record-id="${r.id}">
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-record-id="${r.id}" data-pure-remark="${encodeURIComponent(cleanRemark)}" data-bigo="${encodeURIComponent(bigoText)}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1 flex justify-between items-center">
                                     <span>📅 <span class="counsel-date-text">${r.date}</span> 개인 상담</span>
                                     <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-905 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
@@ -699,8 +705,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             const dateTextSpan = card.querySelector('.counsel-date-text');
                             const currentDate = dateTextSpan.textContent.trim();
-                            const remarkTextPara = card.querySelector('.counsel-remark-text');
-                            const currentRemark = remarkTextPara.textContent.trim();
+                            // data-* 속성에서 마크업이 제거된 순수 내용을 꺼냄
+                            const currentRemark = decodeURIComponent(card.dataset.pureRemark || '');
 
                             bodyArea.innerHTML = `
                                 <div class="flex flex-col gap-2 w-full">

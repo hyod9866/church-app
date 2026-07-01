@@ -1160,16 +1160,29 @@ app.delete('/api/members/records/:id', async (req, res) => {
 
 app.put('/api/members/records/:id', async (req, res) => {
   const { id } = req.params;
-  const { date, status, remark } = req.body;
+  let { date, status, remark } = req.body;
   try {
     const { data: row, error: findError } = await supabase
       .from('member_records')
-      .select('member_id')
+      .select('member_id, remark')
       .eq('id', id)
       .single();
       
     if (findError || !row) return res.status(500).json({ error: 'Record not found' });
     const memberId = row.member_id;
+
+    // COUNSELING 기록은 상담 관리 포맷([상담] ... (비고: ...))을 보존/적용
+    // 프론트에서 순수 내용만 보내줄 수도 있으므로, 포맷이 없으면 자동으로 감싸줌
+    if (status === 'COUNSELING' && remark) {
+      if (!remark.startsWith('[상담]') && !remark.startsWith('[lead:')) {
+        // 기존 remark에서 (비고: ...) 부분을 추출해 보존
+        const oldRemark = row.remark || '';
+        const bigoMatch = oldRemark.match(/\(비고:\s*(.*?)\)\s*$/);
+        const oldBigo = bigoMatch ? bigoMatch[1] : '';
+        remark = `[상담] ${remark.trim()}`;
+        if (oldBigo) remark += ` (비고: ${oldBigo})`;
+      }
+    }
     
     const { error: updateError } = await supabase
       .from('member_records')
