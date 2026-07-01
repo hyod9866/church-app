@@ -471,8 +471,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }).join('');
 
-            const displayDistrict = member.district ? (String(member.district).includes('구역') ? member.district : member.district + '구역') : '구역 미정';
+            // 교회명, 교구, 구역 존재 유무에 따라 유연한 소속 텍스트 생성
+            const parts = [];
+            const churchName = member.church || '';
+            const parishName = member.parish || '';
+            const districtName = member.district || '';
+
+            if (churchName && churchName !== '서울중앙교회') {
+                parts.push(churchName); // 서울중앙교회 외 타교회인 경우 명시적으로 노출
+            }
+
+            const hasParish = parishName && !parishName.includes('정보없음') && parishName !== '교구 미지정';
+            const hasDistrict = districtName && !districtName.includes('정보없음') && districtName !== '구역 미정';
+
+            if (hasParish && hasDistrict) {
+                // 교구와 구역이 둘 다 제대로 입력된 경우
+                const pText = parishName.includes('교구') ? parishName : parishName + '교구';
+                const dText = districtName.includes('구역') ? districtName : districtName + '구역';
+                parts.push(`${pText} ${dText}`);
+            } else {
+                // 교구나 구역 중 하나라도 없거나 빈 값인 경우, 빈 구역 정보 대신 교회명을 추가(기존에 서울중앙교회라 생략되었어도 여기서 표시)
+                if (churchName) {
+                    if (!parts.includes(churchName)) {
+                        parts.push(churchName);
+                    }
+                }
+            }
+
+            if (member.category) parts.push(member.category);
             const bsLabel = member.bs === 'B' ? '형제' : (member.bs === 'S' ? '자매' : '');
+            if (bsLabel) parts.push(bsLabel);
+
+            const displayInfoText = parts.join(' · ');
 
             const latestLeadTarget = latestSession && latestSession.lead_target ? latestSession.lead_target : '';
             let leadTargetHtml = '';
@@ -521,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span onclick="openMemberHistoryModal(${member.id})" class="text-lg hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline cursor-pointer transition-colors ${nameColorClass}">${member.name}</span>
                             ${toggleButtonHtml}
                             <span class="text-xs text-gray-400 font-bold">${member.position || ''}</span>
-                            <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayDistrict} | ${member.category || ''}${bsLabel ? ' · ' + bsLabel : ''}</span>
+                            <span class="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">${displayInfoText}</span>
                             ${leadTargetHtml}
                             ${daysDiffHtml}
                         </div>
