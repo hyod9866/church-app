@@ -2567,7 +2567,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, lead_target, member_status, member_id } = req.body;
+  const { date, content, tags, remark_memo, lead_target, member_status, member_id, counseling_method } = req.body;
 
   try {
     let fullContent = '';
@@ -2590,7 +2590,8 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 
       const meetUpdate = { date };
       const finalLead = lead_target ? lead_target.trim() : '';
-      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      const finalMethod = counseling_method || '대면';
+      const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
       meetUpdate.memo = finalMemo;
       await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
       if (memberId) {

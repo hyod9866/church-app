@@ -171,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentStatus = card.dataset.memberStatus || 'member';
             const currentMemo = card.dataset.remarkMemo || '';
             const currentLeadTarget = card.dataset.leadTarget || '';
+            const currentCounselingMethod = card.dataset.counselingMethod || '대면';
             const bodyArea = card.querySelector('.counsel-session-body');
             const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
             const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
@@ -193,6 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 방법</label>
+                        <div class="inline-edit-method-group flex gap-1">
+                            <button type="button" data-method="대면" class="inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentCounselingMethod === '대면' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">🤝 대면</button>
+                            <button type="button" data-method="전화" class="inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentCounselingMethod === '전화' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}">📞 전화</button>
+                        </div>
+                        <input type="hidden" class="counsel-edit-method" value="${currentCounselingMethod}">
                     </div>
                     <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그</label>
@@ -279,6 +288,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
+            // 대면/전화 상담 방법 버튼 토글
+            bodyArea.querySelectorAll('.inline-edit-method-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newMethod = btn.dataset.method;
+                    bodyArea.querySelector('.counsel-edit-method').value = newMethod;
+                    bodyArea.querySelectorAll('.inline-edit-method-btn').forEach(b => {
+                        const isActive = b.dataset.method === newMethod;
+                        b.className = `inline-edit-method-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                            isActive
+                                ? (b.dataset.method === '대면' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-amber-500 border-amber-500 text-white')
+                                : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                        }`;
+                    });
+                });
+            });
+
             bodyArea.querySelector('.edit-tags-presets').addEventListener('click', ev => {
                 const b = ev.target.closest('.inline-edit-tag-btn'); if (!b) return;
                 activeTags.has(b.dataset.tag) ? activeTags.delete(b.dataset.tag) : activeTags.add(b.dataset.tag);
@@ -302,13 +327,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newStatus = bodyArea.querySelector('.counsel-edit-status').value;
                 const newMemo = bodyArea.querySelector('.counsel-edit-memo').value.trim();
                 const newLeadTarget = bodyArea.querySelector('.counsel-edit-lead-target').value.trim();
+                const newMethod = bodyArea.querySelector('.counsel-edit-method')?.value || '대면';
                 if (!newDate) return alert('날짜를 입력해주세요.');
                 const saveBtn = bodyArea.querySelector('.save-counsel-btn');
                 saveBtn.disabled = true; saveBtn.textContent = '저장중...';
                 try {
                     const res = await fetch(`/api/counseling/${sessionId}`, {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, lead_target: newLeadTarget, member_id: parseInt(memberId) })
+                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: newStatus, remark_memo: newMemo, lead_target: newLeadTarget, counseling_method: newMethod, member_id: parseInt(memberId) })
                     });
                     if (res.ok) { loadStatusFn(); } else { alert('수정에 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
                 } catch (err) { console.error(err); alert('서버 오류로 인해 실패했습니다.'); saveBtn.disabled = false; saveBtn.textContent = '저장'; }
@@ -363,7 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-tags="${session.tags || ''}"
                  data-member-status="${session.member_status || 'member'}"
                  data-lead-target="${session.lead_target || ''}"
-                 data-remark-memo="${session.remark_memo || ''}">
+                 data-remark-memo="${session.remark_memo || ''}"
+                 data-counseling-method="${session.counseling_method || '대면'}">
                 <div class="flex items-center gap-1.5 mb-1 pr-20">
                     ${latestLabel}
                     <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
