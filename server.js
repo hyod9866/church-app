@@ -2010,18 +2010,30 @@ app.get('/api/visitation/status', async (req, res) => {
             }
         });
 
-        // member_records의 상담 데이터도 병합
+        // member_records의 상담 데이터도 병합 (memo를 원문 대신 파싱 후 정제된 내용으로 변환하여 마크업 노출 방지)
         if (cRecords) {
             cRecords.forEach(r => {
                 if (!memberVisitations[r.member_id]) {
                     memberVisitations[r.member_id] = [];
                 }
+                // [상담], (비고: ...) 등 내부 마크업을 제거하고 순수 내용만 추출
+                let rawRemark = r.remark || '';
+                let remarkMemo = '';
+                const remarkMatch = rawRemark.match(/\(비고:\s*(.*?)\)\s*$/);
+                if (remarkMatch) {
+                    remarkMemo = remarkMatch[1];
+                    rawRemark = rawRemark.replace(/\(비고:\s*(.*?)\)\s*$/, '').trim();
+                }
+                const parsedContent = parseCounselingContent(rawRemark);
+                const parsedMemo = parseMemoField(remarkMemo);
                 memberVisitations[r.member_id].push({
                     id: 'c_' + r.date + '_' + Math.random().toString(36).substring(2, 7),
                     title: '상담',
                     date: r.date,
                     sermon_title: null,
-                    memo: r.remark,
+                    memo: parsedContent.content || '',  // 정제된 순수 내용만 반환
+                    tags: parsedContent.tags || '',
+                    lead_target: parsedMemo.lead_target || '',
                     type: '상담'
                 });
             });
@@ -2237,12 +2249,13 @@ app.get('/api/counseling', async (req, res) => {
     const meetingMap = {};
     (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
 
-    // 3. 해당 meetings의 attendance 조회 (모든 성도 포함 - is_present 무관)
+    // 3. 해당 meetings의 attendance 조회 (is_present=1인 것만 — 심방 API와 동일한 기준으로 카운트 통일)
     let attRows = [];
     if (counselingMeetingIds.length > 0) {
       const { data: attData, error: attErr } = await supabase
         .from('attendance')
         .select('member_id, meeting_id, testimony_snapshot, is_present')
+        .eq('is_present', 1)
         .in('meeting_id', counselingMeetingIds);
       if (attErr) throw attErr;
       attRows = attData || [];
