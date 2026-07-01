@@ -2197,17 +2197,19 @@ function parseCounselingContent(rawText) {
 }
 
 function parseMemoField(memoText) {
-  const match = (memoText || '').match(/^\[lead:(.*?)\]\s*(.*)/s);
-  if (match) {
-    return {
-      lead_target: match[1].trim(),
-      remark_memo: match[2].trim()
-    };
-  }
-  return {
-    lead_target: '',
-    remark_memo: (memoText || '').trim()
-  };
+  const text = memoText || '';
+  // [lead:...] 파싱
+  const leadMatch = text.match(/\[lead:(.*?)\]/);
+  const lead_target = leadMatch ? leadMatch[1].trim() : '';
+  // [method:...] 파싱
+  const methodMatch = text.match(/\[method:(.*?)\]/);
+  const counseling_method = methodMatch ? methodMatch[1].trim() : '대면';
+  // 나머지 remark_memo (태그들 제거)
+  const remark_memo = text
+    .replace(/\[lead:.*?\]/g, '')
+    .replace(/\[method:.*?\]/g, '')
+    .trim();
+  return { lead_target, counseling_method, remark_memo };
 }
 
 // GET /api/counseling — 상담 이력이 있는 성도 목록 (달력 개인상담 + member_records COUNSELING 통합)
@@ -2275,6 +2277,7 @@ app.get('/api/counseling', async (req, res) => {
         is_present: a.is_present,
         member_status: memberMap[a.member_id]?.member_status || 'member',
         lead_target: parsedMemo.lead_target,
+        counseling_method: parsedMemo.counseling_method || '대면',
         remark_memo: parsedMemo.remark_memo
       });
     });
@@ -2428,7 +2431,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status, counseling_method } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2502,7 +2505,8 @@ app.post('/api/counseling', async (req, res) => {
     // 2. meetings에 개인상담 일정 생성
     const meetingTitle = `${name} 개인상담`;
     const finalLead = lead_target ? lead_target.trim() : '';
-    const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+    const finalMethod = counseling_method || '대면';
+    const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
 
     const { data: newMeeting, error: meetErr } = await supabase
       .from('meetings')
