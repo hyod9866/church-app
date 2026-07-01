@@ -19,8 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allStatus = [];
     let currentMemberData = null;
-    let filterYearMonth = null; // 'YYYY-MM' format or null
+    let filterYearMonth = null; // 'YYYY-MM'
 
+    // 대상 및 소속 분포 인터랙티브 필터 상태
+    let filterMemberStatus = null;   // 'member' | 'evangelism'
+    let filterMemberGender = null;   // 'B' | 'S' (성도 성별)
+    let filterEvangelismGender = null; // 'B' | 'S' (전도대상 성별)
+    let filterChurch = null;         // 'seoul' | 'other'
+    let filterMemberCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
+    let filterEvangelismCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
     // ──────────────────────────────────────────────────
@@ -41,11 +48,55 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
         let filtered = allStatus.filter(s => {
+            const isMember = s.member_status !== 'evangelism';
+
+            // 1. 월별 필터
             if (filterYearMonth) {
                 const sessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
                 const hasSessionInMonth = sessions.some(session => session.date && session.date.startsWith(filterYearMonth));
                 if (!hasSessionInMonth) return false;
             }
+
+            // 2. 신분 필터 (성도 vs 전도대상)
+            if (filterMemberStatus) {
+                if (filterMemberStatus === 'member' && !isMember) return false;
+                if (filterMemberStatus === 'evangelism' && isMember) return false;
+            }
+
+            // 3. 성도 성별 필터
+            if (filterMemberGender) {
+                if (!isMember || s.bs !== filterMemberGender) return false;
+            }
+
+            // 4. 전도대상 성별 필터
+            if (filterEvangelismGender) {
+                if (isMember || s.bs !== filterEvangelismGender) return false;
+            }
+
+            // 5. 소속 교회 필터
+            if (filterChurch) {
+                const isSeoul = s.church === '서울중앙교회';
+                if (filterChurch === 'seoul' && !isSeoul) return false;
+                if (filterChurch === 'other' && isSeoul) return false;
+            }
+
+            // 6. 소속회 필터 (성도)
+            if (filterMemberCategory) {
+                if (!isMember) return false;
+                const cat = s.category || '모름';
+                const normCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
+                if (normCat !== filterMemberCategory) return false;
+            }
+
+            // 7. 소속회 필터 (전도대상)
+            if (filterEvangelismCategory) {
+                if (isMember) return false;
+                const cat = s.category || '모름';
+                const normCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
+                if (normCat !== filterEvangelismCategory) return false;
+            }
+
+            // 8. 텍스트 검색 쿼리 필터
             if (query) {
                 const nameMatch = (s.name || '').toLowerCase().includes(query);
                 const dateMatch = (s.last_counseling_date || '').includes(query);
@@ -59,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         });
 
+        // 필터링된 데이터를 바탕으로 대시보드 통계 및 상담주제 업데이트 (차트 제외)
+        updateDashboardStatisticsOnly(filtered);
         filtered.sort((a, b) => {
             if (sort === 'name') return a.name.localeCompare(b.name);
             if (sort === 'last_counseling') {
@@ -2187,13 +2240,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     bar.title = `${labels[idx]}: ${count}명 (${pct}%)`;
                 }
             });
-        };
         updateStackedBar('member', memberCat, memberTotal);
         updateStackedBar('evangelism', evCat, evTotal);
         
         setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명`);
         setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명`);
-        // 5. 인기 상담 주제 — 성도 / 전도대상 각각의 모든 세션 태그 집계
+
+        // 성도 및 전도대상의 상담주제 태그 실시간 집계
         const memberTagCounts = {}, evangelismTagCounts = {};
         data.forEach(m => {
             const isMember = m.member_status !== 'evangelism';
@@ -2240,6 +2293,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderTrendChart(months, months.map(m => monthlyCounts.member[m]), months.map(m => monthlyCounts.evangelism[m]));
     }
+
+    // 필터링 적용 시 대시보드 그래프 외 기타 상담주제 등의 수치만 갱신하기 위한 함수
+    function updateDashboardStatisticsOnly(data) {
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+        // 1. 성도 및 전도대상의 상담주제 태그 실시간 집계
+        const memberTagCounts = {}, evangelismTagCounts = {};
+        data.forEach(m => {
+            const isMember = m.member_status !== 'evangelism';
+            const bucket = isMember ? memberTagCounts : evangelismTagCounts;
+            const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
+            sessions.forEach(s => {
+                if (!s.tags) return;
+                s.tags.split(/\s+/).filter(t => t.startsWith('#')).forEach(t => {
+                    const tag = t.substring(1);
+                    if (tag) bucket[tag] = (bucket[tag] || 0) + 1;
+                });
+            });
+        });
+
+        const toSorted = obj => Object.entries(obj).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count);
+        dashTagData = { member: toSorted(memberTagCounts), evangelism: toSorted(evangelismTagCounts) };
+        renderTopTags();
+    }
+
 
     // 대시보드 접기/펼치기 토글
     const toggleDashboardBtn = document.getElementById('toggleDashboardBtn');
@@ -2294,17 +2372,139 @@ document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
             const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             if (filterYearMonth === ym) {
-                filterYearMonth = null; // Toggle off
+                filterYearMonth = null;
             } else {
-                filterYearMonth = ym; // Set to current month
+                filterYearMonth = ym;
             }
             applyFilters();
         });
     }
     if (btnFilterTotal) {
         btnFilterTotal.addEventListener('click', () => {
-            filterYearMonth = null; // Reset filter
+            filterYearMonth = null;
             applyFilters();
         });
     }
+
+    // 분포 차트 클릭 시 실시간 필터 적용 이벤트 헬퍼
+    const setupRatioToggle = (elementId, barIds, getFilterVal, setFilterFn, clearOtherFiltersFn) => {
+        const wrapper = document.getElementById(elementId);
+        if (!wrapper) return;
+
+        wrapper.addEventListener('click', (e) => {
+            const bar = e.target.closest('[id$="Bar"]');
+            if (!bar) return;
+
+            const isClickedBar = barIds.includes(bar.id);
+            if (!isClickedBar) return;
+
+            const clickedVal = getFilterVal(bar.id);
+            
+            // 다른 종류의 인터랙티브 필터를 초기화할 경우 (선택사항, 이번은 누적식으로 작동하되 같은 카테고리는 토글되도록 함)
+            // 클릭된 값이 현재 설정된 값과 같다면 해제(null), 다르면 해당 값 설정
+            setFilterFn(clickedVal);
+
+            // 시각적 피드백 효과를 위해 wrapper 내부의 바들에 스타일 적용
+            barIds.forEach(id => {
+                const b = document.getElementById(id);
+                if (b) {
+                    if (clickedVal && b.id === bar.id) {
+                        b.style.boxShadow = '0 0 0 2.5px rgba(99, 102, 241, 0.95)';
+                        b.style.zIndex = '10';
+                    } else {
+                        b.style.boxShadow = 'none';
+                        b.style.zIndex = '1';
+                    }
+                }
+            });
+
+            applyFilters();
+        });
+    };
+
+    // 1. 성도 vs 전도대상 토글 필터
+    setupRatioToggle('btnFilterMemberStatus', ['memberRatioBar', 'targetRatioBar'], 
+        (id) => id === 'memberRatioBar' ? 'member' : 'evangelism',
+        (val) => {
+            filterMemberStatus = (filterMemberStatus === val) ? null : val;
+            if (!filterMemberStatus) {
+                document.getElementById('memberRatioBar').style.boxShadow = 'none';
+                document.getElementById('targetRatioBar').style.boxShadow = 'none';
+            }
+        }
+    );
+
+    // 2. 성도 성별 토글 필터
+    setupRatioToggle('btnFilterMemberGender', ['memberBrotherRatioBar', 'memberSisterRatioBar'],
+        (id) => id === 'memberBrotherRatioBar' ? 'B' : 'S',
+        (val) => {
+            filterMemberGender = (filterMemberGender === val) ? null : val;
+            if (!filterMemberGender) {
+                document.getElementById('memberBrotherRatioBar').style.boxShadow = 'none';
+                document.getElementById('memberSisterRatioBar').style.boxShadow = 'none';
+            }
+        }
+    );
+
+    // 3. 전도대상 성별 토글 필터
+    setupRatioToggle('btnFilterEvangelismGender', ['evangelismMaleRatioBar', 'evangelismFemaleRatioBar'],
+        (id) => id === 'evangelismMaleRatioBar' ? 'B' : 'S',
+        (val) => {
+            filterEvangelismGender = (filterEvangelismGender === val) ? null : val;
+            if (!filterEvangelismGender) {
+                document.getElementById('evangelismMaleRatioBar').style.boxShadow = 'none';
+                document.getElementById('evangelismFemaleRatioBar').style.boxShadow = 'none';
+            }
+        }
+    );
+
+    // 4. 서울중앙 vs 타교회 토글 필터
+    setupRatioToggle('btnFilterChurch', ['seoulChurchRatioBar', 'otherChurchRatioBar'],
+        (id) => id === 'seoulChurchRatioBar' ? 'seoul' : 'other',
+        (val) => {
+            filterChurch = (filterChurch === val) ? null : val;
+            if (!filterChurch) {
+                document.getElementById('seoulChurchRatioBar').style.boxShadow = 'none';
+                document.getElementById('otherChurchRatioBar').style.boxShadow = 'none';
+            }
+        }
+    );
+
+    // 5. 성도 소속회 토글 필터
+    const memberCatBarIds = ['memberBongsaRatioBar', 'memberEomeoniRatioBar', 'memberCheongnyeonRatioBar', 'memberEunjangRatioBar', 'memberUnknownRatioBar'];
+    const memberCatKeys = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
+    setupRatioToggle('btnFilterMemberCategory', memberCatBarIds,
+        (id) => {
+            const idx = memberCatBarIds.indexOf(id);
+            return memberCatKeys[idx];
+        },
+        (val) => {
+            filterMemberCategory = (filterMemberCategory === val) ? null : val;
+            if (!filterMemberCategory) {
+                memberCatBarIds.forEach(id => {
+                    const b = document.getElementById(id);
+                    if (b) b.style.boxShadow = 'none';
+                });
+            }
+        }
+    );
+
+    // 6. 전도대상 소속회 토글 필터
+    const evCatBarIds = ['evangelismBongsaRatioBar', 'evangelismEomeoniRatioBar', 'evangelismCheongnyeonRatioBar', 'evangelismEunjangRatioBar', 'evangelismUnknownRatioBar'];
+    const evCatKeys = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
+    setupRatioToggle('btnFilterEvangelismCategory', evCatBarIds,
+        (id) => {
+            const idx = evCatBarIds.indexOf(id);
+            return evCatKeys[idx];
+        },
+        (val) => {
+            filterEvangelismCategory = (filterEvangelismCategory === val) ? null : val;
+            if (!filterEvangelismCategory) {
+                evCatBarIds.forEach(id => {
+                    const b = document.getElementById(id);
+                    if (b) b.style.boxShadow = 'none';
+                });
+            }
+        }
+    );
 });

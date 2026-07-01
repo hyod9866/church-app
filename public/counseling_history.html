@@ -358,75 +358,75 @@
                     </div>
                     <div class="space-y-2.5">
                         <!-- 신분 구분 (성도 vs 전도대상) -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterMemberStatus">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>성도 vs 전도대상</span>
+                                <span>성도 vs 전도대상 <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="memberTargetRatioText">- / -</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="memberRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="targetRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="memberRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="targetRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 성도 성별 분포 -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterMemberGender">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>성도 성별 (형제 vs 자매)</span>
+                                <span>성도 성별 (형제 vs 자매) <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="memberGenderRatioText">- / -</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="memberBrotherRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="memberSisterRatioBar" class="bg-pink-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="memberBrotherRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="memberSisterRatioBar" class="bg-pink-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 전도대상 성별 분포 -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterEvangelismGender">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>전도대상 성별 (남자 vs 여자)</span>
+                                <span>전도대상 성별 (남자 vs 여자) <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="evangelismGenderRatioText">- / -</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="evangelismMaleRatioBar" class="bg-sky-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="evangelismFemaleRatioBar" class="bg-rose-400 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="evangelismMaleRatioBar" class="bg-sky-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="evangelismFemaleRatioBar" class="bg-rose-400 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 소속 교회 (서울중앙 vs 타교회) -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterChurch">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>서울중앙 vs 타교회/모름</span>
+                                <span>서울중앙 vs 타교회/모름 <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="churchRatioText">- / -</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="seoulChurchRatioBar" class="bg-indigo-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="otherChurchRatioBar" class="bg-teal-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="seoulChurchRatioBar" class="bg-indigo-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="otherChurchRatioBar" class="bg-teal-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 성도 소속회 분포 -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterMemberCategory">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>성도 소속회 분포</span>
+                                <span>성도 소속회 분포 <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="memberCategoryRatioText">-</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="memberBongsaRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="memberEomeoniRatioBar" class="bg-rose-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="memberCheongnyeonRatioBar" class="bg-emerald-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="memberEunjangRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="memberUnknownRatioBar" class="bg-slate-400 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="memberBongsaRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="memberEomeoniRatioBar" class="bg-rose-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="memberCheongnyeonRatioBar" class="bg-emerald-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="memberEunjangRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="memberUnknownRatioBar" class="bg-slate-400 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 전도대상 소속회 분포 -->
-                        <div>
+                        <div class="p-1 rounded-lg transition-all border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/35 cursor-pointer" id="btnFilterEvangelismCategory">
                             <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                <span>전도대상 소속회 분포</span>
+                                <span>전도대상 소속회 분포 <span class="text-[9px] text-indigo-500 font-medium">(클릭 필터)</span></span>
                                 <span id="evangelismCategoryRatioText">-</span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
-                                <div id="evangelismBongsaRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="evangelismEomeoniRatioBar" class="bg-rose-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="evangelismCheongnyeonRatioBar" class="bg-emerald-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="evangelismEunjangRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
-                                <div id="evangelismUnknownRatioBar" class="bg-slate-400 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="evangelismBongsaRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="evangelismEomeoniRatioBar" class="bg-rose-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="evangelismCheongnyeonRatioBar" class="bg-emerald-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="evangelismEunjangRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
+                                <div id="evangelismUnknownRatioBar" class="bg-slate-400 h-full transition-all duration-500 flex items-center justify-center hover:opacity-90" style="width: 0%"></div>
                             </div>
                         </div>
                     </div>
@@ -445,8 +445,8 @@
                 </div>
             </div>
 
-            <!-- Row 2: 주요 상담주제(성도) & 주요 상담주제(전도대상) -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
                 <!-- 3. 주요 상담 주제 (성도) -->
                 <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
                     <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
