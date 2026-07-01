@@ -2237,6 +2237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bar.title = `${labels[idx]}: ${count}명 (${pct}%)`;
                 }
             });
+        };
         updateStackedBar('member', memberCat, memberTotal);
         updateStackedBar('evangelism', evCat, evTotal);
         
@@ -2362,10 +2363,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 당월 상담 / 누적 상담 필터 카드 이벤트 바인딩
-    const btnFilterMonthly = document.getElementById('btnFilterMonthly');
-    const btnFilterTotal = document.getElementById('btnFilterTotal');
-    if (btnFilterMonthly) {
-        btnFilterMonthly.addEventListener('click', () => {
+    const pageFilterMonthlyBtn = document.getElementById('btnFilterMonthly');
+    const pageFilterTotalBtn = document.getElementById('btnFilterTotal');
+    if (pageFilterMonthlyBtn) {
+        pageFilterMonthlyBtn.addEventListener('click', () => {
             const now = new Date();
             const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             if (filterYearMonth === ym) {
@@ -2376,15 +2377,15 @@ document.addEventListener('DOMContentLoaded', () => {
             applyFilters();
         });
     }
-    if (btnFilterTotal) {
-        btnFilterTotal.addEventListener('click', () => {
+    if (pageFilterTotalBtn) {
+        pageFilterTotalBtn.addEventListener('click', () => {
             filterYearMonth = null;
             applyFilters();
         });
     }
 
     // 분포 차트 클릭 시 실시간 필터 적용 이벤트 헬퍼
-    const setupRatioToggle = (elementId, barIds, getFilterVal, setFilterFn, clearOtherFiltersFn) => {
+    const setupRatioToggle = (elementId, barIds, getFilterVal, setFilterFn) => {
         const wrapper = document.getElementById(elementId);
         if (!wrapper) return;
 
@@ -2397,15 +2398,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const clickedVal = getFilterVal(bar.id);
             
-            // 다른 종류의 인터랙티브 필터를 초기화할 경우 (선택사항, 이번은 누적식으로 작동하되 같은 카테고리는 토글되도록 함)
-            // 클릭된 값이 현재 설정된 값과 같다면 해제(null), 다르면 해당 값 설정
-            setFilterFn(clickedVal);
+            // setFilterFn의 결과값(현재 필터가 활성화 상태인지 해제 상태인지)을 확인
+            const activeVal = setFilterFn(clickedVal);
 
             // 시각적 피드백 효과를 위해 wrapper 내부의 바들에 스타일 적용
             barIds.forEach(id => {
                 const b = document.getElementById(id);
                 if (b) {
-                    if (clickedVal && b.id === bar.id) {
+                    if (activeVal && b.id === bar.id) {
                         b.style.boxShadow = '0 0 0 2.5px rgba(99, 102, 241, 0.95)';
                         b.style.zIndex = '10';
                     } else {
@@ -2423,11 +2423,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRatioToggle('btnFilterMemberStatus', ['memberRatioBar', 'targetRatioBar'], 
         (id) => id === 'memberRatioBar' ? 'member' : 'evangelism',
         (val) => {
-            filterMemberStatus = (filterMemberStatus === val) ? null : val;
-            if (!filterMemberStatus) {
+            const isSame = filterMemberStatus === val;
+            filterMemberStatus = isSame ? null : val;
+            if (isSame) {
                 document.getElementById('memberRatioBar').style.boxShadow = 'none';
                 document.getElementById('targetRatioBar').style.boxShadow = 'none';
             }
+            return filterMemberStatus;
         }
     );
 
@@ -2435,11 +2437,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRatioToggle('btnFilterMemberGender', ['memberBrotherRatioBar', 'memberSisterRatioBar'],
         (id) => id === 'memberBrotherRatioBar' ? 'B' : 'S',
         (val) => {
-            filterMemberGender = (filterMemberGender === val) ? null : val;
-            if (!filterMemberGender) {
+            const isSame = filterMemberGender === val;
+            filterMemberGender = isSame ? null : val;
+            if (isSame) {
                 document.getElementById('memberBrotherRatioBar').style.boxShadow = 'none';
                 document.getElementById('memberSisterRatioBar').style.boxShadow = 'none';
             }
+            return filterMemberGender;
         }
     );
 
@@ -2447,11 +2451,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRatioToggle('btnFilterEvangelismGender', ['evangelismMaleRatioBar', 'evangelismFemaleRatioBar'],
         (id) => id === 'evangelismMaleRatioBar' ? 'B' : 'S',
         (val) => {
-            filterEvangelismGender = (filterEvangelismGender === val) ? null : val;
-            if (!filterEvangelismGender) {
+            const isSame = filterEvangelismGender === val;
+            filterEvangelismGender = isSame ? null : val;
+            if (isSame) {
                 document.getElementById('evangelismMaleRatioBar').style.boxShadow = 'none';
                 document.getElementById('evangelismFemaleRatioBar').style.boxShadow = 'none';
             }
+            return filterEvangelismGender;
         }
     );
 
@@ -2459,11 +2465,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRatioToggle('btnFilterChurch', ['seoulChurchRatioBar', 'otherChurchRatioBar'],
         (id) => id === 'seoulChurchRatioBar' ? 'seoul' : 'other',
         (val) => {
-            filterChurch = (filterChurch === val) ? null : val;
-            if (!filterChurch) {
+            const isSame = filterChurch === val;
+            filterChurch = isSame ? null : val;
+            if (isSame) {
                 document.getElementById('seoulChurchRatioBar').style.boxShadow = 'none';
                 document.getElementById('otherChurchRatioBar').style.boxShadow = 'none';
             }
+            return filterChurch;
         }
     );
 
@@ -2476,13 +2484,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return memberCatKeys[idx];
         },
         (val) => {
-            filterMemberCategory = (filterMemberCategory === val) ? null : val;
-            if (!filterMemberCategory) {
+            const isSame = filterMemberCategory === val;
+            filterMemberCategory = isSame ? null : val;
+            if (isSame) {
                 memberCatBarIds.forEach(id => {
                     const b = document.getElementById(id);
                     if (b) b.style.boxShadow = 'none';
                 });
             }
+            return filterMemberCategory;
         }
     );
 
@@ -2495,13 +2505,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return evCatKeys[idx];
         },
         (val) => {
-            filterEvangelismCategory = (filterEvangelismCategory === val) ? null : val;
-            if (!filterEvangelismCategory) {
+            const isSame = filterEvangelismCategory === val;
+            filterEvangelismCategory = isSame ? null : val;
+            if (isSame) {
                 evCatBarIds.forEach(id => {
                     const b = document.getElementById(id);
                     if (b) b.style.boxShadow = 'none';
                 });
             }
+            return filterEvangelismCategory;
         }
     );
 });
