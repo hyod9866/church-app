@@ -1987,17 +1987,14 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             options: {
                 onClick: (event, elements) => {
-                    // Get closest index using getElementsAtEventForMode
                     const chart = trendChartInstance;
                     const activePoints = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
                     if (activePoints && activePoints.length > 0) {
                         const index = activePoints[0].index;
-                        const clickedYm = months[index]; // 'YYYY-MM'
+                        const clickedYm = months[index];
                         if (clickedYm) {
                             filterYearMonth = clickedYm;
                             applyFilters();
-                            
-                            // Scroll list into view
                             const searchInput = document.getElementById('searchInput');
                             if (searchInput) {
                                 const filtersDiv = searchInput.closest('div').parentElement;
@@ -2036,8 +2033,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     y: {
                         grid: { color: gridColor },
-                        ticks: { 
-                            color: textColor, 
+                        ticks: {
+                            color: textColor,
                             font: { weight: 'bold', size: 10 },
                             stepSize: 1,
                             precision: 0
@@ -2053,19 +2050,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
         if (!data || data.length === 0) {
-            setEl('monthlyCounselCount', '0 건');
-            setEl('monthlyCounselSplit', '(성도 0건 / 전도 0건)');
-            setEl('totalCounselCount', '0 건');
-            setEl('totalCounselSplit', '(성도 0건 / 전도 0건)');
-            setEl('memberKpiCount', '0 명'); setEl('memberKpiPct', '전체의 0%');
-            setEl('evangelismKpiCount', '0 명'); setEl('evangelismKpiPct', '전체의 0%');
+            setEl('totalHeaderCount', '0');
+            setEl('monthlyHeaderCount', '0');
             setEl('memberTargetRatioText', '성도 0명 / 전도 0명');
-            setEl('memberStatCount', '0'); setEl('memberStatPct', '0%');
-            setEl('evangelismStatCount', '0'); setEl('evangelismStatPct', '0%');
+            setEl('memberGenderRatioText', '형제 0명 / 자매 0명');
+            setEl('evangelismGenderRatioText', '남자 0명 / 여자 0명');
             setEl('churchRatioText', '서울중앙 0명 / 타교회 0명');
-            setEl('seoulStatCount', '0'); setEl('seoulStatPct', '0%');
-            setEl('otherStatCount', '0'); setEl('otherStatPct', '0%');
-            ['memberRatioBar','targetRatioBar','seoulChurchRatioBar','otherChurchRatioBar',
+            ['memberRatioBar','targetRatioBar','memberBrotherRatioBar','memberSisterRatioBar',
+             'evangelismMaleRatioBar','evangelismFemaleRatioBar','seoulChurchRatioBar','otherChurchRatioBar',
              'memberBongsaRatioBar','memberEomeoniRatioBar','memberCheongnyeonRatioBar','memberEunjangRatioBar','memberUnknownRatioBar',
              'evangelismBongsaRatioBar','evangelismEomeoniRatioBar','evangelismCheongnyeonRatioBar','evangelismEunjangRatioBar','evangelismUnknownRatioBar'
             ].forEach(id => {
@@ -2080,7 +2072,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. 당월 및 누적 상담 건수 (세션 기준 전체 분할 계산)
+        // 1. 당월 및 누적 상담 건수 계산
         let totalCount = 0, monthlyCount = 0;
         let memberTotalCount = 0, memberMonthlyCount = 0;
         let evTotalCount = 0, evMonthlyCount = 0;
@@ -2104,27 +2096,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        setEl('monthlyCounselCount', `${monthlyCount} 건`);
-        setEl('monthlyCounselSplit', `(성도 ${memberMonthlyCount}건 / 전도 ${evMonthlyCount}건)`);
-        setEl('totalCounselCount', `${totalCount} 건`);
-        setEl('totalCounselSplit', `(성도 ${memberTotalCount}건 / 전도 ${evTotalCount}건)`);
+        setEl('totalHeaderCount', `${totalCount}`);
+        setEl('monthlyHeaderCount', `${monthlyCount}`);
 
-        // 2. 성도 vs 전도대상 (member_status 우선)
+        // 헤더 버튼 타이틀 속성에 툴팁 제공
+        const btnFilterTotal = document.getElementById('btnFilterTotal');
+        if (btnFilterTotal) btnFilterTotal.title = `성도 ${memberTotalCount}건 / 전도대상 ${evTotalCount}건`;
+        const btnFilterMonthly = document.getElementById('btnFilterMonthly');
+        if (btnFilterMonthly) btnFilterMonthly.title = `성도 ${memberMonthlyCount}건 / 전도대상 ${evMonthlyCount}건`;
+
+        // 2. 성도 vs 전도대상 인원 수 및 비율
         const totalPeople = data.length || 1;
         const memberCount = data.filter(s => s.member_status !== 'evangelism').length;
         const targetCount = totalPeople - memberCount;
         const memberPct = Math.round((memberCount / totalPeople) * 100);
         const targetPct = 100 - memberPct;
 
-        setEl('memberKpiCount', `${memberCount} 명`);
-        setEl('memberKpiPct', `전체의 ${memberPct}%`);
-        setEl('evangelismKpiCount', `${targetCount} 명`);
-        setEl('evangelismKpiPct', `전체의 ${targetPct}%`);
         setEl('memberTargetRatioText', `성도 ${memberCount}명 / 전도 ${targetCount}명`);
-        setEl('memberStatCount', `${memberCount}`);
-        setEl('memberStatPct', `${memberPct}%`);
-        setEl('evangelismStatCount', `${targetCount}`);
-        setEl('evangelismStatPct', `${targetPct}%`);
 
         const updateRatioBar = (id, pct, label) => {
             const bar = document.getElementById(id);
@@ -2136,21 +2124,35 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRatioBar('memberRatioBar', memberPct, '성도');
         updateRatioBar('targetRatioBar', targetPct, '전도대상');
 
-        // 3. 서울중앙 vs 타교회/모름
+        // 3. 성도 성별 (형제 vs 자매)
+        const memberBrothers = data.filter(s => s.member_status !== 'evangelism' && s.bs === 'B').length;
+        const memberSisters = memberCount - memberBrothers;
+        const memberBroPct = memberCount > 0 ? Math.round((memberBrothers / memberCount) * 100) : 0;
+        const memberSisPct = memberCount > 0 ? 100 - memberBroPct : 0;
+        setEl('memberGenderRatioText', `형제 ${memberBrothers}명 / 자매 ${memberSisters}명`);
+        updateRatioBar('memberBrotherRatioBar', memberBroPct, '형제');
+        updateRatioBar('memberSisterRatioBar', memberSisPct, '자매');
+
+        // 4. 전도대상 성별 (남자 vs 여자)
+        const evMales = data.filter(s => s.member_status === 'evangelism' && s.bs === 'B').length;
+        const evFemales = targetCount - evMales;
+        const evMalePct = targetCount > 0 ? Math.round((evMales / targetCount) * 100) : 0;
+        const evFemalePct = targetCount > 0 ? 100 - evMalePct : 0;
+        setEl('evangelismGenderRatioText', `남자 ${evMales}명 / 여자 ${evFemales}명`);
+        updateRatioBar('evangelismMaleRatioBar', evMalePct, '남자');
+        updateRatioBar('evangelismFemaleRatioBar', evFemalePct, '여자');
+
+        // 5. 서울중앙 vs 타교회/모름
         const seoulCount = data.filter(s => s.church === '서울중앙교회').length;
         const otherCount = totalPeople - seoulCount;
         const seoulPct = Math.round((seoulCount / totalPeople) * 100);
         const otherPct = 100 - seoulPct;
 
         setEl('churchRatioText', `서울중앙 ${seoulCount}명 / 타교회 ${otherCount}명`);
-        setEl('seoulStatCount', `${seoulCount}`);
-        setEl('seoulStatPct', `${seoulPct}%`);
-        setEl('otherStatCount', `${otherCount}`);
-        setEl('otherStatPct', `${otherPct}%`);
         updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙');
         updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름');
 
-        // 4. 성도 및 전도대상 각각의 소속회 분포 계산
+        // 6. 성도 및 전도대상 각각의 소속회 분포 계산
         const memberCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
         const evCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
         let memberTotal = 0;
@@ -2191,7 +2193,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명`);
         setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명`);
-
         // 5. 인기 상담 주제 — 성도 / 전도대상 각각의 모든 세션 태그 집계
         const memberTagCounts = {}, evangelismTagCounts = {};
         data.forEach(m => {

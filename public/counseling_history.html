@@ -330,60 +330,27 @@
     
     <main class="max-w-5xl mx-auto px-4 py-6">
         <!-- Dashboard Toggle Header -->
-        <div class="flex justify-between items-center mb-3">
-            <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <i class="fa-solid fa-chart-pie text-indigo-500"></i> 상담 통계 현황
-            </h3>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+            <div class="flex flex-wrap items-center gap-1.5">
+                <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie text-indigo-500"></i> 상담 통계 현황
+                </h3>
+                <span class="text-[11px] text-slate-400 dark:text-slate-400 font-medium">
+                    (<button type="button" id="btnFilterTotal" class="hover:underline text-emerald-600 dark:text-emerald-450 font-bold">누적 <span id="totalHeaderCount">-</span>건</button>
+                    <span class="text-slate-300 dark:text-slate-650">/</span>
+                    <button type="button" id="btnFilterMonthly" class="hover:underline text-indigo-600 dark:text-indigo-405 font-bold">당월 <span id="monthlyHeaderCount">-</span>건</button>)
+                </span>
+            </div>
             <button id="toggleDashboardBtn" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer outline-none">
                 <span id="dashboardToggleText">대시보드 접기</span> <i id="dashboardToggleIcon" class="fa-solid fa-chevron-up"></i>
             </button>
         </div>
 
         <!-- Dashboard Container -->
-        <!-- Dashboard Container -->
         <div id="counselingDashboard" class="space-y-4 mb-6 transition-all duration-300">
-            <!-- Row 1: 상담 건수 집계 & 월별 상담 건수 추이 -->
+            <!-- Row 1: 대상 및 소속 분포 (1/3) & 월별 상담 건수 추이 (2/3) -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <!-- 1. 상황판 카드 (1/3) -->
-                <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-4">
-                    <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
-                        <span class="text-xs font-black text-slate-500 dark:text-slate-400">상담 건수 집계</span>
-                        <i class="fa-solid fa-calculator text-slate-350 text-sm"></i>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 text-center my-auto">
-                        <div id="btnFilterMonthly" class="bg-indigo-50/40 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30 flex flex-col justify-between cursor-pointer hover:bg-indigo-100/40 dark:hover:bg-indigo-900/40 active:scale-[0.98] transition-all">
-                            <div>
-                                <span class="block text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mb-1">당월 상담</span>
-                                <span id="monthlyCounselCount" class="text-xl font-black text-indigo-700 dark:text-indigo-300">- 건</span>
-                            </div>
-                            <span id="monthlyCounselSplit" class="block text-[9px] text-slate-400 dark:text-slate-550 font-bold mt-1.5">(성도 - / 전도 -)</span>
-                        </div>
-                        <div id="btnFilterTotal" class="bg-emerald-50/40 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30 flex flex-col justify-between cursor-pointer hover:bg-emerald-100/40 dark:hover:bg-emerald-950/40 active:scale-[0.98] transition-all">
-                            <div>
-                                <span class="block text-[10px] font-bold text-emerald-500 dark:text-emerald-400 mb-1">누적 상담</span>
-                                <span id="totalCounselCount" class="text-xl font-black text-emerald-700 dark:text-emerald-300">- 건</span>
-                            </div>
-                            <span id="totalCounselSplit" class="block text-[9px] text-slate-400 dark:text-slate-550 font-bold mt-1.5">(성도 - / 전도 -)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. 월별 상담 건수 추이 (2/3) -->
-                <div id="counselingTrendCard" class="lg:col-span-2 bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
-                    <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
-                        <span class="text-xs font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                            <i class="fa-solid fa-chart-line text-blue-500"></i> 월별 상담 건수 추이 (최근 12개월)
-                        </span>
-                    </div>
-                    <div class="h-32 lg:h-36 w-full relative my-auto">
-                        <canvas id="counselingTrendChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 2: 대상 및 소속 분포 & 주요 상담주제(성도) & 주요 상담주제(전도대상) -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <!-- 3. 교회 및 신분 구분 비율 게이지 (1/3) -->
+                <!-- 1. 대상 및 소속 분포 카드 (1/3) -->
                 <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
                     <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
                         <span class="text-xs font-black text-slate-500 dark:text-slate-400">대상 및 소속 분포</span>
@@ -399,6 +366,28 @@
                             <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
                                 <div id="memberRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
                                 <div id="targetRatioBar" class="bg-amber-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- 성도 성별 분포 -->
+                        <div>
+                            <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                <span>성도 성별 (형제 vs 자매)</span>
+                                <span id="memberGenderRatioText">- / -</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
+                                <div id="memberBrotherRatioBar" class="bg-blue-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="memberSisterRatioBar" class="bg-pink-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- 전도대상 성별 분포 -->
+                        <div>
+                            <div class="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                <span>전도대상 성별 (남자 vs 여자)</span>
+                                <span id="evangelismGenderRatioText">- / -</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden flex text-[9px] font-extrabold text-white text-center">
+                                <div id="evangelismMaleRatioBar" class="bg-sky-500 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
+                                <div id="evangelismFemaleRatioBar" class="bg-rose-400 h-full transition-all duration-500 flex items-center justify-center" style="width: 0%"></div>
                             </div>
                         </div>
                         <!-- 소속 교회 (서울중앙 vs 타교회) -->
@@ -443,7 +432,22 @@
                     </div>
                 </div>
 
-                <!-- 4. 주요 상담 주제 (성도) (1/3) -->
+                <!-- 2. 월별 상담 건수 추이 (2/3) -->
+                <div id="counselingTrendCard" class="lg:col-span-2 bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
+                    <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
+                        <span class="text-xs font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-line text-blue-500"></i> 월별 상담 건수 추이 (최근 12개월)
+                        </span>
+                    </div>
+                    <div class="h-48 lg:h-52 w-full relative my-auto">
+                        <canvas id="counselingTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: 주요 상담주제(성도) & 주요 상담주제(전도대상) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- 3. 주요 상담 주제 (성도) -->
                 <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
                     <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
                         <span class="text-xs font-black text-indigo-650 dark:text-indigo-400">주요 상담주제(성도)</span>
@@ -454,7 +458,7 @@
                     </div>
                 </div>
 
-                <!-- 5. 주요 상담 주제 (전도대상) (1/3) -->
+                <!-- 4. 주요 상담 주제 (전도대상) -->
                 <div class="bg-white dark:bg-[#131B2E] p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
                     <div class="flex items-center justify-between border-b dark:border-slate-800 pb-2">
                         <span class="text-xs font-black text-orange-650 dark:text-orange-400">주요 상담주제(전도대상)</span>
