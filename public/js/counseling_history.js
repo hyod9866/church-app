@@ -51,6 +51,63 @@ document.addEventListener('DOMContentLoaded', () => {
     let filterMemberCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     let filterEvangelismCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     let filterCounselingMethod = null; // '대면' | '전화'
+    let filterYear = ''; // '' = 전체 년도, 'YYYY' = 해당 연도
+
+    // 선택된 연도로 데이터를 좁힌다. year가 ''(전체)면 원본 그대로 반환.
+    // year가 지정되면 각 인물의 all_sessions를 해당 연도 세션만 남기고,
+    // 그 연도에 세션이 없는 인물은 제외한다. last_counseling_* 도 해당 연도 기준으로 재계산.
+    function scopeDataByYear(list, year) {
+        if (!year) return list;
+        const out = [];
+        (list || []).forEach(m => {
+            const sessions = (Array.isArray(m.all_sessions) ? m.all_sessions : [])
+                .filter(s => s.date && s.date.substring(0, 4) === year);
+            if (!sessions.length) return;
+            const sorted = [...sessions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            const last = sorted[0];
+            out.push({
+                ...m,
+                all_sessions: sessions,
+                counseling_count: sessions.length,
+                last_counseling_date: last ? last.date : null,
+                last_counseling_content: last ? last.content : null,
+                last_counseling_tags: last ? last.tags : null,
+                last_counseling_session_id: last ? last.session_id : null
+            });
+        });
+        return out;
+    }
+
+    // 상단 전역 연도 셀렉트 옵션 구성 (데이터가 있는 연도 + '전체 년도')
+    function initGlobalYearSelect() {
+        const sel = document.getElementById('globalYearSelect');
+        if (!sel) return;
+        const yearSet = new Set();
+        (allStatus || []).forEach(m => {
+            (Array.isArray(m.all_sessions) ? m.all_sessions : []).forEach(s => {
+                if (s.date && /^\d{4}-\d{2}/.test(s.date)) yearSet.add(s.date.substring(0, 4));
+            });
+        });
+        const years = Array.from(yearSet).sort((a, b) => b.localeCompare(a)); // 내림차순
+        sel.innerHTML = `<option value="">전체 년도</option>` + years.map(y => `<option value="${y}">${y}년</option>`).join('');
+        // 기존 선택 유지 (데이터에 없으면 전체)
+        filterYear = years.includes(filterYear) ? filterYear : '';
+        sel.value = filterYear;
+        if (!sel.dataset.bound) {
+            sel.addEventListener('change', () => {
+                filterYear = sel.value;
+                applyGlobalYear();
+            });
+            sel.dataset.bound = '1';
+        }
+    }
+
+    // 전역 연도 필터 적용 — 분포/그래프/주제/카운트(대시보드)와 상담자 목록을 함께 갱신
+    function applyGlobalYear() {
+        const scoped = scopeDataByYear(allStatus, filterYear);
+        updateDashboard(scoped);
+        applyFilters();
+    }
     // ──────────────────────────────────────────────────
     // 데이터 로드 (신규 /api/counseling 사용)
     // ──────────────────────────────────────────────────
@@ -58,8 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/counseling?_t=' + Date.now(), { cache: 'no-store' });
             allStatus = await response.json();
-            updateDashboard(allStatus);
-            applyFilters();
+            initGlobalYearSelect();
+            applyGlobalYear();
         } catch (error) {
             console.error('Error loading counseling status:', error);
             if (counselingList) counselingList.innerHTML = '<p class="text-red-500 text-center py-20 font-bold">데이터를 불러오지 못했습니다.</p>';
@@ -70,7 +127,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const sort = sortOption ? sortOption.value : 'last_counseling';
         const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
-        let filtered = allStatus.filter(s => {
+        // 전역 연도 필터로 좁힌 데이터를 기준으로 목록을 필터링한다
+        const base = scopeDataByYear(allStatus, filterYear);
+        let filtered = base.filter(s => {
             const isMember = s.member_status !== 'evangelism';
 
             // 1. 월별 필터
@@ -2198,22 +2257,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let dashTagTab = 'member'; // 'member' | 'evangelism'
     let dashTagData = { member: [], evangelism: [] };
     let trendChartInstance = null;
-    let trendMonthly = { member: {}, evangelism: {} }; // 전체 세션을 'YYYY-MM'으로 집계
-    let trendYearInited = false;
+    let trendMonthly = { member: {}, evangelism: {} }; // 전체 세션을 'YYYY-MM'으로 집계 (allStatus 기준)
+    let trendYears = []; // 데이터가 있는 연도(오름차순)
 
-    // 선택된 연도의 1~12월 추이를 렌더링
-    function renderSelectedYearTrend() {
-        const sel = document.getElementById('trendYearSelect');
-        const year = (sel && sel.value) ? sel.value : String(new Date().getFullYear());
+    // 전역 연도 필터에 따라 추이 그래프를 렌더링
+    //  - 특정 연도: 그 해 1~12월
+    //  - 전체 년도(''): 연도별 합계
+    function renderTrend() {
         const titleEl = document.getElementById('trendTitleYear');
-        if (titleEl) titleEl.textContent = `${year}년`;
-        const months = [];
-        for (let m = 1; m <= 12; m++) months.push(`${year}-${String(m).padStart(2, '0')}`);
-        renderTrendChart(
-            months,
-            months.map(m => trendMonthly.member[m] || 0),
-            months.map(m => trendMonthly.evangelism[m] || 0)
-        );
+        if (filterYear) {
+            if (titleEl) titleEl.textContent = `${filterYear}년`;
+            const months = [];
+            for (let m = 1; m <= 12; m++) months.push(`${filterYear}-${String(m).padStart(2, '0')}`);
+            renderTrendChart(
+                months,
+                months.map(m => trendMonthly.member[m] || 0),
+                months.map(m => trendMonthly.evangelism[m] || 0)
+            );
+        } else {
+            if (titleEl) titleEl.textContent = '전체';
+            const years = trendYears;
+            const sumYear = (grp, y) => Object.keys(trendMonthly[grp])
+                .filter(ym => ym.substring(0, 4) === y)
+                .reduce((acc, ym) => acc + trendMonthly[grp][ym], 0);
+            renderTrendChart(
+                years.map(y => `${y}-01`),
+                years.map(y => sumYear('member', y)),
+                years.map(y => sumYear('evangelism', y)),
+                years.map(y => `${y}년`)
+            );
+        }
     }
 
     function renderTopTags() {
@@ -2274,7 +2347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function renderTrendChart(months, memberData, evData) {
+    function renderTrendChart(months, memberData, evData, labelsOverride) {
         const ctx = document.getElementById('counselingTrendChart')?.getContext('2d');
         if (!ctx) return;
 
@@ -2289,7 +2362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trendChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: months.map(m => {
+                labels: labelsOverride || months.map(m => {
                     const [y, mm] = m.split('-');
                     return `${parseInt(mm)}월`;
                 }),
@@ -2564,14 +2637,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dashTagData = { member: toSorted(memberTagCounts), evangelism: toSorted(evangelismTagCounts) };
         renderTopTags();
 
-        // 6. 월별 추이 데이터 계산 (전체 세션을 'YYYY-MM'으로 집계) → 연도별 렌더링
+        // 6. 월별 추이 데이터 계산 — 그래프는 항상 '전체 데이터(allStatus)'를 기준으로 집계하고,
+        //    보여주는 범위(특정 연도 / 전체 연도별)는 filterYear로 renderTrend()에서 결정한다.
         trendMonthly = { member: {}, evangelism: {} };
         const yearSet = new Set();
-
-        data.forEach(member => {
+        (allStatus || []).forEach(member => {
             const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
-
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
             sessions.forEach(s => {
                 if (!s.date) return;
@@ -2581,26 +2653,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 yearSet.add(s.date.substring(0, 4));
             });
         });
+        trendYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b)); // 오름차순 (x축)
 
-        // 연도 선택 옵션 구성 (데이터가 있는 연도 + 올해, 내림차순)
-        const currentYear = String(now.getFullYear());
-        yearSet.add(currentYear);
-        const years = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
-        const yearSel = document.getElementById('trendYearSelect');
-        if (yearSel) {
-            const prev = yearSel.value;
-            yearSel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
-            if (prev && years.includes(prev)) yearSel.value = prev;
-            else if (years.includes(currentYear)) yearSel.value = currentYear;
-            else yearSel.value = years[0];
-
-            if (!trendYearInited) {
-                yearSel.addEventListener('change', renderSelectedYearTrend);
-                trendYearInited = true;
-            }
-        }
-
-        renderSelectedYearTrend();
+        renderTrend();
     }
 
     // 필터링 적용 시 대시보드 그래프 외 기타 상담주제 등의 수치만 갱신하기 위한 함수

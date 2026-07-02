@@ -340,6 +340,9 @@
                     <span class="text-slate-300 dark:text-slate-650">/</span>
                     <button type="button" id="btnFilterMonthly" class="hover:underline text-indigo-600 dark:text-indigo-405 font-bold">당월 <span id="monthlyHeaderCount">-</span>건</button>)
                 </span>
+                <select id="globalYearSelect" class="ml-1 text-[11px] font-bold border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer">
+                    <option value="">전체 년도</option>
+                </select>
             </div>
             <button id="toggleDashboardBtn" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer outline-none">
                 <span id="dashboardToggleText">대시보드 접기</span> <i id="dashboardToggleIcon" class="fa-solid fa-chevron-up"></i>
@@ -449,7 +452,6 @@
                         <span class="text-xs font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                             <i class="fa-solid fa-chart-line text-blue-500"></i> 월별 상담 건수 추이 <span id="trendTitleYear" class="text-blue-500 dark:text-blue-400"></span>
                         </span>
-                        <select id="trendYearSelect" class="text-[11px] font-bold border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"></select>
                     </div>
                     <div class="h-48 lg:h-52 w-full relative my-auto">
                         <canvas id="counselingTrendChart"></canvas>
