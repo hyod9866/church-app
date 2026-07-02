@@ -90,16 +90,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const years = Array.from(yearSet).sort((a, b) => b.localeCompare(a)); // 내림차순
         sel.innerHTML = `<option value="">전체 년도</option>` + years.map(y => `<option value="${y}">${y}년</option>`).join('');
-        // 기존 선택 유지 (데이터에 없으면 전체)
-        filterYear = years.includes(filterYear) ? filterYear : '';
-        sel.value = filterYear;
         if (!sel.dataset.bound) {
+            // 최초 로드 기본값: 올해(데이터 있으면), 없으면 전체
+            const currentYear = String(new Date().getFullYear());
+            filterYear = years.includes(currentYear) ? currentYear : '';
             sel.addEventListener('change', () => {
                 filterYear = sel.value;
                 applyGlobalYear();
             });
             sel.dataset.bound = '1';
+        } else {
+            // 데이터 새로고침 시 사용자가 고른 연도 유지 (데이터에 없으면 전체)
+            filterYear = years.includes(filterYear) ? filterYear : '';
         }
+        sel.value = filterYear;
     }
 
     // 전역 연도 필터 적용 — 분포/그래프/주제/카운트(대시보드)와 상담자 목록을 함께 갱신
