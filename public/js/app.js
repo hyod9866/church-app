@@ -298,7 +298,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const timePrefix = startTime ? `<span class="hidden md:inline text-[11px] text-slate-500 font-semibold mr-1">${formattedTime}</span>` : '';
-            return { html: `<div class="p-1 overflow-hidden"><div class="font-bold text-[13px] truncate">${timePrefix}${arg.event.title}${(type === '설교' || type === '외부설교' || type === '교회행사' || type === '구원기념일') ? '' : ` (${count})`}</div>${subtext}</div>` };
+            const isSalvation = (type === '구원기념일');
+            const titleClass = isSalvation ? 'font-bold text-[13px] whitespace-normal break-all' : 'font-bold text-[13px] truncate';
+            return { html: `<div class="p-1 overflow-hidden"><div class="${titleClass}">${timePrefix}${arg.event.title}${(type === '설교' || type === '외부설교' || type === '교회행사' || isSalvation) ? '' : ` (${count})`}</div>${subtext}</div>` };
         },
         dateClick: (info) => {
             const parts = info.dateStr.split('T');
