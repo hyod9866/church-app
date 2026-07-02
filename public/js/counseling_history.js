@@ -13,6 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return [...relationsArray].sort((a, b) => priority(a) - priority(b));
     }
 
+    // 인도대상 / 모임 / 특징을 해시태그 칩으로 렌더링
+    //  - @이름  → 인도대상 (클릭 시 해당 인물 이력 열림, 앰버 칩)
+    //  - #무엇  → 모임/특징 (회색 칩)
+    //  - 접두사 없는 값 → 회색 칩 (구버전 '모임' 데이터 호환)
+    function buildLeadChips(leadTarget, size) {
+        const raw = (leadTarget || '').trim();
+        if (!raw) return '';
+        const px = size === 'md' ? 'text-[10px] px-2' : 'text-[9px] px-1.5';
+        const tokens = raw.split(/\s+/).filter(Boolean);
+        return tokens.map(tok => {
+            if (tok.startsWith('@')) {
+                const name = tok.slice(1).trim();
+                if (!name) return '';
+                const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `<span class="${px} py-0.5 rounded border font-black cursor-pointer hover:underline bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 border-amber-200/80 dark:border-amber-900/50" onclick="event.stopPropagation(); openMemberHistoryModalByName('${safe}')">🤝 ${name}</span>`;
+            }
+            const name = tok.startsWith('#') ? tok.slice(1).trim() : tok.trim();
+            if (!name) return '';
+            return `<span class="${px} py-0.5 rounded border font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 border-slate-200 dark:border-slate-700/60">#${name}</span>`;
+        }).filter(Boolean).join(' ');
+    }
+
     const counselingList = document.getElementById('counselingList');
     const sortOption = document.getElementById('sortOption');
     const counselingCount = document.getElementById('counselingCount');
@@ -241,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div>
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">인도대상 / 모임</label>
-                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="#이름 또는 모임명 입력...">
+                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="@인도대상 #모임 #특징 (여러 개 가능)">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
@@ -453,17 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tagsHtml = renderTagBadge(session.tags || '', session.member_status);
         const latestLabel = isLatest ? `<span class="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded">최근</span>` : '';
 
-        const leadTarget = session.lead_target || '';
-        let sessionLeadHtml = '';
-        if (leadTarget) {
-            const isHash = leadTarget.startsWith('#');
-            const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
-            if (isHash) {
-                sessionLeadHtml = `<span class="text-[9px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
-            } else {
-                sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
-            }
-        }
+        const sessionLeadHtml = buildLeadChips(session.lead_target, 'sm');
 
         return `
             <div class="counsel-session-card mt-2 p-2.5 bg-gray-50 dark:bg-[#0B0F19] rounded-lg border border-gray-100 dark:border-slate-800 text-xs relative"
@@ -477,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-counseling-method="${session.counseling_method || '대면'}"
                  data-category="${category}"
                  data-bs="${bs}">
-                <div class="flex items-center gap-1.5 mb-1 pr-20">
+                <div class="flex items-center flex-wrap gap-1.5 mb-1 pr-20">
                     ${latestLabel}
                     <span class="font-bold text-indigo-600 dark:text-indigo-400">${session.date || ''}</span>
                     ${methodBadge}
@@ -640,16 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const displayInfoText = parts.join(' · ');
 
             const latestLeadTarget = latestSession && latestSession.lead_target ? latestSession.lead_target : '';
-            let leadTargetHtml = '';
-            if (latestLeadTarget) {
-                const isHash = latestLeadTarget.startsWith('#');
-                const cleanName = isHash ? latestLeadTarget.slice(1).trim() : latestLeadTarget;
-                if (isHash) {
-                    leadTargetHtml = `<span class="text-[10px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-2 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
-                } else {
-                    leadTargetHtml = `<span class="text-[10px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
-                }
-            }
+            const leadTargetHtml = buildLeadChips(latestLeadTarget, 'md');
 
             const hasSessions = sessions.length > 0;
             // If filtering, chevron should start pointing up since we auto-expand the wrapper
@@ -978,22 +981,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         const memberBadge = isEv 
                             ? '<span class="text-[9px] bg-orange-105 dark:bg-orange-950/30 text-orange-600 dark:text-orange-450 px-1.5 py-0.5 rounded font-bold border border-orange-200/60">전도대상</span>'
                             : '';
-                        const leadTarget = s.lead_target || '';
-                        let sessionLeadHtml = '';
-                        if (leadTarget) {
-                            const isHash = leadTarget.startsWith('#');
-                            const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
-                            if (isHash) {
-                                sessionLeadHtml = `<span class="text-[9px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
-                            } else {
-                                sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
-                            }
-                        }
+                        const sessionLeadHtml = buildLeadChips(s.lead_target, 'sm');
 
                         return `
                             <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}" data-remark-memo="${s.remark_memo || ''}" data-lead-target="${s.lead_target || ''}" data-category="${member.category || '모름'}" data-bs="${member.bs || ''}">
                                 <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center flex-wrap gap-2">
                                         <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
                                         ${sourceLabel}
                                         ${memberBadge}
@@ -1122,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">인도대상 / 모임</label>
-                                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="#이름 또는 모임명 입력...">
+                                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="@인도대상 #모임 #특징 (여러 개 가능)">
                                     </div>
                                     <div>
                                         <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
