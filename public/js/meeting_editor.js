@@ -375,6 +375,34 @@ function updateSermonTagActiveState(tagVal) {
     }
 }
 
+// 개인상담 패널 프리셋 태그 (모듈 스코프 — resetCounselingPanel/openMeetingModal 등 어디서든 호출 가능)
+const MODAL_MEMBER_PRESET_TAGS = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+const MODAL_EVANGELISM_PRESET_TAGS = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+
+function updateModalPresetTags(status) {
+    const container = document.getElementById('modalCounselTagBtns');
+    if (!container) return;
+
+    container.querySelectorAll('.mcounsel-tag-btn:not(.custom-counsel-tag)').forEach(b => b.remove());
+
+    const tags = status === 'evangelism' ? MODAL_EVANGELISM_PRESET_TAGS : MODAL_MEMBER_PRESET_TAGS;
+    const borderCls = status === 'evangelism'
+        ? 'border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white hover:border-orange-500'
+        : 'border-indigo-200 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-650 hover:text-white hover:border-indigo-650';
+
+    const fragment = document.createDocumentFragment();
+    tags.forEach(t => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.tag = t;
+        btn.className = `mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-white dark:bg-slate-800 transition-all cursor-pointer ${borderCls}`;
+        btn.textContent = '#' + t;
+        fragment.appendChild(btn);
+    });
+
+    container.insertBefore(fragment, container.firstChild);
+}
+
 // Bind all events inside meetingModal. Only run once.
 function bindEditorEvents() {
     const modal = document.getElementById('meetingModal');
@@ -452,33 +480,6 @@ function bindEditorEvents() {
     }
 
     // 개인상담 패널 이벤트 바인딩
-    const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
-    const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
-
-    function updateModalPresetTags(status) {
-        const container = document.getElementById('modalCounselTagBtns');
-        if (!container) return;
-        
-        container.querySelectorAll('.mcounsel-tag-btn:not(.custom-counsel-tag)').forEach(b => b.remove());
-        
-        const tags = status === 'evangelism' ? evangelismTags : memberTags;
-        const borderCls = status === 'evangelism' 
-            ? 'border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white hover:border-orange-500' 
-            : 'border-indigo-200 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-650 hover:text-white hover:border-indigo-650';
-        
-        const fragment = document.createDocumentFragment();
-        tags.forEach(t => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.dataset.tag = t;
-            btn.className = `mcounsel-tag-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-white dark:bg-slate-800 transition-all cursor-pointer ${borderCls}`;
-            btn.textContent = '#' + t;
-            fragment.appendChild(btn);
-        });
-        
-        container.insertBefore(fragment, container.firstChild);
-    }
-
     // 이름 자동완성
     const modalNameInput = document.getElementById('modalCounselingName');
     const modalSuggestions = document.getElementById('modalCounselingSuggestions');
