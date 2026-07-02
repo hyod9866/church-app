@@ -425,10 +425,11 @@ async function fetchAttendanceCharts() {
                 // 따라서 제목으로 구역/조를 구분한다. (예: "전체 조모임" → 조모임, "전체구역모임" → 구역모임)
                 if ((m.title || '').includes('조')) {
                     chartKey = 'grpChart';   // 전체 조모임 → 조모임 차트에 구역별로 분배
-                } else {
-                    chartKey = 'distChart';  // 전체(구역)모임 → 구역모임 차트에 구역별로 분배
+                    useDistrictBreakdown = true;
+                } else if ((m.title || '').includes('구역')) {
+                    chartKey = 'distChart';  // 전체구역모임 → 구역모임 차트에 구역별로 분배
+                    useDistrictBreakdown = true;
                 }
-                useDistrictBreakdown = true;
             } else if (m.type.includes('전체조모임')) {
                 // 전체로 진행된 조모임 → 조모임 차트에 구역별로 분배
                 chartKey = 'grpChart';
