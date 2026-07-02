@@ -2215,17 +2215,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const barColor = tab === 'member' ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-orange-500 dark:bg-orange-400';
             const countColor = tab === 'member' ? 'text-indigo-600 dark:text-indigo-400' : 'text-orange-600 dark:text-orange-400';
             const tagColor = tab === 'member' ? 'text-indigo-600 dark:text-indigo-400' : 'text-orange-600 dark:text-orange-400';
-            container.innerHTML = list.slice(0, 8).map(item => {
+            container.innerHTML = list.slice(0, 10).map(item => {
                 const pct = Math.round((item.count / maxCount) * 100);
                 return `
-                    <div class="space-y-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="openTagDetailsModal('${item.tag}', '${tab}')">
-                        <div class="flex justify-between items-center text-[11px] font-bold">
-                            <span class="${tagColor} font-extrabold">#${item.tag}</span>
-                            <span class="${countColor} font-black">${item.count}건</span>
+                    <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="openTagDetailsModal('${item.tag}', '${tab}')">
+                        <span class="${tagColor} font-extrabold text-[11px] w-20 shrink-0 truncate" title="#${item.tag}">#${item.tag}</span>
+                        <div class="flex-1 min-w-0 bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                            <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${pct}%; min-width: 4px;"></div>
                         </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                            <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                        </div>
+                        <span class="${countColor} font-black text-[11px] w-8 text-right shrink-0">${item.count}건</span>
                     </div>
                 `;
             }).join('');
