@@ -2245,16 +2245,27 @@ function parseCounselingContent(rawText) {
 }
 
 function parseMemoField(memoText) {
-  const match = (memoText || '').match(/^\[lead:(.*?)\]\s*(.*)/s);
-  if (match) {
-    return {
-      lead_target: match[1].trim(),
-      remark_memo: match[2].trim()
-    };
+  let text = (memoText || '').trim();
+  let lead_target = '';
+  let counseling_method = '';
+
+  const leadMatch = text.match(/^\[lead:(.*?)\]\s*/s);
+  if (leadMatch) {
+    lead_target = leadMatch[1].trim();
+    text = text.slice(leadMatch[0].length);
   }
+
+  const methodMatch = text.match(/^\[method:(.*?)\]\s*/s);
+  if (methodMatch) {
+    counseling_method = methodMatch[1].trim();
+    text = text.slice(methodMatch[0].length);
+  }
+
   return {
-    lead_target: '',
-    remark_memo: (memoText || '').trim()
+    lead_target,
+    // 기존 데이터에는 [method:...] 이 없으므로 대면을 기본값으로 둔다
+    counseling_method: counseling_method || '대면',
+    remark_memo: text.trim()
   };
 }
 
@@ -2323,6 +2334,7 @@ app.get('/api/counseling', async (req, res) => {
         is_present: a.is_present,
         member_status: memberMap[a.member_id]?.member_status || 'member',
         lead_target: parsedMemo.lead_target,
+        counseling_method: parsedMemo.counseling_method,
         remark_memo: parsedMemo.remark_memo
       });
     });
@@ -2350,6 +2362,7 @@ app.get('/api/counseling', async (req, res) => {
         record_id: r.id,
         member_status: memberMap[r.member_id]?.member_status || 'member',
         lead_target: parsedMemo.lead_target,
+        counseling_method: parsedMemo.counseling_method,
         remark_memo: parsedMemo.remark_memo
       });
     });
@@ -2476,7 +2489,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, lead_target, counseling_method, church, parish, district, category, bs, member_status } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2550,7 +2563,8 @@ app.post('/api/counseling', async (req, res) => {
     // 2. meetings에 개인상담 일정 생성
     const meetingTitle = `${name} 개인상담`;
     const finalLead = lead_target ? lead_target.trim() : '';
-    const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+    const finalMethod = counseling_method === '전화' ? '전화' : '대면';
+    const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
 
     const { data: newMeeting, error: meetErr } = await supabase
       .from('meetings')
@@ -2585,7 +2599,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, lead_target, member_status, member_id } = req.body;
+  const { date, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id } = req.body;
 
   try {
     let fullContent = '';
@@ -2608,7 +2622,8 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
 
       const meetUpdate = { date };
       const finalLead = lead_target ? lead_target.trim() : '';
-      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      const finalMethod = counseling_method === '전화' ? '전화' : '대면';
+      const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
       meetUpdate.memo = finalMemo;
       await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
       if (memberId) {
@@ -2623,7 +2638,8 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       const recordId = sessionId.replace('r_', '');
       let remarkText = fullContent ? `[상담] ${fullContent}` : '[상담] 내용 없음';
       const finalLead = lead_target ? lead_target.trim() : '';
-      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      const finalMethod = counseling_method === '전화' ? '전화' : '대면';
+      const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
       remarkText += ` (비고: ${finalMemo})`;
       await supabase.from('member_records').update({ date, remark: remarkText }).eq('id', recordId);
     }
