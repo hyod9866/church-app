@@ -1001,7 +1001,15 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         const typeStr = m.type || '';
         if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
             let targetParams = new URLSearchParams({ status: 'active' });
-            if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
+            // 교구전체모임/전체조모임: 특정 구역이 아니라 강효근이 소속된 교구 전체가 대상
+            const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
+            if (isParishWide) {
+                try {
+                    const profRes = await fetch('/api/users/default-profile');
+                    const prof = profRes.ok ? await profRes.json() : null;
+                    if (prof && prof.parish) targetParams.append('parish', prof.parish);
+                } catch (e) {}
+            } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
                 const distMatch = typeStr.match(/\d+/);
                 if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
             } else if (typeStr === '교구임원모임') {
@@ -1014,7 +1022,10 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
 
             const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
             let allTargets = await mRes.json();
-            
+
+            // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
+            allTargets = allTargets.filter(member => member.member_status !== 'evangelism');
+
             if (typeStr.includes('형제모임')) {
                 const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
                 const eMembers = await eRes.json();
