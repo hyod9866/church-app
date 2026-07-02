@@ -141,7 +141,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const positionMatch = (s.position || '').toLowerCase().includes(query);
                 const categoryMatch = (s.category || '').toLowerCase().includes(query);
                 const districtTextMatch = (s.district || '').toLowerCase().includes(query);
-                if (!nameMatch && !dateMatch && !contentMatch && !tagsMatch && !positionMatch && !categoryMatch && !districtTextMatch) return false;
+                // 인도대상(@이름) / 모임·특징(#태그) 검색 — 전체 상담 세션의 lead_target 대상
+                // @, # 접두사와 무관하게 매칭되도록 원문을 그대로 훑는다 ("@홍길동".includes("홍길동") = true)
+                const searchSessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
+                const leadMatch = searchSessions.some(sess => (sess.lead_target || '').toLowerCase().includes(query));
+                if (!nameMatch && !dateMatch && !contentMatch && !tagsMatch && !positionMatch && !categoryMatch && !districtTextMatch && !leadMatch) return false;
             }
             return true;
         });
