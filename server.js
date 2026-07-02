@@ -1672,28 +1672,46 @@ app.get('/api/meetings', async (req, res) => {
     const years = [2024, 2025, 2026, 2027, 2028];
     
     if (members) {
+      const groups = {}; // key: "MM-DD" -> value: array of { id, name, suffix }
       members.forEach(member => {
         const dateParts = member.salvation_date.split('-');
         if (dateParts.length === 3) {
           const month = dateParts[1];
           const day = dateParts[2];
+          const key = `${month}-${day}`;
           
           let suffix = member.bs === 'B' ? 'B' : (member.bs === 'S' ? 'S' : '');
           if (member.position && member.position.includes('집사')) {
             suffix = 'D';
           }
           
-          years.forEach(year => {
-            anniversaries.push({
-              id: `salvation-${member.id}-${year}`,
-              title: `🎂 ${member.name}${suffix}`,
-              date: `${year}-${month}-${day}`,
-              type: '구원기념일',
-              sermon_title: '',
-              attendee_count: 0
-            });
+          if (!groups[key]) {
+            groups[key] = [];
+          }
+          groups[key].push({
+            id: member.id,
+            name: member.name,
+            suffix: suffix
           });
         }
+      });
+
+      Object.keys(groups).forEach(key => {
+        const [month, day] = key.split('-');
+        const list = groups[key];
+        const joinedNames = list.map(item => `${item.name}${item.suffix}`).join(', ');
+        
+        years.forEach(year => {
+          anniversaries.push({
+            id: list.length === 1 ? `salvation-${list[0].id}-${year}` : `salvation-${key}-${year}`,
+            title: `🎂 ${joinedNames}`,
+            date: `${year}-${month}-${day}`,
+            type: '구원기념일',
+            sermon_title: '',
+            attendee_count: 0,
+            members: list
+          });
+        });
       });
     }
     

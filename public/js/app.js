@@ -324,9 +324,76 @@ document.addEventListener('DOMContentLoaded', function() {
         eventClick: (info) => {
             const id = info.event.id;
             if (id && id.toString().startsWith('salvation-')) {
-                const memberId = id.split('-')[1];
-                if (typeof openMemberHistoryModal === 'function') {
-                    openMemberHistoryModal(memberId);
+                const members = info.event.extendedProps.members;
+                
+                const showSalvationSelectionModal = (membersList) => {
+                    const existing = document.getElementById('salvationSelectionModal');
+                    if (existing) existing.remove();
+                    
+                    const modal = document.createElement('div');
+                    modal.id = 'salvationSelectionModal';
+                    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 transition-all duration-300 opacity-0';
+                    modal.innerHTML = `
+                        <div class="bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform scale-95 transition-all duration-300 ease-out">
+                            <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm md:text-base flex items-center gap-2">
+                                    <span>🎂</span> 구원기념일 성도 선택
+                                </h3>
+                                <button type="button" class="close-salvation-modal text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="p-5 flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                ${membersList.map(m => `
+                                    <button type="button" data-id="${m.id}" class="select-member-btn w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-200 font-bold hover:text-blue-600 dark:hover:text-blue-400 border border-slate-100 dark:border-slate-800/80 hover:border-blue-100 dark:hover:border-blue-900 transition-all flex justify-between items-center active:scale-[0.98]">
+                                        <span>${m.name}${m.suffix ? `<span class="ml-1 text-[11px] font-black text-slate-400 dark:text-slate-500">${m.suffix}</span>` : ''}</span>
+                                        <svg class="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    
+                    requestAnimationFrame(() => {
+                        modal.classList.remove('opacity-0');
+                        modal.querySelector('div').classList.remove('scale-95');
+                    });
+                    
+                    const closeModal = () => {
+                        modal.classList.add('opacity-0');
+                        modal.querySelector('div').classList.add('scale-95');
+                        setTimeout(() => modal.remove(), 300);
+                    };
+                    
+                    modal.querySelector('.close-salvation-modal').addEventListener('click', closeModal);
+                    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+                    modal.querySelectorAll('.select-member-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const memberId = btn.dataset.id;
+                            closeModal();
+                            if (typeof openMemberHistoryModal === 'function') {
+                                openMemberHistoryModal(memberId);
+                            }
+                        });
+                    });
+                };
+
+                if (members && members.length > 1) {
+                    showSalvationSelectionModal(members);
+                } else if (members && members.length === 1) {
+                    if (typeof openMemberHistoryModal === 'function') {
+                        openMemberHistoryModal(members[0].id);
+                    }
+                } else {
+                    const memberId = id.split('-')[1];
+                    if (typeof openMemberHistoryModal === 'function') {
+                        openMemberHistoryModal(memberId);
+                    }
                 }
                 return;
             }
