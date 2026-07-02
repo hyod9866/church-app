@@ -418,8 +418,17 @@ async function fetchAttendanceCharts() {
             
             let chartKey = null;
             let groupName = '전체';
-            
-            if (m.type.includes('구역모임')) {
+            let useDistrictBreakdown = false; // 통합 모임: 구역별(581/582/583)로 쪼개 집계
+
+            if (m.type.includes('교구전체모임')) {
+                // 교구 전체로 진행된 구역모임 → 구역모임 차트에 구역별로 분배
+                chartKey = 'distChart';
+                useDistrictBreakdown = true;
+            } else if (m.type.includes('전체조모임')) {
+                // 전체로 진행된 조모임 → 조모임 차트에 구역별로 분배
+                chartKey = 'grpChart';
+                useDistrictBreakdown = true;
+            } else if (m.type.includes('구역모임')) {
                 chartKey = 'distChart';
                 groupName = m.type.replace('구역모임', '').trim() || '구역';
             } else if (m.type.includes('조모임')) {
@@ -437,19 +446,22 @@ async function fetchAttendanceCharts() {
                 const targetKeys = (chartKey === 'distChart' || chartKey === 'grpChart') ? monthKeys12 : monthKeys6;
                 if (!targetKeys.includes(monthKey)) return;
                 
-                if (chartKey === 'broChart' || chartKey === 'ythChart') {
+                if (chartKey === 'broChart' || chartKey === 'ythChart' || useDistrictBreakdown) {
                     const distAttendees = m.district_attendees && Object.keys(m.district_attendees).length > 0
                         ? m.district_attendees
                         : { '미지정': m.attendee_count || 0 };
-                    
+
                     const distTestimonies = m.district_testimonies || {};
 
                     Object.keys(distAttendees).forEach(dist => {
                         const count = distAttendees[dist] || 0;
                         if (count === 0) return;
-                        
-                        const subGroupName = dist;
-                        
+
+                        // 구역/조모임 차트는 기존 계열 키가 "581" 형태이므로 "581구역" → "581"로 정규화해 합친다.
+                        const subGroupName = (chartKey === 'distChart' || chartKey === 'grpChart')
+                            ? (dist.replace('구역', '').trim() || dist)
+                            : dist;
+
                         if (!categories[chartKey][subGroupName]) {
                             categories[chartKey][subGroupName] = {};
                             targetKeys.forEach(mk => {
