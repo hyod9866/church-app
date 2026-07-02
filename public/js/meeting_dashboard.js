@@ -421,8 +421,13 @@ async function fetchAttendanceCharts() {
             let useDistrictBreakdown = false; // 통합 모임: 구역별(581/582/583)로 쪼개 집계
 
             if (m.type.includes('교구전체모임')) {
-                // 교구 전체로 진행된 구역모임 → 구역모임 차트에 구역별로 분배
-                chartKey = 'distChart';
+                // 편집 드롭다운에 '전체조모임' 항목이 없어 전체구역/전체조모임을 모두 '교구전체모임' 구분으로 기록한다.
+                // 따라서 제목으로 구역/조를 구분한다. (예: "전체 조모임" → 조모임, "전체구역모임" → 구역모임)
+                if ((m.title || '').includes('조')) {
+                    chartKey = 'grpChart';   // 전체 조모임 → 조모임 차트에 구역별로 분배
+                } else {
+                    chartKey = 'distChart';  // 전체(구역)모임 → 구역모임 차트에 구역별로 분배
+                }
                 useDistrictBreakdown = true;
             } else if (m.type.includes('전체조모임')) {
                 // 전체로 진행된 조모임 → 조모임 차트에 구역별로 분배
@@ -1025,6 +1030,11 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
 
             // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
             allTargets = allTargets.filter(member => member.member_status !== 'evangelism');
+
+            // 교구전체모임 구분이지만 제목이 '조모임'이면 조모임 대상(성도 S, 청년 제외) 기준을 적용
+            if (isParishWide && (m.title || '').includes('조')) {
+                allTargets = allTargets.filter(member => member.bs === 'S' && member.category !== '청년회');
+            }
 
             if (typeStr.includes('형제모임')) {
                 const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
