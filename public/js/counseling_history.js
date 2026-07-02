@@ -2198,6 +2198,23 @@ document.addEventListener('DOMContentLoaded', () => {
     let dashTagTab = 'member'; // 'member' | 'evangelism'
     let dashTagData = { member: [], evangelism: [] };
     let trendChartInstance = null;
+    let trendMonthly = { member: {}, evangelism: {} }; // 전체 세션을 'YYYY-MM'으로 집계
+    let trendYearInited = false;
+
+    // 선택된 연도의 1~12월 추이를 렌더링
+    function renderSelectedYearTrend() {
+        const sel = document.getElementById('trendYearSelect');
+        const year = (sel && sel.value) ? sel.value : String(new Date().getFullYear());
+        const titleEl = document.getElementById('trendTitleYear');
+        if (titleEl) titleEl.textContent = `${year}년`;
+        const months = [];
+        for (let m = 1; m <= 12; m++) months.push(`${year}-${String(m).padStart(2, '0')}`);
+        renderTrendChart(
+            months,
+            months.map(m => trendMonthly.member[m] || 0),
+            months.map(m => trendMonthly.evangelism[m] || 0)
+        );
+    }
 
     function renderTopTags() {
         const renderList = (tab, containerId) => {
@@ -2547,33 +2564,43 @@ document.addEventListener('DOMContentLoaded', () => {
         dashTagData = { member: toSorted(memberTagCounts), evangelism: toSorted(evangelismTagCounts) };
         renderTopTags();
 
-        // 6. 월별 추이 데이터 계산 및 Chart.js 그래프 렌더링
-        const months = [];
-        const monthlyCounts = { member: {}, evangelism: {} };
-
-        for (let i = 11; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            months.push(ym);
-            monthlyCounts.member[ym] = 0;
-            monthlyCounts.evangelism[ym] = 0;
-        }
+        // 6. 월별 추이 데이터 계산 (전체 세션을 'YYYY-MM'으로 집계) → 연도별 렌더링
+        trendMonthly = { member: {}, evangelism: {} };
+        const yearSet = new Set();
 
         data.forEach(member => {
             const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
-            
+
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
             sessions.forEach(s => {
                 if (!s.date) return;
                 const ym = s.date.substring(0, 7); // "YYYY-MM"
-                if (monthlyCounts[group][ym] !== undefined) {
-                    monthlyCounts[group][ym]++;
-                }
+                if (!/^\d{4}-\d{2}$/.test(ym)) return;
+                trendMonthly[group][ym] = (trendMonthly[group][ym] || 0) + 1;
+                yearSet.add(s.date.substring(0, 4));
             });
         });
 
-        renderTrendChart(months, months.map(m => monthlyCounts.member[m]), months.map(m => monthlyCounts.evangelism[m]));
+        // 연도 선택 옵션 구성 (데이터가 있는 연도 + 올해, 내림차순)
+        const currentYear = String(now.getFullYear());
+        yearSet.add(currentYear);
+        const years = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
+        const yearSel = document.getElementById('trendYearSelect');
+        if (yearSel) {
+            const prev = yearSel.value;
+            yearSel.innerHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
+            if (prev && years.includes(prev)) yearSel.value = prev;
+            else if (years.includes(currentYear)) yearSel.value = currentYear;
+            else yearSel.value = years[0];
+
+            if (!trendYearInited) {
+                yearSel.addEventListener('change', renderSelectedYearTrend);
+                trendYearInited = true;
+            }
+        }
+
+        renderSelectedYearTrend();
     }
 
     // 필터링 적용 시 대시보드 그래프 외 기타 상담주제 등의 수치만 갱신하기 위한 함수
