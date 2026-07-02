@@ -189,7 +189,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     else if (t.includes('교구')) { bg = '#e0f2fe'; tc = '#1e3a8a'; br = '#bae6fd'; }
                     else if (t.includes('심방')) { bg = '#f0fdfa'; tc = '#134e4a'; br = '#ccfbf1'; }
                     else if (t.includes('교회행사')) { bg = '#f3e8ff'; tc = '#6b21a8'; br = '#e9d5ff'; }
-                    else if (t.includes('구원기념일')) { bg = 'transparent'; tc = '#0f172a'; br = 'transparent'; ord = 2; }
+                    else if (t.includes('상담')) { bg = '#f3f4f6'; tc = '#111827'; br = '#e5e7eb'; ord = 2; }
+                    else if (t.includes('구원기념일')) { bg = 'transparent'; tc = '#0f172a'; br = 'transparent'; ord = 3; }
                     else { bg = '#f3f4f6'; tc = '#111827'; br = '#e5e7eb'; }
                     
                     const isAllDay = !m.start_time;
