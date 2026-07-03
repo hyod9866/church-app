@@ -714,7 +714,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const attendanceTabContainer = document.getElementById('tabContent_attendance');
             if (attendanceTabContainer) {
                 attendanceTabContainer.innerHTML = `
-                    <div class="mb-5 grid grid-cols-4 gap-3">
+                    <div class="mb-4 grid grid-cols-4 gap-3">
                         <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-blue-500 bg-blue-50/20 ring-2 ring-blue-100/50" data-filter="all">
                             <span class="text-xl md:text-2xl mb-0.5">📊</span>
                             <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">전체 모임</span>
@@ -749,8 +749,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
 
-                    <div class="mb-6">
-                        <h4 class="font-extrabold mb-4 text-slate-800 border-l-4 border-emerald-600 pl-3 flex justify-between items-center text-sm md:text-base">
+                    <div class="mb-3">
+                        <h4 class="font-extrabold mb-2.5 text-slate-800 border-l-4 border-emerald-600 pl-3 flex justify-between items-center text-sm md:text-base">
                             <span id="attListTitle" class="font-black text-slate-800">전체 출석 히스토리</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs md:text-sm font-semibold text-slate-500">선택 출석률</span>
@@ -761,10 +761,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             <table class="w-full text-sm text-left border-collapse bg-white">
                                 <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
                                     <tr>
-                                        <th class="py-2 px-2.5 w-[110px] border-r">날짜</th>
-                                        <th class="py-2 px-2.5 min-w-[150px] border-r">모임정보</th>
-                                        <th class="py-2 px-2.5 text-center w-[90px] border-r">출석 여부</th>
-                                        <th class="py-2 px-2.5">간증 스냅샷</th>
+                                        <th class="py-1.5 px-2.5 w-[110px] border-r">날짜</th>
+                                        <th class="py-1.5 px-2.5 min-w-[150px] border-r">모임정보</th>
+                                        <th class="py-1.5 px-2.5 text-center w-[90px] border-r">출석 여부</th>
+                                        <th class="py-1.5 px-2.5">간증 스냅샷</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
