@@ -210,7 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Fetch records for real-time position calculation
             const recRes = await fetch(`/api/members/${id}/records`);
             const records = await recRes.json();
-            
+
+            // 상담 기록 탭용: 달력(meetings) 기반 + 레거시(member_records) 기반 상담을 병합해서 반환하는 API
+            // (counseling_history.js의 상담 관리 모달과 동일한 소스를 사용해서 여기서도 최신 방식으로 등록한
+            // 상담이 빠짐없이 보이도록 함)
+            const counselingRes = await fetch(`/api/counseling/${id}`);
+            const counselingSessions = await counselingRes.json();
+
             // Calculate current position and service from history records
             let calculatedPosArray = [];
             let calculatedSvcArray = [];
@@ -666,51 +672,145 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (visList) visList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">심방 기록이 없습니다.</p>';
             }
 
-            // Counseling Memos (개인 상담 기록 탭)
+            // Counseling Memos (개인 상담 기록 탭) — counseling_history.js의 상담 관리 모달과 동일하게
+            // meetings(달력) + member_records(레거시) 병합 데이터(counselingSessions)를 사용
             const counselingMemoList = document.getElementById('counselingMemoList');
-            const cMemos = records.filter(r => r.status === 'COUNSELING');
             if (counselingMemoList) {
-                if (cMemos.length) {
-                    counselingMemoList.innerHTML = cMemos.map(r => {
-                        const memoText = r.remark || '';
+                if (counselingSessions.length) {
+                    counselingMemoList.innerHTML = counselingSessions.map(s => {
+                        const isEv = s.member_status === 'evangelism';
+                        const tagsHtml = s.tags ? s.tags.trim().split(/\s+/).filter(t => t.startsWith('#'))
+                            .map(t => {
+                                const cls = isEv
+                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-750 dark:text-orange-300 border-orange-200/60 dark:border-orange-700/40'
+                                    : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-700/40';
+                                return `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${cls} border">${t}</span>`;
+                            })
+                            .join('') : '';
+                        const sourceLabel = s.source === 'meeting'
+                            ? '<span class="text-[9px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-bold">달력</span>'
+                            : '<span class="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold">직접등록</span>';
+                        const memberBadge = isEv
+                            ? '<span class="text-[9px] bg-orange-105 dark:bg-orange-950/30 text-orange-600 dark:text-orange-450 px-1.5 py-0.5 rounded font-bold border border-orange-200/60">전도대상</span>'
+                            : '';
+                        const leadTarget = s.lead_target || '';
+                        let sessionLeadHtml = '';
+                        if (leadTarget) {
+                            const isHash = leadTarget.startsWith('#');
+                            const cleanName = isHash ? leadTarget.slice(1).trim() : leadTarget;
+                            if (isHash) {
+                                sessionLeadHtml = `<span class="text-[9px] bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-900/50 font-black cursor-pointer hover:underline" onclick="event.stopPropagation(); openMemberHistoryModalByName('${cleanName}')">🤝 인도대상: ${cleanName}</span>`;
+                            } else {
+                                sessionLeadHtml = `<span class="text-[9px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700/60 font-bold">🤝 모임: ${cleanName}</span>`;
+                            }
+                        }
+
                         return `
-                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-850 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-record-id="${r.id}">
-                                <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1 flex justify-between items-center">
-                                    <span>📅 <span class="counsel-date-text">${r.date}</span> 개인 상담</span>
-                                    <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-905 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
-                                        <i class="fa-regular fa-pen-to-square"></i> 수정
-                                    </button>
+                            <div class="counsel-card bg-indigo-50 dark:bg-[#131B2E] border border-indigo-100 dark:border-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-2" data-session-id="${s.session_id}" data-member-id="${id}" data-tags="${s.tags || ''}" data-member-status="${s.member_status || 'member'}" data-remark-memo="${s.remark_memo || ''}" data-lead-target="${s.lead_target || ''}">
+                                <div class="text-xs font-black text-indigo-800 dark:text-indigo-400 border-b dark:border-slate-800 pb-1.5 flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <span class="counsel-date-text">📅 ${s.date} 개인 상담</span>
+                                        ${sourceLabel}
+                                        ${memberBadge}
+                                        ${sessionLeadHtml}
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" class="edit-counsel-btn text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                                            <i class="fa-regular fa-pen-to-square"></i> 수정
+                                        </button>
+                                        <button type="button" class="delete-counsel-btn text-rose-600 dark:text-rose-450 hover:text-rose-800 dark:hover:text-rose-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                                            <i class="fa-regular fa-trash-can"></i> 삭제
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="counsel-body-area mb-2 bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <p class="counsel-remark-text text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${memoText}</p>
+                                ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
+                <div class="counsel-body-area bg-white/60 dark:bg-[#0B0F19] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <p class="counsel-remark-text text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-bold leading-relaxed">${s.content || '(내용 없음)'}</p>
+                                    ${s.remark_memo ? `<div class="counsel-remark-text bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-350 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-bold mt-2">📌 비고: ${s.remark_memo}</div>` : ''}
                                 </div>
                             </div>
                         `;
                     }).join('');
 
-                    // 상담 기록 수정 버튼 이벤트 연결
+                    // 수정/삭제 버튼 이벤트 연결
                     counselingMemoList.querySelectorAll('.counsel-card').forEach(card => {
-                        const recordId = card.dataset.recordId;
+                        const sessionId = card.dataset.sessionId;
+                        const memberId = card.dataset.memberId;
+                        const currentTags = card.dataset.tags || '';
+                        const currentStatus = card.dataset.memberStatus || 'member';
                         const editBtn = card.querySelector('.edit-counsel-btn');
+                        const deleteBtn = card.querySelector('.delete-counsel-btn');
                         const bodyArea = card.querySelector('.counsel-body-area');
 
-                        editBtn.addEventListener('click', () => {
-                            if (card.querySelector('.counsel-edit-textarea')) return; // 이미 수정 모드
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', async () => {
+                                if (confirm('정말 이 상담 기록을 영구 삭제하시겠습니까?')) {
+                                    try {
+                                        const res = await fetch(`/api/counseling/${sessionId}`, { method: 'DELETE' });
+                                        if (res.ok) {
+                                            openMemberHistoryModal(id);
+                                            loadStatus();
+                                        } else {
+                                            alert('삭제에 실패했습니다.');
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert('서버 오류로 인해 삭제에 실패했습니다.');
+                                    }
+                                }
+                            });
+                        }
 
+                        editBtn.addEventListener('click', () => {
+                            if (card.querySelector('.counsel-edit-textarea')) return;
                             const dateTextSpan = card.querySelector('.counsel-date-text');
-                            const currentDate = dateTextSpan.textContent.trim();
+                            const currentDateMatch = (dateTextSpan.textContent || '').match(/\d{4}-\d{2}-\d{2}/);
+                            const currentDate = currentDateMatch ? currentDateMatch[0] : '';
                             const remarkTextPara = card.querySelector('.counsel-remark-text');
                             const currentRemark = remarkTextPara.textContent.trim();
+                            const currentMemo = card.dataset.remarkMemo || '';
+                            const currentLeadTarget = card.dataset.leadTarget || '';
+
+                            const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+                            const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
 
                             bodyArea.innerHTML = `
                                 <div class="flex flex-col gap-2 w-full">
-                                    <div>
-                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1">상담 날짜</label>
-                                        <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                    <div class="flex gap-4">
+                                        <div class="flex-1">
+                                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 날짜</label>
+                                            <input type="date" class="counsel-edit-date w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200" value="${currentDate}">
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">대상자 상태</label>
+                                            <div class="inline-edit-status-group flex gap-1">
+                                                <button type="button" data-status="member" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'member' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">성도</button>
+                                                <button type="button" data-status="evangelism" class="inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${currentStatus === 'evangelism' ? 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'}">전도대상</button>
+                                            </div>
+                                            <input type="hidden" class="counsel-edit-status" value="${currentStatus}">
+                                        </div>
+                                    </div>
+                                    <div class="edit-tags-container bg-indigo-50/30 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/50 dark:border-indigo-900/20 mt-1">
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">상담 주제 태그 (클릭하여 토글 / 직접 입력 추가 가능)</label>
+                                        <div class="edit-tags-presets flex flex-wrap gap-1 mb-2"></div>
+                                        <div class="flex gap-1 items-center mb-2">
+                                            <input type="text" class="inline-custom-tag-input flex-1 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 태그 입력 추가...">
+                                            <button type="button" class="inline-add-tag-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 whitespace-nowrap">+ 추가</button>
+                                        </div>
+                                        <div class="inline-tags-preview flex flex-wrap gap-1 min-h-[16px]"></div>
+                                        <input type="hidden" class="counsel-edit-tags" value="${currentTags}">
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1">상담 내용</label>
-                                        <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="4">${currentRemark}</textarea>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">상담 내용</label>
+                                        <textarea class="counsel-edit-textarea w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 resize-y" rows="4">${currentRemark === '(내용 없음)' ? '' : currentRemark}</textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">인도대상 / 모임</label>
+                                        <input type="text" class="counsel-edit-lead-target w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentLeadTarget}" placeholder="#이름 또는 모임명 입력...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">비고 / 기타 메모</label>
+                                        <input type="text" class="counsel-edit-memo w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400" value="${currentMemo}" placeholder="비고 및 특이사항 입력...">
                                     </div>
                                     <div class="flex justify-end gap-1.5 mt-1">
                                         <button type="button" class="save-counsel-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
@@ -719,43 +819,139 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             `;
 
-                            const saveBtn = bodyArea.querySelector('.save-counsel-btn');
-                            const cancelBtn = bodyArea.querySelector('.cancel-counsel-btn');
-                            const editDateInput = bodyArea.querySelector('.counsel-edit-date');
-                            const editTextarea = bodyArea.querySelector('.counsel-edit-textarea');
+                            // 태그 상태 관리
+                            let activeTags = new Set(currentTags.split(/\s+/).filter(t => t.startsWith('#')).map(t => t.substring(1)));
+                            let selectedStatus = currentStatus;
 
-                            cancelBtn.addEventListener('click', () => {
-                                openMemberHistoryModal(id);
+                            function updateModalPresetTags(status) {
+                                const presetsContainer = bodyArea.querySelector('.edit-tags-presets');
+                                if (!presetsContainer) return;
+
+                                const tagsList = status === 'evangelism' ? evangelismTags : memberTags;
+                                presetsContainer.innerHTML = tagsList.map(t => {
+                                    const isSelected = activeTags.has(t);
+                                    const cls = isSelected
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60';
+                                    return `<button type="button" data-tag="${t}" class="inline-edit-tag-btn px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${cls}">${t}</button>`;
+                                }).join('');
+                            }
+
+                            function updateModalEditTags() {
+                                const tagsVal = Array.from(activeTags).map(t => `#${t}`).join(' ');
+                                bodyArea.querySelector('.counsel-edit-tags').value = tagsVal;
+
+                                const preview = bodyArea.querySelector('.inline-tags-preview');
+                                preview.innerHTML = Array.from(activeTags).map(t => `
+                                    <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white animate-fade-in" data-tag="${t}">
+                                        #${t}
+                                        <button type="button" class="inline-remove-tag-btn hover:text-indigo-200 transition-colors font-bold ml-1 leading-none">&times;</button>
+                                    </span>
+                                `).join('');
+
+                                bodyArea.querySelectorAll('.inline-edit-tag-btn').forEach(btn => {
+                                    const t = btn.dataset.tag;
+                                    if (activeTags.has(t)) {
+                                        btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                                        btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                                    } else {
+                                        btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'dark:bg-indigo-600', 'dark:text-white');
+                                        btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-indigo-650', 'dark:text-indigo-400');
+                                    }
+                                });
+                            }
+
+                            // 초기 태그 및 프리셋 렌더링
+                            updateModalPresetTags(selectedStatus);
+                            updateModalEditTags();
+
+                            // 대상자 상태 버튼 클릭 이벤트
+                            bodyArea.querySelectorAll('.inline-edit-status-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    selectedStatus = btn.dataset.status;
+                                    bodyArea.querySelector('.counsel-edit-status').value = selectedStatus;
+                                    bodyArea.querySelectorAll('.inline-edit-status-btn').forEach(b => {
+                                        const bStatus = b.dataset.status;
+                                        const isActive = bStatus === selectedStatus;
+                                        b.className = `inline-edit-status-btn flex-1 py-1 rounded text-[10px] font-bold border transition-all ${
+                                            isActive
+                                                ? (bStatus === 'member' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
+                                                : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350'
+                                        }`;
+                                    });
+                                    updateModalPresetTags(selectedStatus);
+                                    updateModalEditTags();
+                                });
                             });
 
+                            // 프리셋 클릭
+                            bodyArea.querySelector('.edit-tags-presets').addEventListener('click', (ev) => {
+                                const btn = ev.target.closest('.inline-edit-tag-btn');
+                                if (!btn) return;
+                                const tag = btn.dataset.tag;
+                                if (activeTags.has(tag)) {
+                                    activeTags.delete(tag);
+                                } else {
+                                    activeTags.add(tag);
+                                }
+                                updateModalEditTags();
+                            });
+
+                            // 직접 입력 추가
+                            const addTagBtn = bodyArea.querySelector('.inline-add-tag-btn');
+                            const customInput = bodyArea.querySelector('.inline-custom-tag-input');
+                            const performAddCustomTag = () => {
+                                let val = customInput.value.trim();
+                                if (!val) return;
+                                if (val.startsWith('#')) val = val.substring(1);
+                                if (val) {
+                                    activeTags.add(val);
+                                    customInput.value = '';
+                                    updateModalEditTags();
+                                }
+                            };
+
+                            addTagBtn.addEventListener('click', performAddCustomTag);
+                            customInput.addEventListener('keydown', (ev) => {
+                                if (ev.key === 'Enter') {
+                                    ev.preventDefault();
+                                    performAddCustomTag();
+                                }
+                            });
+
+                            // 프리뷰 개별 삭제
+                            bodyArea.querySelector('.inline-tags-preview').addEventListener('click', (ev) => {
+                                const removeBtn = ev.target.closest('.inline-remove-tag-btn');
+                                if (!removeBtn) return;
+                                const span = removeBtn.closest('[data-tag]');
+                                const tag = span.dataset.tag;
+                                activeTags.delete(tag);
+                                updateModalEditTags();
+                            });
+
+                            const saveBtn = bodyArea.querySelector('.save-counsel-btn');
+                            const cancelBtn = bodyArea.querySelector('.cancel-counsel-btn');
+
+                            cancelBtn.addEventListener('click', () => { openMemberHistoryModal(id); });
+
                             saveBtn.addEventListener('click', async () => {
-                                const newDate = editDateInput.value;
-                                const newRemark = editTextarea.value.trim();
-
+                                const newDate = bodyArea.querySelector('.counsel-edit-date').value;
+                                const newContent = bodyArea.querySelector('.counsel-edit-textarea').value.trim();
+                                const newTags = bodyArea.querySelector('.counsel-edit-tags').value.trim();
                                 if (!newDate) return alert('날짜를 입력해주세요.');
-                                if (!newRemark) return alert('상담 내용을 입력해주세요.');
-
                                 saveBtn.disabled = true;
                                 saveBtn.textContent = '저장중...';
-
                                 try {
-                                    const response = await fetch(`/api/members/records/${recordId}`, {
+                                    const res = await fetch(`/api/counseling/${sessionId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            date: newDate,
-                                            status: 'COUNSELING',
-                                            remark: newRemark
-                                        })
+                                        body: JSON.stringify({ date: newDate, content: newContent, tags: newTags, member_status: selectedStatus, member_id: parseInt(memberId) })
                                     });
-
-                                    if (response.ok) {
+                                    if (res.ok) {
                                         openMemberHistoryModal(id);
-                                        if (typeof loadStatus === 'function') {
-                                            loadStatus();
-                                        }
+                                        loadStatus();
                                     } else {
-                                        alert('상담 기록 수정에 실패했습니다.');
+                                        alert('수정에 실패했습니다.');
                                         saveBtn.disabled = false;
                                         saveBtn.textContent = '저장';
                                     }
@@ -845,6 +1041,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 memberHistoryModal.classList.remove('hidden');
             }
         } catch (e) { console.error(e); }
+    };
+
+    // 상담 기록의 "인도대상" 태그 클릭 시 그 사람 상세정보로 이동 (counseling_history.js와 동일 기능)
+    window.openMemberHistoryModalByName = async function(name) {
+        try {
+            const res = await fetch(`/api/members/filter?q=${encodeURIComponent(name)}`);
+            const suggestions = await res.json();
+            const matched = suggestions.find(s => s.name.trim() === name.trim());
+            if (matched) {
+                openMemberHistoryModal(matched.id);
+            } else {
+                alert(`'${name}' 성도 정보를 찾을 수 없습니다.`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('성도 정보를 조회하는 중 오류가 발생했습니다.');
+        }
     };
 
     // 탭 버튼 클릭 이벤트 바인딩

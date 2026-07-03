@@ -1007,9 +1007,10 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         const typeStr = m.type || '';
         if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
             let targetParams = new URLSearchParams({ status: 'active' });
-            // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상 (meeting_editor.js 공통 헬퍼)
+            // 교구전체모임/전체조모임: 특정 구역이 아니라 강효근이 소속된 교구 전체가 대상
             const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
             if (isParishWide) {
+                // 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상 (meeting_editor.js 공통 헬퍼)
                 await window.applyParishWideTargetFilter(targetParams);
             } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
                 const distMatch = typeStr.match(/\d+/);
@@ -1025,7 +1026,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
             const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
             let allTargets = await mRes.json();
 
-            // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외 (meeting_editor.js 공통 헬퍼)
+            // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
             allTargets = window.filterMeetingTargets(allTargets);
 
             // 교구전체모임 구분이지만 제목이 '조모임'이면 조모임 대상(성도 S, 청년 제외) 기준을 적용

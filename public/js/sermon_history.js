@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isParishWide && (meeting.title || '').includes('조')) {
                     allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
                 }
-
+                
                 if (typeStr.includes('형제모임')) {
                     const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
                     const eMembers = await eRes.json();

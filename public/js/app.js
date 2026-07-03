@@ -193,6 +193,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     else if (t.includes('구원기념일')) { bg = 'transparent'; tc = '#0f172a'; br = 'transparent'; ord = 3; }
                     else { bg = '#f3f4f6'; tc = '#111827'; br = '#e5e7eb'; }
                     
+
+                    // 여러 날에 걸친 종일행사(하계 수련회 등)는 달력에서 다른 일정보다 항상 위에 배치
+                    const isMultiDayEvent = !!(m.end_date && m.end_date !== m.date);
+                    if (isMultiDayEvent) ord = 0;
+
                     const isAllDay = !m.start_time;
 
                     const eventObj = { 
@@ -1847,7 +1852,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
         if (isParishWide && (title || '').includes('조')) {
             allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
         }
-
+        
         if (typeStr.includes('형제모임')) {
             const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
             const eMembers = await eRes.json();
