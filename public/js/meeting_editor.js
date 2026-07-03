@@ -1060,10 +1060,21 @@ function updateSelectedChurchUI() {
 //       다른 교회로 발령 나면 '그 교회 전체' 성도가 대상.
 // 이 필터로 상담으로만 등록된 인원(익명, 타교회, '교회정보없음' 등)은 자연스럽게 제외된다.
 // (app.js / meeting_dashboard.js / sermon_history.js 에서 공유)
-window.applyParishWideTargetFilter = async function(targetParams) {
+//
+// snapshot 인자: 기존 모임을 다시 열람/수정할 때는 그 모임에 저장된
+// { church: leader_church_snapshot, parish: leader_parish_snapshot }를 넘겨서,
+// "지금" admin_settings가 아니라 "그 모임이 만들어졌을 때" 소속 기준으로 대상자를 계산한다.
+// (발령으로 관리자 소속이 바뀌어도 과거 모임의 대상자 명단이 흔들리지 않도록 하기 위함)
+// 신규 모임을 만드는 중이라 아직 스냅샷이 없으면 인자를 생략 — 현재 admin_settings를 그대로 사용한다.
+window.applyParishWideTargetFilter = async function(targetParams, snapshot) {
     try {
-        const profRes = await fetch('/api/users/default-profile');
-        const prof = profRes.ok ? await profRes.json() : null;
+        let prof = null;
+        if (snapshot && snapshot.church) {
+            prof = snapshot;
+        } else {
+            const profRes = await fetch('/api/users/default-profile');
+            prof = profRes.ok ? await profRes.json() : null;
+        }
         if (!prof || !prof.church) return;
         targetParams.append('church', prof.church);
         if (prof.church.trim() === '서울중앙교회' && prof.parish) {
@@ -1413,8 +1424,11 @@ async function refreshAttendanceList() {
     }
     
     if (currentType.includes('교구전체모임') || currentType.includes('전체조모임')) {
-        // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
-        await window.applyParishWideTargetFilter(targetParams);
+        // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상.
+        // 기존 모임을 편집 중이면(currentMeetingData 존재) 그 모임에 저장된 스냅샷을 우선 사용해서
+        // 관리자 소속이 나중에 바뀌어도 과거 모임의 대상자 명단이 흔들리지 않도록 한다.
+        const snap = currentMeetingData ? { church: currentMeetingData.leader_church_snapshot, parish: currentMeetingData.leader_parish_snapshot } : null;
+        await window.applyParishWideTargetFilter(targetParams, snap);
     } else if (currentType.includes('구역모임') || currentType.includes('조모임')) {
         const distMatch = currentType.match(/\d+/);
         if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);

@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sermon_tags: info.event.extendedProps.sermon_tags,
                 sermon_bible: info.event.extendedProps.sermon_bible
             };
-            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time, info.event.extendedProps.sermon_tags);
+            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time, info.event.extendedProps.sermon_tags, info.event.extendedProps.leader_church_snapshot, info.event.extendedProps.leader_parish_snapshot);
         }
     });
     calendar.render();
@@ -1809,7 +1809,7 @@ async function fetchDistricts(parishId) { const res = await fetch(`/api/district
 // Meeting Functions
 let currentMeetingId = null, extraAttendees = [], selectedChurch = '', currentSermonTagsList = [];
 
-async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '', sermonTags = '') {
+async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '', sermonTags = '', leaderChurchSnapshot = '', leaderParishSnapshot = '') {
     currentMeetingId = id; const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden'); setTimeout(() => { c.classList.remove('translate-x-full'); c.classList.add('translate-x-0'); }, 10);
     document.getElementById('meetingDetailPanel').classList.remove('hidden'); document.getElementById('meetingModal').classList.add('hidden');
@@ -1828,10 +1828,13 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     const typeStr = type || '';
     if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
         let targetParams = new URLSearchParams({ status: 'active' });
-        // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
+        // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상.
+        // 이 모임에 저장된 소속 스냅샷이 있으면 그걸 우선 사용해서, 관리자 소속이 나중에 바뀌어도
+        // 과거 모임의 대상자 명단이 흔들리지 않도록 한다.
         const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
         if (isParishWide) {
-            await window.applyParishWideTargetFilter(targetParams);
+            const snap = leaderChurchSnapshot ? { church: leaderChurchSnapshot, parish: leaderParishSnapshot } : null;
+            await window.applyParishWideTargetFilter(targetParams, snap);
         } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
             const distMatch = typeStr.match(/\d+/);
             if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
@@ -2509,8 +2512,10 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
         }
         
         if (currentType.includes('교구전체모임') || currentType.includes('전체조모임')) {
-            // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
-            await window.applyParishWideTargetFilter(targetParams);
+            // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상.
+            // 기존 모임을 편집 중이면(currentMeetingData 존재) 그 모임에 저장된 스냅샷을 우선 사용.
+            const snap = currentMeetingData ? { church: currentMeetingData.leader_church_snapshot, parish: currentMeetingData.leader_parish_snapshot } : null;
+            await window.applyParishWideTargetFilter(targetParams, snap);
         } else if (currentType.includes('구역모임') || currentType.includes('조모임')) {
             const distMatch = currentType.match(/\d+/);
             if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);

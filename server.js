@@ -26,6 +26,23 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// 강효근(관리자)의 현재 소속(교회/교구) 조회 헬퍼.
+// 교구전체모임 생성 시점 스냅샷 기록, 출석률 계산, /api/users/default-profile 에서 공통으로 사용.
+// (호출 시점의 "현재" 값을 반환 — 과거 시점 값이 필요하면 meetings.leader_church_snapshot 등을 대신 사용할 것)
+async function fetchLeaderChurchParish() {
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .select('church, parish')
+      .eq('name', '강효근')
+      .single();
+    if (error) throw error;
+    return data || null;
+  } catch (err) {
+    console.warn('fetchLeaderChurchParish failed:', err.message);
+    return null;
+  }
+}
 
 // Token generation & verification helpers
 const COOKIE_SECRET = process.env.COOKIE_SECRET || 'super-secret-key-12345';
@@ -798,12 +815,17 @@ function isMandatoryMeeting(member, meeting, leaderProfile) {
 
   // 교구전체모임: 강효근 소속 교회(서울중앙교회인 경우 + 소속 교구) 성도만 의무 대상.
   // 상담으로만 등록된 인원(전도대상, 타교회, '교회정보없음' 등)은 제외.
+  // 판정 기준 소속: 그 모임이 "만들어졌을 때"의 관리자 소속(leader_church_snapshot/leader_parish_snapshot)을
+  // 최우선으로 쓰고, 스냅샷이 없는 과거 모임(마이그레이션 전)만 현재 leaderProfile로 폴백한다.
+  // → 관리자가 나중에 다른 교구로 발령 나서 admin_settings를 바꿔도, 과거 모임의 대상자 판정은 그대로 유지됨.
   if (mType.includes('교구전체모임')) {
     if (member.member_status === 'evangelism') return false;
-    if (leaderProfile && leaderProfile.church) {
-      if ((member.church || '').trim() !== leaderProfile.church.trim()) return false;
-      if (leaderProfile.church.trim() === '서울중앙교회' && leaderProfile.parish &&
-          (member.parish || '').trim() !== leaderProfile.parish.trim()) return false;
+    const effectiveChurch = meeting.leader_church_snapshot || (leaderProfile && leaderProfile.church) || null;
+    const effectiveParish = meeting.leader_parish_snapshot || (leaderProfile && leaderProfile.parish) || null;
+    if (effectiveChurch) {
+      if ((member.church || '').trim() !== effectiveChurch.trim()) return false;
+      if (effectiveChurch.trim() === '서울중앙교회' && effectiveParish &&
+          (member.parish || '').trim() !== effectiveParish.trim()) return false;
     }
     return true;
   }
@@ -818,13 +840,26 @@ app.get('/api/members/attendance-rates', async (req, res) => {
   try {
     const today = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
-    const { data: meetings, error: meetErr } = await supabase
+    let { data: meetings, error: meetErr } = await supabase
       .from('meetings')
-      .select('id, type, date')
+      .select('id, type, date, leader_church_snapshot, leader_parish_snapshot')
       .neq('type', '심방')
       .neq('type', '설교')
       .neq('type', '외부설교')
       .lte('date', today);
+
+    // leader_*_snapshot 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    if (meetErr && /leader_church_snapshot|leader_parish_snapshot/i.test(meetErr.message || '')) {
+      const retry = await supabase
+        .from('meetings')
+        .select('id, type, date')
+        .neq('type', '심방')
+        .neq('type', '설교')
+        .neq('type', '외부설교')
+        .lte('date', today);
+      meetings = retry.data;
+      meetErr = retry.error;
+    }
     if (meetErr) throw meetErr;
 
     const meetingMap = {};
@@ -837,18 +872,10 @@ app.get('/api/members/attendance-rates', async (req, res) => {
       .select('id, name, category, bs, district, position, church, parish, member_status');
     if (memErr) throw memErr;
 
-    // 교구전체모임 의무 대상 판정용: 강효근의 소속 교회/교구
-    let leaderProfile = null;
-    try {
-      const { data: prof } = await supabase
-        .from('members')
-        .select('church, parish')
-        .eq('name', '강효근')
-        .single();
-      leaderProfile = prof || null;
-    } catch (profErr) {
-      console.warn('attendance-rates: leader profile lookup failed', profErr.message);
-    }
+    // 교구전체모임 의무 대상 판정용 폴백: 강효근의 "현재" 소속 교회/교구
+    // (각 모임에 leader_church_snapshot/leader_parish_snapshot이 있으면 isMandatoryMeeting에서 그걸 우선 사용하고,
+    //  스냅샷이 없는 과거 모임에 한해서만 이 현재 값으로 대체 계산한다)
+    const leaderProfile = await fetchLeaderChurchParish();
 
     let allAttendance = [];
     let page = 0;
@@ -878,7 +905,9 @@ app.get('/api/members/attendance-rates', async (req, res) => {
           meeting_id: a.meeting_id,
           is_present: a.is_present,
           type: mt.type,
-          date: mt.date
+          date: mt.date,
+          leader_church_snapshot: mt.leader_church_snapshot || null,
+          leader_parish_snapshot: mt.leader_parish_snapshot || null
         });
       }
     });
@@ -1826,12 +1855,36 @@ app.post('/api/meetings', async (req, res) => {
         finalMemo = JSON.stringify(meta) + '\\n\\n' + finalMemo;
     }
 
-    const { data, error } = await supabase
+    // 생성 시점의 강효근(관리자) 소속을 스냅샷으로 함께 저장.
+    // 나중에 관리자 소속(admin_settings)이 바뀌어도 이 모임의 대상자/의무출석 판정은
+    // "만들어질 때의" 교회/교구 기준으로 계속 정확하게 계산되도록 하기 위함.
+    // (attendance 테이블의 district_snapshot/category_snapshot과 동일한 패턴)
+    const leaderProfile = await fetchLeaderChurchParish();
+
+    const insertRow = {
+      title, date, end_date: end_date || null, type,
+      sermon_title: sermon_title || null, memo: finalMemo, church,
+      start_time: start_time || null, end_time: end_time || null,
+      leader_church_snapshot: leaderProfile?.church || null,
+      leader_parish_snapshot: leaderProfile?.parish || null,
+    };
+
+    let { data, error } = await supabase
       .from('meetings')
-      .insert({ title, date, end_date: end_date || null, type, sermon_title: sermon_title || null, memo: finalMemo, church, start_time: start_time || null, end_time: end_time || null })
+      .insert(insertRow)
       .select('id')
       .single();
-      
+
+    // leader_*_snapshot 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    if (error && /leader_church_snapshot|leader_parish_snapshot/i.test(error.message || '')) {
+      console.warn('meetings.leader_*_snapshot 컬럼이 없어 스냅샷 없이 저장합니다. SQL: ALTER TABLE meetings ADD COLUMN IF NOT EXISTS leader_church_snapshot text, ADD COLUMN IF NOT EXISTS leader_parish_snapshot text;');
+      delete insertRow.leader_church_snapshot;
+      delete insertRow.leader_parish_snapshot;
+      const retry = await supabase.from('meetings').insert(insertRow).select('id').single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) throw error;
     res.json({ id: data.id });
   } catch (err) {

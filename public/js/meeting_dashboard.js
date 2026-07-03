@@ -1010,8 +1010,10 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
             // 교구전체모임/전체조모임: 특정 구역이 아니라 강효근이 소속된 교구 전체가 대상
             const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
             if (isParishWide) {
-                // 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상 (meeting_editor.js 공통 헬퍼)
-                await window.applyParishWideTargetFilter(targetParams);
+                // 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상 (meeting_editor.js 공통 헬퍼).
+                // 이 모임에 저장된 소속 스냅샷을 우선 사용 — 관리자 소속이 나중에 바뀌어도 과거 모임의 대상자가 흔들리지 않도록.
+                const snap = { church: m.leader_church_snapshot, parish: m.leader_parish_snapshot };
+                await window.applyParishWideTargetFilter(targetParams, snap);
             } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
                 const distMatch = typeStr.match(/\d+/);
                 if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
