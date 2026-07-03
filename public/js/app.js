@@ -1823,7 +1823,11 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     const typeStr = type || '';
     if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
         let targetParams = new URLSearchParams({ status: 'active' });
-        if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
+        // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
+        const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
+        if (isParishWide) {
+            await window.applyParishWideTargetFilter(targetParams);
+        } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
             const distMatch = typeStr.match(/\d+/);
             if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
         } else if (typeStr === '교구임원모임') {
@@ -1836,7 +1840,14 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
 
         const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
         let allTargets = await mRes.json();
-        
+        // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
+        allTargets = window.filterMeetingTargets(allTargets);
+
+        // 교구전체모임 구분이지만 제목이 '조모임'이면 조모임 대상(성도 S, 청년 제외) 기준을 적용
+        if (isParishWide && (title || '').includes('조')) {
+            allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
+        }
+
         if (typeStr.includes('형제모임')) {
             const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
             const eMembers = await eRes.json();
@@ -2480,7 +2491,10 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
             }
         }
         
-        if (currentType.includes('구역모임') || currentType.includes('조모임')) {
+        if (currentType.includes('교구전체모임') || currentType.includes('전체조모임')) {
+            // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
+            await window.applyParishWideTargetFilter(targetParams);
+        } else if (currentType.includes('구역모임') || currentType.includes('조모임')) {
             const distMatch = currentType.match(/\d+/);
             if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
         } else if (currentType === '교구임원모임') {
@@ -2505,6 +2519,7 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
 
         const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
         let members = await mRes.json();
+        members = window.filterMeetingTargets(members);
 
         if (currentType.includes('형제모임')) {
             const eRes = await fetch(`/api/members/search?status=active&category=은장회`);

@@ -705,7 +705,7 @@ app.get('/api/users/default-profile', async (req, res) => {
   }
 });
 
-function isMandatoryMeeting(member, meeting) {
+function isMandatoryMeeting(member, meeting, leaderProfile) {
   const mType = meeting.type || '';
   const mDistMatch = mType.match(/\d+/);
   const mDistNum = mDistMatch ? mDistMatch[0] : null;
@@ -724,7 +724,17 @@ function isMandatoryMeeting(member, meeting) {
     if (!mDistNum || mDistNum === memDistNum) return true;
   }
 
-  if (mType.includes('교구전체모임')) return true;
+  // 교구전체모임: 강효근 소속 교회(서울중앙교회인 경우 + 소속 교구) 성도만 의무 대상.
+  // 상담으로만 등록된 인원(전도대상, 타교회, '교회정보없음' 등)은 제외.
+  if (mType.includes('교구전체모임')) {
+    if (member.member_status === 'evangelism') return false;
+    if (leaderProfile && leaderProfile.church) {
+      if ((member.church || '').trim() !== leaderProfile.church.trim()) return false;
+      if (leaderProfile.church.trim() === '서울중앙교회' && leaderProfile.parish &&
+          (member.parish || '').trim() !== leaderProfile.parish.trim()) return false;
+    }
+    return true;
+  }
   if (mType.includes('교구형제모임') && member.bs === 'B') return true;
   if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
   if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
@@ -752,8 +762,21 @@ app.get('/api/members/attendance-rates', async (req, res) => {
 
     const { data: members, error: memErr } = await supabase
       .from('members')
-      .select('id, name, category, bs, district, position');
+      .select('id, name, category, bs, district, position, church, parish, member_status');
     if (memErr) throw memErr;
+
+    // 교구전체모임 의무 대상 판정용: 강효근의 소속 교회/교구
+    let leaderProfile = null;
+    try {
+      const { data: prof } = await supabase
+        .from('members')
+        .select('church, parish')
+        .eq('name', '강효근')
+        .single();
+      leaderProfile = prof || null;
+    } catch (profErr) {
+      console.warn('attendance-rates: leader profile lookup failed', profErr.message);
+    }
 
     let allAttendance = [];
     let page = 0;
@@ -792,7 +815,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
     members.forEach(member => {
       const atts = memberAtts[member.id] || [];
       const filtered = atts.filter(h => {
-        return isMandatoryMeeting(member, h) || h.is_present;
+        return isMandatoryMeeting(member, h, leaderProfile) || h.is_present;
       });
 
       const totalCount = filtered.length;

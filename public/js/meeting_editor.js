@@ -1055,6 +1055,30 @@ function updateSelectedChurchUI() {
     }
 }
 
+// ===== 교구전체모임(전체조모임) 대상자 공통 필터 =====
+// 규칙: 강효근이 서울중앙교회 소속이면 '해당 교회 + 소속 교구' 성도가 대상,
+//       다른 교회로 발령 나면 '그 교회 전체' 성도가 대상.
+// 이 필터로 상담으로만 등록된 인원(익명, 타교회, '교회정보없음' 등)은 자연스럽게 제외된다.
+// (app.js / meeting_dashboard.js / sermon_history.js 에서 공유)
+window.applyParishWideTargetFilter = async function(targetParams) {
+    try {
+        const profRes = await fetch('/api/users/default-profile');
+        const prof = profRes.ok ? await profRes.json() : null;
+        if (!prof || !prof.church) return;
+        targetParams.append('church', prof.church);
+        if (prof.church.trim() === '서울중앙교회' && prof.parish) {
+            targetParams.append('parish', prof.parish);
+        }
+    } catch (e) {
+        console.warn('default-profile 조회 실패 (교구전체모임 필터 미적용):', e);
+    }
+};
+
+// 모임 대상자 공통 후처리: 전도대상(상담 전용 인원) 제외
+window.filterMeetingTargets = function(members) {
+    return (members || []).filter(m => m.member_status !== 'evangelism');
+};
+
 // Populate UI for attendance list
 async function refreshAttendanceList() {
     const currentType = document.getElementById('meetingType').value;
@@ -1251,7 +1275,10 @@ async function refreshAttendanceList() {
         }
     }
     
-    if (currentType.includes('구역모임') || currentType.includes('조모임')) {
+    if (currentType.includes('교구전체모임') || currentType.includes('전체조모임')) {
+        // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상
+        await window.applyParishWideTargetFilter(targetParams);
+    } else if (currentType.includes('구역모임') || currentType.includes('조모임')) {
         const distMatch = currentType.match(/\d+/);
         if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
     } else if (currentType === '교구임원모임') {
@@ -1276,6 +1303,7 @@ async function refreshAttendanceList() {
 
     const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
     let members = await mRes.json();
+    members = window.filterMeetingTargets(members);
 
     if (currentType.includes('형제모임')) {
         const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
