@@ -485,12 +485,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         return `
                             <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
-                                <td class="py-1 px-2.5 text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
-                                <td class="py-1 px-2.5 font-bold text-slate-800">${h.title}</td>
-                                <td class="py-1 px-2.5 text-center">${statusBadge}</td>
-                                <td class="py-1 px-2.5 text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}">
-                                    <div class="flex items-center justify-between gap-2 group w-full">
-                                        <span class="testimony-text flex-1">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
+                                <td class="py-1 px-2.5 align-top text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
+                                <td class="py-1 px-2.5 align-top font-bold text-slate-800">${h.title}</td>
+                                <td class="py-1 px-2.5 align-top text-center">${statusBadge}</td>
+                                <td class="py-1 px-2.5 align-top text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}" title="${(h.testimony_snapshot || '').replace(/"/g, '&quot;')}">
+                                    <div class="flex items-start justify-between gap-2 group w-full">
+                                        <span class="testimony-text flex-1 line-clamp-2 max-h-8 overflow-hidden">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
                                         <span class="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] whitespace-nowrap">✏️ 수정</span>
                                     </div>
                                 </td>
