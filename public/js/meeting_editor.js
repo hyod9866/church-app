@@ -30,7 +30,7 @@ function injectEditorElements() {
                         <label id="meetingDateLabel" class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">날짜</label>
                         <input type="date" id="meetingDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                     </div>
-                    <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="상담">개인상담</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
+                    <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><div class="flex gap-1.5"><select id="meetingCategory" class="flex-1 min-w-0 border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></select><select id="meetingNumber" aria-label="번호" class="hidden w-20 shrink-0 border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></select></div><input type="hidden" id="meetingType" value=""></div>
                     <div id="sermonTagsField" class="col-span-2 hidden">
                         <label class="text-[10px] font-black text-slate-450 block mb-1.5 uppercase tracking-wider">설교 구분 태그</label>
                         <div class="flex flex-wrap gap-1.5" id="sermonTagsList">
@@ -1079,6 +1079,143 @@ window.filterMeetingTargets = function(members) {
     return (members || []).filter(m => m.member_status !== 'evangelism');
 };
 
+// ===== 관리자 설정 (강효근 관리 교회/교구/구역) =====
+// /api/users/default-profile 이 { church, parish, district, managed_districts, districts: ['581','582',...] } 를 반환.
+// 번호 드롭다운·기본 모임 구분이 모두 이 설정을 따른다. (하드코딩 581~583 fallback 제거)
+let _adminSettingsCache = null;
+let _adminSettingsCacheAt = 0;
+window.getAdminSettings = async function(force = false) {
+    // 관리자 설정 화면에서 저장하면 localStorage 타임스탬프가 갱신됨 → 캐시 무효화
+    let updatedAt = 0;
+    try { updatedAt = parseInt(localStorage.getItem('adminSettingsUpdatedAt') || '0', 10) || 0; } catch (e) {}
+    if (_adminSettingsCache && !force && updatedAt <= _adminSettingsCacheAt) return _adminSettingsCache;
+    try {
+        const res = await fetch('/api/users/default-profile');
+        _adminSettingsCache = res.ok ? await res.json() : null;
+        _adminSettingsCacheAt = Date.now();
+    } catch (e) {
+        console.warn('관리자 설정(default-profile) 조회 실패:', e);
+        _adminSettingsCache = null;
+    }
+    return _adminSettingsCache;
+};
+window.invalidateAdminSettings = function() { _adminSettingsCache = null; };
+
+// 관리 구역 번호 목록 (예: ['581','582','583'])
+window.getManagedDistricts = async function() {
+    const s = await window.getAdminSettings();
+    return (s && Array.isArray(s.districts)) ? s.districts : [];
+};
+
+// 신규 일정 기본 구분: 첫 관리 구역의 구역모임
+window.getDefaultMeetingType = async function() {
+    const ds = await window.getManagedDistricts();
+    return ds.length > 0 ? `${ds[0]}구역모임` : '구역모임';
+};
+
+// ===== 모임 구분 UI (A안: 구분 셀렉트 + 번호 셀렉트, 저장 포맷은 "581구역모임" 결합 문자열 유지) =====
+const MEETING_CATEGORIES = [
+    { value: '구역모임', label: '구역모임', numbered: true },
+    { value: '조모임', label: '조모임', numbered: true },
+    { value: '교구전체모임', label: '교구전체모임' },
+    { value: '교구형제모임', label: '교구형제모임' },
+    { value: '교구청년모임', label: '교구청년모임' },
+    { value: '교구임원모임', label: '교구임원모임' },
+    { value: '심방', label: '심방' },
+    { value: '상담', label: '개인상담' },
+    { value: '설교', label: '내부설교' },
+    { value: '외부설교', label: '외부설교' },
+    { value: '교회행사', label: '교회행사' },
+    { value: '기타', label: '기타 모임' }
+];
+
+function isNumberedCategory(cat) {
+    const def = MEETING_CATEGORIES.find(c => c.value === cat);
+    return def ? !!def.numbered : /^(구역모임|조모임)$/.test(cat);
+}
+
+function ensureCategoryOptions() {
+    const cat = document.getElementById('meetingCategory');
+    if (cat && cat.options.length === 0) {
+        cat.innerHTML = MEETING_CATEGORIES.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    }
+}
+
+// 구분+번호 → 결합 문자열 ("581" + "구역모임" → "581구역모임")
+function composeMeetingType() {
+    const cat = document.getElementById('meetingCategory');
+    const num = document.getElementById('meetingNumber');
+    if (!cat) return '';
+    if (isNumberedCategory(cat.value) && num && num.value) return `${num.value}${cat.value}`;
+    return cat.value;
+}
+
+// 셀렉트 변경 → 숨은 #meetingType 값 갱신 + change 이벤트 전파 (기존 리스너 그대로 동작)
+function syncMeetingTypeFromSelectors() {
+    const cat = document.getElementById('meetingCategory');
+    const num = document.getElementById('meetingNumber');
+    const hidden = document.getElementById('meetingType');
+    const numbered = cat ? isNumberedCategory(cat.value) : false;
+    if (num) num.classList.toggle('hidden', !numbered || num.options.length === 0);
+    if (!hidden) return;
+    const newVal = composeMeetingType();
+    if (hidden.value !== newVal) {
+        hidden.value = newVal;
+        hidden.dispatchEvent(new Event('change'));
+    }
+}
+
+// 구분/번호 셀렉트 초기화: 카테고리 옵션 채우고, 번호 옵션을 관리자 설정에서 로드
+window.initMeetingTypeSelectors = async function() {
+    const cat = document.getElementById('meetingCategory');
+    const num = document.getElementById('meetingNumber');
+    if (!cat || !num) return;
+    ensureCategoryOptions();
+
+    const districts = await window.getManagedDistricts();
+    const prev = num.value;
+    num.innerHTML = districts.map(d => `<option value="${d}">${d}</option>`).join('');
+    if (prev && districts.includes(prev)) num.value = prev;
+
+    if (!cat._syncBound) {
+        cat.addEventListener('change', syncMeetingTypeFromSelectors);
+        num.addEventListener('change', syncMeetingTypeFromSelectors);
+        cat._syncBound = true;
+    }
+};
+
+// 결합 문자열 → 구분/번호 셀렉트 + 숨은 input 세팅 (change 이벤트는 발생시키지 않음: 기존 select.value = type 과 동일 동작)
+window.setMeetingTypeValue = function(type) {
+    const t = (type || '').trim();
+    const cat = document.getElementById('meetingCategory');
+    const num = document.getElementById('meetingNumber');
+    const hidden = document.getElementById('meetingType');
+    ensureCategoryOptions();
+
+    let catVal = t, numVal = '';
+    const m = t.match(/^(\d+)\s*(구역모임|조모임)$/);
+    if (m) { numVal = m[1]; catVal = m[2]; }
+    if (catVal === '개인상담') catVal = '상담';
+
+    if (cat && catVal) {
+        if (![...cat.options].some(o => o.value === catVal)) {
+            // 목록에 없는 레거시 구분값도 편집 시 그대로 보존
+            cat.insertAdjacentHTML('beforeend', `<option value="${catVal}">${catVal}</option>`);
+        }
+        cat.value = catVal;
+    }
+    if (num && numVal) {
+        if (![...num.options].some(o => o.value === numVal)) {
+            // 관리 목록에 없는 번호(과거 데이터)도 편집 시 보존
+            num.insertAdjacentHTML('beforeend', `<option value="${numVal}">${numVal}</option>`);
+        }
+        num.value = numVal;
+    }
+    const numbered = isNumberedCategory(catVal);
+    if (num) num.classList.toggle('hidden', !numbered || num.options.length === 0);
+    if (hidden) hidden.value = t;
+};
+
 // Populate UI for attendance list
 async function refreshAttendanceList() {
     const currentType = document.getElementById('meetingType').value;
@@ -1588,6 +1725,11 @@ async function handleSaveCounseling() {
 
 // Handle Save
 async function handleSaveMeeting() {
+    // [중복 저장 방지] index.html에서는 app.js(addEventListener)와 meeting_editor.js(onclick)가
+    // 같은 저장 버튼에 동시에 바인딩될 수 있다. 모달을 마지막으로 연 모듈(owner)만 저장을 수행한다.
+    // (교구전체모임 이중 생성/출석 카운트 오염 버그의 원인)
+    if (window.__meetingModalOwner && window.__meetingModalOwner !== 'editor') return;
+
     // 저장 전 입력 중인 주제 태그 텍스트 자동 추가 (모바일에서 엔터 없이 저장하는 경우 대비)
     const tagsInputEl = document.getElementById('meetingSermonTags');
     if (tagsInputEl && tagsInputEl.value) {
@@ -1766,6 +1908,8 @@ async function handleSaveMeeting() {
 
 // Handle Delete
 async function handleDeleteMeeting() {
+    // [중복 삭제 방지] handleSaveMeeting과 동일한 owner 가드
+    if (window.__meetingModalOwner && window.__meetingModalOwner !== 'editor') return;
     if (!currentMeetingId) return;
 
     const executeDelete = async (isSingleOnly = false) => {
@@ -1876,6 +2020,7 @@ window.openCounselingEditModal = function(data) {
     injectEditorElements();
 
     currentMeetingId = data.sessionId;
+    window.__meetingModalOwner = 'editor'; // 저장/삭제 이중 실행 방지
     editorSaveCallback = data.onSave || null;
 
     // 모달 초기화
@@ -1893,9 +2038,8 @@ window.openCounselingEditModal = function(data) {
     const counselingPanel = document.getElementById('counselingPanel');
     if (counselingPanel) counselingPanel.classList.remove('hidden');
 
-    // meetingType
-    const typeEl = document.getElementById('meetingType');
-    if (typeEl) typeEl.value = '개인상담';
+    // meetingType (구분/번호 셀렉트 동기화 포함)
+    window.setMeetingTypeValue('개인상담');
 
     // 삭제 버튼 숨김 (counseling_history에서 별도 처리)
     const deleteBtn = document.getElementById('deleteMeeting');
@@ -2043,9 +2187,13 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDat
     }
 };
 
-async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
+async function openMeetingModal(id, date, title = '', type = '', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
     currentMeetingId = id; extraAttendees = [];
+    window.__meetingModalOwner = 'editor'; // 저장/삭제 이중 실행 방지: 이 모듈이 모달 소유
     resetCounselingPanel();
+
+    // 신규 등록 기본 구분: 관리자 설정의 첫 관리 구역 구역모임
+    if (!type) type = await window.getDefaultMeetingType();
 
     document.getElementById('meetingRecurrence').value = rrule_type || 'none';
     document.getElementById('meetingRecurrenceEndDate').value = rrule_end_date || '';
@@ -2074,59 +2222,10 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingEndDate').value = end_date || '';
     document.getElementById('meetingSermonBible').value = sermon_bible || '';
 
-    // Dynamically rebuild meetingType options based on the current user's default parish districts
-    const meetingTypeSelect = document.getElementById('meetingType');
-    if (meetingTypeSelect) {
-        let districts = [];
-        try {
-            const profileRes = await fetch('/api/users/default-profile');
-            const profile = profileRes.ok ? await profileRes.json() : null;
-            if (profile && profile.parish) {
-                // Find parish id first
-                const parishesRes = await fetch(`/api/parishes`);
-                const parishes = await parishesRes.json();
-                const matchedParish = parishes.find(p => p.name.trim() === profile.parish.trim());
-                if (matchedParish) {
-                    const districtsRes = await fetch(`/api/districts?parish_id=${matchedParish.id}`);
-                    districts = await districtsRes.json();
-                }
-            }
-        } catch (err) {
-            console.error('Failed to load dynamic districts in meeting editor:', err);
-        }
+    // 구분/번호 셀렉트 초기화 후 값 세팅 (번호 목록은 강효근 관리자 설정 기반, 저장 포맷은 결합 문자열 유지)
+    await window.initMeetingTypeSelectors();
+    window.setMeetingTypeValue(type);
 
-        const distNames = districts.length > 0 ? districts.map(d => d.name) : ['581구역', '582구역', '583구역'];
-        
-        let selectHTML = '';
-        // 1. Dynamic District options
-        distNames.forEach(dName => {
-            const cleanName = dName.replace(/구역$/, '');
-            selectHTML += `<option value="${cleanName}구역모임">${cleanName}구역모임</option>`;
-        });
-        // 2. Dynamic Group (조) options
-        distNames.forEach(dName => {
-            const cleanName = dName.replace(/구역$/, '');
-            selectHTML += `<option value="${cleanName}조모임">${cleanName}조모임</option>`;
-        });
-        // 3. Common options
-        selectHTML += `
-            <option value="교구전체모임">교구전체모임</option>
-            <option value="교구형제모임">교구형제모임</option>
-            <option value="교구청년모임">교구청년모임</option>
-            <option value="교구임원모임">교구임원모임</option>
-            <option value="심방">심방</option>
-            <option value="상담">개인상담</option>
-            <option value="설교">내부설교</option>
-            <option value="외부설교">외부설교</option>
-            <option value="교회행사">교회행사</option>
-            <option value="기타">기타 모임</option>
-        `;
-        meetingTypeSelect.innerHTML = selectHTML;
-    }
-    if (meetingTypeSelect) {
-        meetingTypeSelect.value = type;
-    }
-    
     if (sermon_tags) {
         currentSermonTagsList = sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0);
     } else {

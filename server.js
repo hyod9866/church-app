@@ -688,20 +688,92 @@ app.get('/api/members/search', async (req, res) => {
   }
 });
 
-// 강효근 성도의 기본 소속 정보 조회 API (디폴트 필터값용)
+// 강효근 성도의 기본 소속 정보 + 관리자 설정 조회 API
+// 반환: { church, parish, district, managed_districts, districts: ['581','582','583'] }
+// districts = 번호 드롭다운/기본 모임 구분에 쓰이는 관리 구역 번호 목록.
+//   1순위: members.managed_districts (관리자 설정 화면에서 편집, 예: "581,582,583")
+//   2순위: 소속 교구(parish) 이름으로 districts 테이블 조회 (managed_districts 미설정 시)
+//   ※ 하드코딩 581~583 fallback은 제거됨
 app.get('/api/users/default-profile', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('members')
-      .select('church, parish, district')
+      .select('church, parish, district, managed_districts')
       .eq('name', '강효근')
       .single();
-      
+
+    // managed_districts 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    if (error && /managed_districts/i.test(error.message || '')) {
+      const retry = await supabase
+        .from('members')
+        .select('church, parish, district')
+        .eq('name', '강효근')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
-    res.json(data || { church: '서울중앙교회', parish: '부곡교구', district: '581구역' });
+
+    const row = data || {};
+    let districts = String(row.managed_districts || '')
+      .split(/[,\s/]+/)
+      .map(s => s.replace(/[^0-9]/g, ''))
+      .filter(Boolean);
+
+    if (districts.length === 0 && row.parish) {
+      try {
+        const { data: parishes } = await supabase.from('parishes').select('id, name');
+        const matched = (parishes || []).find(p => (p.name || '').trim() === row.parish.trim());
+        if (matched) {
+          const { data: ds } = await supabase.from('districts').select('name').eq('parish_id', matched.id);
+          districts = (ds || [])
+            .map(d => (d.name || '').replace(/[^0-9]/g, ''))
+            .filter(Boolean);
+        }
+      } catch (fbErr) {
+        console.warn('default-profile: districts fallback lookup failed:', fbErr.message);
+      }
+    }
+
+    res.json({ ...row, districts });
   } catch (err) {
     console.error('Failed to get default profile:', err);
-    res.json({ church: '서울중앙교회', parish: '부곡교구', district: '581구역' });
+    res.json({ church: '서울중앙교회', parish: '부곡교구', district: '581구역', districts: [] });
+  }
+});
+
+// 관리자 설정 저장 API (강효근 행의 관리 교회/교구/구역 목록 갱신)
+// body: { church?, parish?, managed_districts? }  — 전달된 필드만 갱신
+app.put('/api/users/default-profile', async (req, res) => {
+  try {
+    const { church, parish, managed_districts } = req.body || {};
+    const patch = {};
+    if (church !== undefined) patch.church = String(church).trim();
+    if (parish !== undefined) patch.parish = String(parish).trim();
+    if (managed_districts !== undefined) patch.managed_districts = String(managed_districts).trim();
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: '갱신할 필드가 없습니다.' });
+    }
+
+    const { data, error } = await supabase
+      .from('members')
+      .update(patch)
+      .eq('name', '강효근')
+      .select('church, parish, district, managed_districts')
+      .single();
+
+    if (error) {
+      if (/managed_districts/i.test(error.message || '')) {
+        return res.status(400).json({
+          error: 'members 테이블에 managed_districts 컬럼이 없습니다. Supabase SQL Editor에서 다음을 실행하세요: ALTER TABLE members ADD COLUMN IF NOT EXISTS managed_districts text;'
+        });
+      }
+      throw error;
+    }
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to update default profile:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

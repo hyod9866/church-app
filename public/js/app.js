@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isSameDay = (startDate === realEndDate);
             const endDateVal = isSameDay ? '' : realEndDate;
             
-            openMeetingModal(null, startDate, '', '581구역모임', '', '', '', endDateVal, startTimeVal, endTimeVal);
+            openMeetingModal(null, startDate, '', '', '', '', '', endDateVal, startTimeVal, endTimeVal);
             calendar.unselect();
         },
         events: async (fetchInfo, successCallback, failureCallback) => {
@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (typeof calendar !== 'undefined' && calendar.refetchEvents) calendar.refetchEvents();
                 }, null, clickedDate, clickedTime, endTimeVal);
             } else {
-                openMeetingModal(null, clickedDate, '', '581구역모임', '', '', '', '', clickedTime, endTimeVal);
+                openMeetingModal(null, clickedDate, '', '', '', '', '', '', clickedTime, endTimeVal);
             }
         },
         eventClick: (info) => {
@@ -2007,9 +2007,15 @@ window.removeSermonTag = function(idx) {
 let clickedInstanceDate = null;
 let currentMeetingData = null;
 
-async function openMeetingModal(id, date, title = '', type = '581구역모임', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
+async function openMeetingModal(id, date, title = '', type = '', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
     currentMeetingId = id; extraAttendees = [];
-    
+    window.__meetingModalOwner = 'app'; // 저장/삭제 이중 실행 방지: 이 모듈이 모달 소유 (meeting_editor.js와 상호 배제)
+
+    // 신규 등록 기본 구분: 관리자 설정의 첫 관리 구역 구역모임 (meeting_editor.js 공통 헬퍼)
+    if (!type) {
+        type = (typeof window.getDefaultMeetingType === 'function') ? await window.getDefaultMeetingType() : '구역모임';
+    }
+
     // 반복 설정 UI 바인딩
     document.getElementById('meetingRecurrence').value = rrule_type || 'none';
     document.getElementById('meetingRecurrenceEndDate').value = rrule_end_date || '';
@@ -2051,7 +2057,13 @@ async function openMeetingModal(id, date, title = '', type = '581구역모임', 
     document.getElementById('meetingTitle').value = title;
     document.getElementById('meetingDate').value = date;
     document.getElementById('meetingEndDate').value = end_date || '';
-    document.getElementById('meetingType').value = type;
+    // 구분/번호 셀렉트 초기화 후 값 세팅 (meeting_editor.js 공통 헬퍼, 저장 포맷은 결합 문자열 유지)
+    if (typeof window.initMeetingTypeSelectors === 'function') {
+        await window.initMeetingTypeSelectors();
+        window.setMeetingTypeValue(type);
+    } else {
+        document.getElementById('meetingType').value = type;
+    }
     document.getElementById('meetingSermonBible').value = sermon_bible || '';
     
     // Parse tags (split by comma, space or hash)
@@ -2710,6 +2722,11 @@ function renderExtras() {
 window.removeExtra = (id) => { extraAttendees = extraAttendees.filter(x => x.id !== id); renderExtras(); };
 
 document.getElementById('saveMeeting').addEventListener('click', async () => {
+    // [중복 저장 방지] index.html에서는 이 리스너와 meeting_editor.js의 onclick(handleSaveMeeting)이
+    // 같은 버튼에 동시에 바인딩될 수 있다. 모달을 마지막으로 연 모듈(owner)만 저장을 수행한다.
+    // (교구전체모임 이중 생성/출석 카운트 오염 버그의 원인)
+    if (window.__meetingModalOwner && window.__meetingModalOwner !== 'app') return;
+
     // 저장 전 입력 중인 주제 태그 텍스트 자동 추가 (모바일에서 엔터 없이 저장하는 경우 대비)
     const tagsInputEl = document.getElementById('meetingSermonTags');
     if (tagsInputEl && tagsInputEl.value) {
@@ -2895,6 +2912,9 @@ document.getElementById('closeModal').addEventListener('click', closeMeetingPane
 document.getElementById('closeDetailPanel').addEventListener('click', closeMeetingPanels);
 
 document.getElementById('deleteMeeting').addEventListener('click', async () => {
+    // [중복 삭제 방지] saveMeeting과 동일한 owner 가드
+    if (window.__meetingModalOwner && window.__meetingModalOwner !== 'app') return;
+
     const deleteAction = async (isSingleOnly = false) => {
         try {
             if (isSingleOnly) {

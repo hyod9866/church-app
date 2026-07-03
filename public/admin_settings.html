@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 설정 - Pastoral Ministry Program</title>
+    <link rel="stylesheet" href="/css/tailwind.min.css">
+    <script>
+        // Prevent flickering of white backgrounds
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/dark-theme-fixes.css?v=1">
+</head>
+<body class="bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-200 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="/" class="hover:opacity-80 transition-opacity duration-150 flex items-center gap-2 truncate">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span class="font-black text-sm md:text-base truncate">관리자 설정</span>
+                </a>
+            </div>
+            <span class="text-[10px] md:text-xs font-bold text-slate-400 whitespace-nowrap">강효근 관리 교회 · 교구 · 구역</span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
+
+        <!-- 설명 카드 -->
+        <div class="bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-4 text-xs md:text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+            <p class="font-extrabold text-blue-800 dark:text-blue-400 mb-1.5">이 설정은 어디에 적용되나요?</p>
+            <p>발령 등으로 소속이 바뀌면 <b>여기서 한 번만</b> 수정하면 됩니다. 아래 항목이 이 설정을 따라갑니다:</p>
+            <ul class="list-disc pl-5 mt-1.5 space-y-0.5">
+                <li>신규 일정 등록의 <b>구분 + 번호</b> 드롭다운 (예: 581 / 582 / 583 구역·조모임)</li>
+                <li><b>교구전체모임</b> 참석 대상자 범위 (관리 교회 + 관리 교구 성도)</li>
+                <li>출석률 집계 시 교구전체모임 의무 대상 판정</li>
+            </ul>
+        </div>
+
+        <!-- 설정 폼 -->
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 p-5 space-y-5">
+            <h2 class="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <span class="w-1.5 h-4 bg-blue-600 dark:bg-blue-500 rounded-full"></span>
+                관리 소속 설정
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">관리 교회</label>
+                    <input type="text" id="adminChurch" list="churchOptions" placeholder="예: 서울중앙교회"
+                        class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:placeholder-slate-500" autocomplete="off">
+                    <datalist id="churchOptions"></datalist>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">관리 교구</label>
+                    <input type="text" id="adminParish" list="parishOptions" placeholder="예: 부곡교구"
+                        class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:placeholder-slate-500" autocomplete="off">
+                    <datalist id="parishOptions"></datalist>
+                    <p class="text-[10px] text-slate-400 mt-1">서울중앙교회 소속일 때 교구전체모임 대상이 이 교구로 한정됩니다.</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">관리 구역 목록 (쉼표로 구분)</label>
+                <input type="text" id="adminDistricts" placeholder="예: 581, 582, 583"
+                    class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:placeholder-slate-500" autocomplete="off">
+                <div id="districtsPreview" class="flex flex-wrap gap-1.5 mt-2"></div>
+                <p class="text-[10px] text-slate-400 mt-1.5">
+                    비워두면 관리 교구의 구역 목록(조직 관리 데이터)을 자동으로 사용합니다.
+                    신규 일정의 번호 드롭다운이 이 순서대로 표시되며, 첫 번째 번호가 기본값이 됩니다.
+                </p>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                <p id="adminSaveStatus" class="text-xs font-bold text-slate-400"></p>
+                <button id="saveAdminSettings"
+                    class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button>
+            </div>
+        </div>
+
+        <!-- 현재 적용 상태 미리보기 -->
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 p-5 space-y-3">
+            <h2 class="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <span class="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
+                현재 적용 상태
+            </h2>
+            <div id="currentPreview" class="text-xs md:text-sm text-slate-600 dark:text-slate-300 leading-relaxed space-y-1">
+                <p class="text-slate-400 italic">불러오는 중...</p>
+            </div>
+        </div>
+
+        <!-- 마이그레이션 안내 (컬럼 없을 때만 표시) -->
+        <div id="migrationNotice" class="hidden bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 text-xs md:text-sm leading-relaxed text-amber-900 dark:text-amber-300">
+            <p class="font-extrabold mb-1.5">⚠ DB 컬럼 추가 필요</p>
+            <p>Supabase SQL Editor에서 아래 한 줄을 실행한 뒤 다시 저장해 주세요:</p>
+            <pre class="mt-2 bg-white/70 dark:bg-slate-900/60 rounded-lg px-3 py-2 font-mono text-[11px] overflow-x-auto">ALTER TABLE members ADD COLUMN IF NOT EXISTS managed_districts text;</pre>
+        </div>
+    </main>
+
+    <script src="/js/admin_settings.js?v=admin-districts-1"></script>
+</body>
+</html>

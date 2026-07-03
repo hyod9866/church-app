@@ -464,6 +464,11 @@
                 <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                 모임 현황
             </a>
+            <!-- 관리자 설정 (관리 교회/교구/구역) -->
+            <a href="/admin_settings.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5" title="관리 교회/교구/구역 설정">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                관리자 설정
+            </a>
             <!-- Settings Gear Button -->
             <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 p-2.5 rounded-lg transition duration-200 cursor-pointer flex items-center justify-center ml-2 flex-shrink-0" title="설정">
                 <i class="fa-solid fa-gear text-[13px] md:text-sm"></i>
@@ -539,7 +544,7 @@
                                 <label id="meetingDateLabel" class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">날짜</label>
                                 <input type="date" id="meetingDate" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30">
                             </div>
-                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><select id="meetingType" class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"><option value="581구역모임">581구역모임</option><option value="582구역모임">582구역모임</option><option value="583구역모임">583구역모임</option><option value="581조모임">581조모임</option><option value="582조모임">582조모임</option><option value="583조모임">583조모임</option><option value="교구전체모임">교구전체모임</option><option value="교구형제모임">교구형제모임</option><option value="교구청년모임">교구청년모임</option><option value="교구임원모임">교구임원모임</option><option value="심방">심방</option><option value="상담">개인상담</option><option value="설교">내부설교</option><option value="외부설교">외부설교</option><option value="교회행사">교회행사</option><option value="기타">기타 모임</option></select></div>
+                            <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">구분</label><div class="flex gap-1.5"><select id="meetingCategory" class="flex-1 min-w-0 border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></select><select id="meetingNumber" aria-label="번호" class="hidden w-20 shrink-0 border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-2.5 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none cursor-pointer transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"></select></div><input type="hidden" id="meetingType" value=""></div>
                             <div id="sermonTagsField" class="col-span-2 hidden">
                                 <label class="text-[10px] font-black text-slate-450 block mb-1.5 uppercase tracking-wider">설교 구분 태그</label>
                                 <div class="flex flex-wrap gap-1.5" id="sermonTagsList">
@@ -1065,7 +1070,7 @@
     </div>
 
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/meeting_editor.js?v=parish-target-fix-2"></script>
-    <script src="/js/app.js?v=parish-target-fix-2"></script>
+    <script src="/js/meeting_editor.js?v=admin-districts-1"></script>
+    <script src="/js/app.js?v=admin-districts-1"></script>
 </body>
 </html>
