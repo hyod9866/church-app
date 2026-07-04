@@ -1716,10 +1716,10 @@ async function refreshAttendanceList() {
             ? 'bg-blue-600 border-blue-600 text-white'
             : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
         return `<div class="attendance-row relative" data-id="${m.id}" data-present="${isP}" data-district="${m.district || ''}">
-            <button type="button" class="attend-chip w-full h-full flex items-center justify-center px-1 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.97] ${chipCls}">
-                <span class="att-name font-extrabold text-[13px] leading-tight truncate">${m.name}</span>
+            <button type="button" class="attend-chip w-full flex items-center justify-center px-2 py-1 rounded-lg border transition-all duration-150 active:scale-[0.97] ${chipCls}">
+                <span class="att-name font-black text-xs leading-tight truncate">${m.name}</span>
             </button>
-            <span class="testimony-dot absolute top-1 right-1.5 w-2 h-2 rounded-full bg-amber-400 shadow ${test ? '' : 'hidden'}"></span>
+            <span class="testimony-dot absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 shadow ${test ? '' : 'hidden'}"></span>
             <input type="hidden" class="testimony-input" value="${test}">
         </div>`;
     };
@@ -1736,7 +1736,7 @@ async function refreshAttendanceList() {
         return Array.from(groups.entries()).map(([dist, arr]) => `
             <div class="att-district-group" data-district="${dist}">
                 ${single ? '' : `<div class="flex items-center gap-2 mb-1.5 mt-0.5"><span class="text-[10px] font-black text-blue-500/90 dark:text-blue-400/90 tracking-wider">${dist}</span><span class="flex-1 border-t border-dashed border-slate-200 dark:border-slate-800"></span><span class="text-[9px] font-bold text-slate-300 dark:text-slate-600">${arr.length}명</span></div>`}
-                <div class="grid grid-cols-4 gap-1.5">${arr.map(renderRow).join('')}</div>
+                <div class="grid grid-cols-5 gap-1">${arr.map(renderRow).join('')}</div>
             </div>`).join('');
     };
 
