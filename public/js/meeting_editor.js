@@ -1,3 +1,125 @@
+/* ===== 출석/간증 2단계 모드 공용 헬퍼 (ATT-MODE-UX) =====
+   - '출석 체크' 모드: 이름만 컴팩트 그리드, 탭하면 출석 토글
+   - '간증 입력' 모드: 출석자만 표시, 탭하면 하단 패널에서 간증 입력 (이전/다음 순차 이동)
+   - index.html(app.js)과 다른 페이지(meeting_editor.js) 양쪽에서 공유 */
+(function () {
+    if (window.__attModeUXLoaded) return;
+    window.__attModeUXLoaded = true;
+
+    window.__attMode = 'check';
+    window.__attCurrentRowId = null;
+
+    const $id = (id) => document.getElementById(id);
+    const mainRows = () => Array.from(document.querySelectorAll('#attendanceList .attendance-row'));
+    const presentRows = () => mainRows().filter(r => r.dataset.present === 'true');
+    const rowTestInput = (row) => row.querySelector('.testimony-input');
+
+    const TAB_ACTIVE = ['bg-white', 'dark:bg-slate-700', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm'];
+    const TAB_INACTIVE = ['text-slate-500', 'dark:text-slate-400'];
+
+    // 간증 유무 점(dot) 표시 갱신
+    window.attUpdateDot = function (row) {
+        if (!row) return;
+        const dot = row.querySelector('.testimony-dot');
+        const inp = rowTestInput(row);
+        if (dot && inp) dot.classList.toggle('hidden', !inp.value.trim());
+    };
+
+    // 현재 모드에 맞춰 행 표시/숨김 적용 (간증 모드 = 출석자만)
+    window.attApplyModeFilter = function () {
+        const mode = window.__attMode;
+        const rows = mainRows();
+        rows.forEach(r => r.classList.toggle('hidden', mode === 'testimony' && r.dataset.present !== 'true'));
+        const hint = $id('testimonyModeHint');
+        if (hint) {
+            const showHint = mode === 'testimony' && presentRows().length === 0;
+            hint.classList.toggle('hidden', !showHint);
+        }
+    };
+
+    window.attSetMode = function (mode) {
+        window.__attMode = mode;
+        const checkBtn = $id('attModeCheckBtn');
+        const testBtn = $id('attModeTestimonyBtn');
+        if (checkBtn && testBtn) {
+            const on = mode === 'check' ? checkBtn : testBtn;
+            const off = mode === 'check' ? testBtn : checkBtn;
+            on.classList.add(...TAB_ACTIVE); on.classList.remove(...TAB_INACTIVE);
+            off.classList.remove(...TAB_ACTIVE); off.classList.add(...TAB_INACTIVE);
+        }
+        window.attApplyModeFilter();
+        if (mode === 'check') window.attCloseTestimonyPanel();
+    };
+
+    window.attOpenTestimonyPanel = function (row) {
+        const panel = $id('testimonyPanel');
+        if (!panel || !row) return;
+        document.querySelectorAll('#attendanceList .attend-chip.att-editing')
+            .forEach(c => c.classList.remove('att-editing', 'ring-2', 'ring-amber-400'));
+        window.__attCurrentRowId = row.dataset.id;
+        const chip = row.querySelector('.attend-chip');
+        if (chip) chip.classList.add('att-editing', 'ring-2', 'ring-amber-400');
+        const nameEl = row.querySelector('.att-name');
+        const distEl = row.querySelector('.attend-district');
+        const nEl = $id('testimonyPanelName'); if (nEl) nEl.textContent = nameEl ? nameEl.textContent : '';
+        const dEl = $id('testimonyPanelDistrict'); if (dEl) dEl.textContent = distEl ? distEl.textContent : '';
+        const list = presentRows();
+        const idx = list.indexOf(row);
+        const pEl = $id('testimonyPanelPos'); if (pEl) pEl.textContent = idx >= 0 ? `${idx + 1}/${list.length}` : '';
+        const input = $id('testimonyPanelInput');
+        const t = rowTestInput(row);
+        if (input) { input.value = t ? t.value : ''; }
+        panel.classList.remove('hidden');
+        if (input) input.focus();
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+
+    window.attCloseTestimonyPanel = function () {
+        const panel = $id('testimonyPanel');
+        if (panel) panel.classList.add('hidden');
+        window.__attCurrentRowId = null;
+        document.querySelectorAll('#attendanceList .attend-chip.att-editing')
+            .forEach(c => c.classList.remove('att-editing', 'ring-2', 'ring-amber-400'));
+    };
+
+    // 이전/다음 출석자로 이동 (dir: -1 | 1, 끝에서 순환)
+    window.attNav = function (dir) {
+        const list = presentRows();
+        if (!list.length) return;
+        let idx = list.findIndex(r => r.dataset.id === window.__attCurrentRowId);
+        idx = idx === -1 ? 0 : (idx + dir + list.length) % list.length;
+        window.attOpenTestimonyPanel(list[idx]);
+    };
+
+    // 탭/패널 이벤트 바인딩 (onclick 대입이라 중복 호출해도 안전)
+    window.initAttendanceModeUX = function () {
+        const checkBtn = $id('attModeCheckBtn');
+        const testBtn = $id('attModeTestimonyBtn');
+        if (checkBtn) checkBtn.onclick = () => window.attSetMode('check');
+        if (testBtn) testBtn.onclick = () => window.attSetMode('testimony');
+        const input = $id('testimonyPanelInput');
+        if (input) {
+            input.oninput = () => {
+                const row = mainRows().find(r => r.dataset.id === window.__attCurrentRowId);
+                if (!row) return;
+                const t = rowTestInput(row);
+                if (t) t.value = input.value;
+                window.attUpdateDot(row);
+            };
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); window.attNav(1); }
+            };
+        }
+        const prev = $id('testimonyPrevBtn');
+        const next = $id('testimonyNextBtn');
+        const close = $id('testimonyPanelClose');
+        if (prev) prev.onclick = () => window.attNav(-1);
+        if (next) next.onclick = () => window.attNav(1);
+        if (close) close.onclick = () => window.attCloseTestimonyPanel();
+    };
+})();
+/* ===== /ATT-MODE-UX ===== */
+
 (function() {
 // Global Meeting Editor Module
 // Provides the exact same edit modal UX as index.html for all pages
@@ -116,7 +238,7 @@ function injectEditorElements() {
                     </div>
                 </div>
 
-                <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
+                <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><div id="attModeTabs" class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5"><button type="button" id="attModeCheckBtn" class="px-3 py-1.5 rounded-[10px] text-[11px] font-black transition-all">출석 체크</button><button type="button" id="attModeTestimonyBtn" class="px-3 py-1.5 rounded-[10px] text-[11px] font-black transition-all">간증 입력</button></div><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><p id="testimonyModeHint" class="hidden text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500 mb-2">아직 출석 체크된 사람이 없습니다.<br>'출석 체크' 탭에서 먼저 체크해 주세요.</p><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
                 <div id="extraAttendeesSection" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
                  <div id="counselingPanel" class="hidden space-y-4">
     <div class="relative">
@@ -203,6 +325,21 @@ function injectEditorElements() {
         <input type="text" id="modalCounselingRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="기타 특이사항이나 비고를 입력하세요...">
     </div>
 </div>
+            </div>
+            <div id="testimonyPanel" class="hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] px-4 pt-3 pb-2 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span id="testimonyPanelName" class="font-black text-sm text-slate-800 dark:text-slate-100 truncate"></span>
+                        <span id="testimonyPanelDistrict" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0"></span>
+                        <span id="testimonyPanelPos" class="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex-shrink-0"></span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button type="button" id="testimonyPrevBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition-all">◀ 이전</button>
+                        <button type="button" id="testimonyNextBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-blue-600 text-white active:scale-95 transition-all">다음 ▶</button>
+                        <button type="button" id="testimonyPanelClose" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold">✕</button>
+                    </div>
+                </div>
+                <input type="text" id="testimonyPanelInput" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500" placeholder="간증/기록 입력 후 Enter 또는 '다음'..." autocomplete="off">
             </div>
             <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800/50 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/35 active:scale-[0.98] text-red-500 dark:text-red-400 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700/60 py-3 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
         </div>
@@ -1387,7 +1524,10 @@ async function refreshAttendanceList() {
         if (defaultAttSec) defaultAttSec.classList.add('hidden');
         if (extraAttSec) extraAttSec.classList.add('hidden');
         if (memoField) memoField.classList.remove('hidden');
-        document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">교회 행사는 참석 체크 대상자가 없습니다.</p>';
+        const attListChurch = document.getElementById('attendanceList');
+        attListChurch.className = 'space-y-2 max-h-[600px] overflow-y-auto no-scrollbar';
+        attListChurch.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">교회 행사는 참석 체크 대상자가 없습니다.</p>';
+        if (window.attSetMode) window.attSetMode('check');
         
         const searchSection = document.getElementById('churchSearchSection');
         if (searchSection) {
@@ -1439,7 +1579,10 @@ async function refreshAttendanceList() {
     } else if (currentType.includes('청년모임')) {
         targetParams.append('category', '청년회');
     } else if (['설교', '외부설교', '심방', '기타'].includes(currentType)) {
-        document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
+        const attListNone = document.getElementById('attendanceList');
+        attListNone.className = 'space-y-2 max-h-[600px] overflow-y-auto no-scrollbar';
+        attListNone.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
+        if (window.attSetMode) window.attSetMode('check');
         if (currentMeetingId) {
             const aRes = await fetch(`/api/meetings/${currentMeetingId}/attendance`);
             const att = await aRes.json();
@@ -1485,22 +1628,16 @@ async function refreshAttendanceList() {
         const chipCls = isP
             ? 'bg-blue-600 border-blue-600 text-white'
             : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
-        const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
         const distCls = isP ? 'bg-blue-500/70 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
-        const checkSvg = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
-        return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}">
-            <button type="button" class="attend-chip w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
-                <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${dotCls}">${isP ? checkSvg : ''}</span>
-                <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
-                <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district}</span>
+        return `<div class="attendance-row relative" data-id="${m.id}" data-present="${isP}">
+            <button type="button" class="attend-chip w-full h-full flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-xl border-2 transition-all duration-150 active:scale-[0.97] ${chipCls}">
+                <span class="att-name font-extrabold text-[13px] leading-tight w-full text-center truncate">${m.name}</span>
+                <span class="attend-district text-[9px] font-bold px-1.5 py-px rounded-md ${distCls}">${m.district}</span>
             </button>
-            <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
-                <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
-            </div>
+            <span class="testimony-dot absolute top-1 right-1.5 w-2 h-2 rounded-full bg-amber-400 shadow ${test ? '' : 'hidden'}"></span>
+            <input type="hidden" class="testimony-input" value="${test}">
         </div>`;
     };
-
-    const CHECK_SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
 
     function updateAttendCount() {
         const total = document.querySelectorAll('.attendance-row[data-present="true"]').length;
@@ -1512,36 +1649,36 @@ async function refreshAttendanceList() {
         const nowPresent = row.dataset.present !== 'true';
         row.dataset.present = String(nowPresent);
         const chip = row.querySelector('.attend-chip');
-        const dot = row.querySelector('.attend-dot');
         const dist = row.querySelector('.attend-district');
-        const wrap = row.querySelector('.testimony-wrap');
         if (nowPresent) {
-            chip.classList.remove('bg-white', 'border-slate-200', 'text-slate-700');
+            chip.classList.remove('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
             chip.classList.add('bg-blue-600', 'border-blue-600', 'text-white');
-            dot.classList.remove('border-slate-300', 'opacity-50');
-            dot.classList.add('bg-white', 'border-white');
-            dot.innerHTML = CHECK_SVG;
-            dist.classList.remove('bg-slate-100', 'text-slate-400');
+            dist.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
             dist.classList.add('bg-blue-500/70', 'text-blue-50');
-            wrap.classList.remove('hidden');
         } else {
             chip.classList.remove('bg-blue-600', 'border-blue-600', 'text-white');
-            chip.classList.add('bg-white', 'border-slate-200', 'text-slate-700');
-            dot.classList.remove('bg-white', 'border-white');
-            dot.classList.add('border-slate-300', 'opacity-50');
-            dot.innerHTML = '';
+            chip.classList.add('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
             dist.classList.remove('bg-blue-500/70', 'text-blue-50');
-            dist.classList.add('bg-slate-100', 'text-slate-400');
-            wrap.classList.add('hidden');
+            dist.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
         }
         updateAttendCount();
     }
 
-    document.getElementById('attendanceList').innerHTML = members.map(renderRow).join('');
-    document.getElementById('attendanceList').onclick = (e) => {
+    const attListEl = document.getElementById('attendanceList');
+    attListEl.className = 'grid grid-cols-3 gap-1.5 max-h-[600px] overflow-y-auto no-scrollbar';
+    attListEl.innerHTML = members.map(renderRow).join('');
+    attListEl.onclick = (e) => {
         const chip = e.target.closest('.attend-chip');
-        if (chip) toggleAttendChip(chip.closest('.attendance-row'));
+        if (!chip) return;
+        const row = chip.closest('.attendance-row');
+        if (window.__attMode === 'testimony') { window.attOpenTestimonyPanel(row); return; }
+        toggleAttendChip(row);
     };
+    updateAttendCount();
+    window.initAttendanceModeUX();
+    // 기존 모임 수정(기록 수정)이고 이미 출석자가 있으면 간증 모드로 바로 진입
+    const hasSavedPresent = att.some(a => a.is_present);
+    window.attSetMode(currentMeetingId && hasSavedPresent ? 'testimony' : 'check');
     
     if (currentMeetingId) {
         const memberIds = members.map(m => m.id);

@@ -630,7 +630,7 @@
                             </div>
                         </div>
 
-                        <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-slate-800 dark:text-slate-200 text-sm">참석 체크</h4><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
+                        <div id="defaultAttendanceSection" class="min-h-[200px]"><div class="flex justify-between items-center mb-2.5"><div id="attModeTabs" class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5"><button type="button" id="attModeCheckBtn" class="px-3 py-1.5 rounded-[10px] text-[11px] font-black transition-all">출석 체크</button><button type="button" id="attModeTestimonyBtn" class="px-3 py-1.5 rounded-[10px] text-[11px] font-black transition-all">간증 입력</button></div><span id="attendanceCount" class="text-[10px] font-black text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 px-2 py-0.5 rounded-full">0명 선택됨</span></div><p id="testimonyModeHint" class="hidden text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500 mb-2">아직 출석 체크된 사람이 없습니다.<br>'출석 체크' 탭에서 먼저 체크해 주세요.</p><div id="attendanceList" class="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar"></div></div>
                         <div id="extraAttendeesSection" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 border-dashed"><div class="flex justify-between items-center mb-2.5"><h4 class="font-extrabold text-emerald-800 dark:text-emerald-450 text-sm">추가 인원</h4><button id="openExtraMemberSearch" class="text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 active:scale-[0.98] transition-all px-2.5 py-1.5 rounded-xl shadow-sm">+ 성도 검색</button></div><div id="extraAttendanceList" class="space-y-2"><p class="text-slate-400 italic text-xs text-center py-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 dark:text-slate-500">없음</p></div></div>
 
                         <!-- 개인상담 패널 -->
@@ -705,6 +705,21 @@
         <input type="text" id="modalCounselingRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="기타 특이사항이나 비고를 입력하세요...">
     </div>
 </div><!-- /counselingPanel -->
+                    </div>
+                    <div id="testimonyPanel" class="hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] px-4 pt-3 pb-2 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span id="testimonyPanelName" class="font-black text-sm text-slate-800 dark:text-slate-100 truncate"></span>
+                                <span id="testimonyPanelDistrict" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0"></span>
+                                <span id="testimonyPanelPos" class="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex-shrink-0"></span>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <button type="button" id="testimonyPrevBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition-all">◀ 이전</button>
+                                <button type="button" id="testimonyNextBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-blue-600 text-white active:scale-95 transition-all">다음 ▶</button>
+                                <button type="button" id="testimonyPanelClose" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold">✕</button>
+                            </div>
+                        </div>
+                        <input type="text" id="testimonyPanelInput" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500" placeholder="간증/기록 입력 후 Enter 또는 '다음'..." autocomplete="off">
                     </div>
                     <div class="p-4 pb-6 md:pb-4 bg-slate-50 dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800/50 flex gap-2.5"><button id="deleteMeeting" class="w-14 h-12 flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/35 active:scale-[0.98] text-red-500 dark:text-red-400 rounded-xl transition-all hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button><button id="cancelMeeting" class="flex-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700/60 py-3 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-all">취소</button><button id="saveMeeting" class="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-[0.98] transition-all">저장하기</button></div>
                 </div>
@@ -1070,7 +1085,7 @@
     </div>
 
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/meeting_editor.js?v=leader-snapshot-1"></script>
-    <script src="/js/app.js?v=ui-density-3"></script>
+    <script src="/js/meeting_editor.js?v=att-mode-1"></script>
+    <script src="/js/app.js?v=att-mode-1"></script>
 </body>
 </html>

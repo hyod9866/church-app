@@ -2475,7 +2475,10 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
             if (defaultAttSec) defaultAttSec.classList.add('hidden');
             if (extraAttSec) extraAttSec.classList.add('hidden');
             if (memoField) memoField.classList.remove('hidden');
-            document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">교회 행사는 참석 체크 대상자가 없습니다.</p>';
+            const appAttListChurch = document.getElementById('attendanceList');
+            appAttListChurch.className = 'space-y-2 max-h-[600px] overflow-y-auto no-scrollbar';
+            appAttListChurch.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">교회 행사는 참석 체크 대상자가 없습니다.</p>';
+            if (window.attSetMode) window.attSetMode('check');
             
             const searchSection = document.getElementById('churchSearchSection');
             if (searchSection) {
@@ -2525,7 +2528,10 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
         } else if (currentType.includes('청년모임')) {
             targetParams.append('category', '청년회');
         } else if (['설교', '외부설교', '심방', '기타', '상담'].includes(currentType)) {
-            document.getElementById('attendanceList').innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
+            const appAttListNone = document.getElementById('attendanceList');
+            appAttListNone.className = 'space-y-2 max-h-[600px] overflow-y-auto no-scrollbar';
+            appAttListNone.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
+            if (window.attSetMode) window.attSetMode('check');
             if (id) {
                 const aRes = await fetch(`/api/meetings/${id}/attendance`);
                 const att = await aRes.json();
@@ -2565,24 +2571,19 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
             att = await aRes.json(); 
         }
         
-        const APP_CHECK_SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
-
         const renderRow = (m) => {
             const a = att.find(x => x.member_id === m.id);
             const isP = a ? !!a.is_present : false;
             const test = (a ? (a.testimony_snapshot || '') : '').replace(/"/g, '&quot;');
             const chipCls = isP ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
-            const dotCls = isP ? 'bg-white border-white' : 'border-slate-300 dark:border-slate-600 opacity-50';
             const distCls = isP ? 'bg-blue-500/70 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
-            return `<div class="attendance-row mb-1" data-id="${m.id}" data-present="${isP}">
-                <button type="button" class="attend-chip w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.98] ${chipCls}">
-                    <span class="attend-dot w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${dotCls}">${isP ? APP_CHECK_SVG : ''}</span>
-                    <span class="font-extrabold text-sm flex-1 text-left">${m.name}</span>
-                    <span class="attend-district text-[10px] font-bold px-2 py-0.5 rounded-lg ${distCls}">${m.district}</span>
+            return `<div class="attendance-row relative" data-id="${m.id}" data-present="${isP}">
+                <button type="button" class="attend-chip w-full h-full flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-xl border-2 transition-all duration-150 active:scale-[0.97] ${chipCls}">
+                    <span class="att-name font-extrabold text-[13px] leading-tight w-full text-center truncate">${m.name}</span>
+                    <span class="attend-district text-[9px] font-bold px-1.5 py-px rounded-md ${distCls}">${m.district}</span>
                 </button>
-                <div class="testimony-wrap ${isP ? '' : 'hidden'} px-1 pt-1.5 pb-0.5">
-                    <input type="text" class="testimony-input w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 bg-white dark:bg-[#1b253b] focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-500" placeholder="간증/기록 입력..." value="${test}">
-                </div>
+                <span class="testimony-dot absolute top-1 right-1.5 w-2 h-2 rounded-full bg-amber-400 shadow ${test ? '' : 'hidden'}"></span>
+                <input type="hidden" class="testimony-input" value="${test}">
             </div>`;
         };
 
@@ -2590,39 +2591,44 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
             const nowPresent = row.dataset.present !== 'true';
             row.dataset.present = String(nowPresent);
             const chip = row.querySelector('.attend-chip');
-            const dot = row.querySelector('.attend-dot');
             const dist = row.querySelector('.attend-district');
-            const wrap = row.querySelector('.testimony-wrap');
-            const SVG = `<svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
             if (nowPresent) {
-                chip.classList.remove('bg-white', 'border-slate-200', 'text-slate-700');
+                chip.classList.remove('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
                 chip.classList.add('bg-blue-600', 'border-blue-600', 'text-white');
-                dot.classList.remove('border-slate-300', 'opacity-50');
-                dot.classList.add('bg-white', 'border-white');
-                dot.innerHTML = SVG;
-                dist.classList.remove('bg-slate-100', 'text-slate-400');
+                dist.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
                 dist.classList.add('bg-blue-500/70', 'text-blue-50');
-                wrap.classList.remove('hidden');
             } else {
                 chip.classList.remove('bg-blue-600', 'border-blue-600', 'text-white');
-                chip.classList.add('bg-white', 'border-slate-200', 'text-slate-700');
-                dot.classList.remove('bg-white', 'border-white');
-                dot.classList.add('border-slate-300', 'opacity-50');
-                dot.innerHTML = '';
+                chip.classList.add('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
                 dist.classList.remove('bg-blue-500/70', 'text-blue-50');
-                dist.classList.add('bg-slate-100', 'text-slate-400');
-                wrap.classList.add('hidden');
+                dist.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
             }
             const total = document.querySelectorAll('.attendance-row[data-present="true"]').length;
             const countEl = document.getElementById('attendanceCount');
             if (countEl) countEl.textContent = `${total}명 선택됨`;
         }
 
-        document.getElementById('attendanceList').innerHTML = members.map(renderRow).join('');
-        document.getElementById('attendanceList').onclick = (e) => {
+        const appAttListEl = document.getElementById('attendanceList');
+        appAttListEl.className = 'grid grid-cols-3 gap-1.5 max-h-[600px] overflow-y-auto no-scrollbar';
+        appAttListEl.innerHTML = members.map(renderRow).join('');
+        appAttListEl.onclick = (e) => {
             const chip = e.target.closest('.attend-chip');
-            if (chip) appToggleChip(chip.closest('.attendance-row'));
+            if (!chip) return;
+            const row = chip.closest('.attendance-row');
+            if (window.__attMode === 'testimony') { window.attOpenTestimonyPanel(row); return; }
+            appToggleChip(row);
         };
+        {
+            const total = document.querySelectorAll('.attendance-row[data-present="true"]').length;
+            const countEl = document.getElementById('attendanceCount');
+            if (countEl) countEl.textContent = `${total}명 선택됨`;
+        }
+        if (window.initAttendanceModeUX) {
+            window.initAttendanceModeUX();
+            // 기존 모임 수정(기록 수정)이고 이미 출석자가 있으면 간증 모드로 바로 진입
+            const hasSavedPresent = att.some(a => a.is_present);
+            window.attSetMode(id && hasSavedPresent ? 'testimony' : 'check');
+        }
         
         // 기존 검색 추가 인원 복구 (수정 시 - 실제 출석했던 추가 인원만 복구)
         if (id) {
