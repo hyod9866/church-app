@@ -843,12 +843,10 @@ function isMandatoryMeeting(member, meeting, leaderProfile) {
     if (!mDistNum || mDistNum === memDistNum) return true;
   }
 
-  // 교구전체모임: 강효근 소속 교회(서울중앙교회인 경우 + 소속 교구) 성도만 의무 대상.
-  // 상담으로만 등록된 인원(전도대상, 타교회, '교회정보없음' 등)은 제외.
-  // 판정 기준 소속: 그 모임이 "만들어졌을 때"의 관리자 소속(leader_church_snapshot/leader_parish_snapshot)을
-  // 최우선으로 쓰고, 스냅샷이 없는 과거 모임(마이그레이션 전)만 현재 leaderProfile로 폴백한다.
-  // → 관리자가 나중에 다른 교구로 발령 나서 admin_settings를 바꿔도, 과거 모임의 대상자 판정은 그대로 유지됨.
-  if (mType.includes('교구전체모임')) {
+  // 교구 모임 조건 통일 (교구전체모임, 교구형제모임, 전체조모임, 교구임원모임, 교구청년모임 등)
+  const isParishMeeting = mType.includes('교구전체모임') || mType.includes('교구형제모임') || mType.includes('전체조모임') || mType.includes('교구임원모임') || mType.includes('청년') || mType.includes('교구청년모임');
+
+  if (isParishMeeting) {
     if (member.member_status === 'evangelism') return false;
     const effectiveChurch = meeting.leader_church_snapshot || (leaderProfile && leaderProfile.church) || null;
     const effectiveParish = meeting.leader_parish_snapshot || (leaderProfile && leaderProfile.parish) || null;
@@ -857,9 +855,11 @@ function isMandatoryMeeting(member, meeting, leaderProfile) {
       if (effectiveChurch.trim() === '서울중앙교회' && effectiveParish &&
           (member.parish || '').trim() !== effectiveParish.trim()) return false;
     }
-    return true;
   }
+
+  if (mType.includes('교구전체모임')) return true;
   if (mType.includes('교구형제모임') && member.bs === 'B') return true;
+  if (mType.includes('전체조모임') && member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회')) return true;
   if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
   if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 

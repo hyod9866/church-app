@@ -28,6 +28,7 @@ function isMandatoryMeeting(member, meeting) {
 
   if (mType.includes('교구전체모임')) return true;
   if (mType.includes('교구형제모임') && member.bs === 'B') return true;
+  if (mType.includes('전체조모임') && member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회')) return true;
   if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
   if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 

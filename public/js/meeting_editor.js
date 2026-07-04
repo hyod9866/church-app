@@ -1478,6 +1478,7 @@ const MEETING_CATEGORIES = [
     { value: '조모임', label: '조모임', numbered: true },
     { value: '교구전체모임', label: '교구전체모임' },
     { value: '교구형제모임', label: '교구형제모임' },
+    { value: '전체조모임', label: '전체조모임' },
     { value: '교구청년모임', label: '교구청년모임' },
     { value: '교구임원모임', label: '교구임원모임' },
     { value: '심방', label: '심방' },
