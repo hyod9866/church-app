@@ -2049,11 +2049,17 @@ app.post('/api/attendance/toggle', async (req, res) => {
 app.post('/api/attendance/testimony', async (req, res) => {
   const { member_id, meeting_id, testimony } = req.body;
   try {
+    const memberId = parseInt(member_id);
+    const meetingId = parseInt(meeting_id);
+    if (isNaN(memberId) || isNaN(meetingId)) {
+      return res.status(400).json({ error: '유효한 member_id와 meeting_id가 필요합니다.' });
+    }
+
     const { data: existing, error: selectErr } = await supabase
       .from('attendance')
       .select('id')
-      .eq('meeting_id', meeting_id)
-      .eq('member_id', member_id)
+      .eq('meeting_id', meetingId)
+      .eq('member_id', memberId)
       .maybeSingle();
 
     if (selectErr) throw selectErr;
@@ -2068,7 +2074,7 @@ app.post('/api/attendance/testimony', async (req, res) => {
       const { data: member, error: memErr } = await supabase
         .from('members')
         .select('district, category')
-        .eq('id', member_id)
+        .eq('id', memberId)
         .single();
         
       if (memErr) throw memErr;
@@ -2076,8 +2082,8 @@ app.post('/api/attendance/testimony', async (req, res) => {
       const { error: insertErr } = await supabase
         .from('attendance')
         .insert({
-          meeting_id,
-          member_id,
+          meeting_id: meetingId,
+          member_id: memberId,
           is_present: 0,
           testimony_snapshot: testimony || null,
           district_snapshot: member?.district || null,
