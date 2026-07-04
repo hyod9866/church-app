@@ -1318,6 +1318,10 @@ function openTagSermonsModal(tag) {
 
         // s.sermon_tags에서 정규식 파싱 후 단어 목록 추출하여 비교
         const matches = currentSermons.filter(s => {
+            // 현재 활성화된 모임 종류 필터 적용
+            if (selectedMeetingTypes && selectedMeetingTypes.size > 0 && !selectedMeetingTypes.has(s.type)) {
+                return false;
+            }
             if (!s.sermon_tags) return false;
             const tagList = s.sermon_tags.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\s+/).map(t => t.trim());
             return tagList.includes(tag);
