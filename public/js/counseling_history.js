@@ -998,14 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (historyTableBody) {
                 const memberAttendanceStats = document.getElementById('memberAttendanceStats');
                 if (memberAttendanceStats) memberAttendanceStats.textContent = `${getRate(stats.all)}% (${stats.all.present}/${stats.all.count})`;
-                historyTableBody.innerHTML = filteredHistory.map(h => `
-                    <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
-                        <td class="py-1.5 px-2.5 text-slate-500 font-medium text-center">${h.date}</td>
-                        <td class="py-1.5 px-2.5 font-bold text-slate-800">${h.title}</td>
-                        <td class="py-1.5 px-2.5 text-center font-bold ${h.is_present ? 'text-emerald-600' : 'text-rose-500'}">${h.is_present ? '출석' : '결석'}</td>
-                        <td class="py-1.5 px-2.5 text-slate-600 text-xs">${h.testimony_snapshot || '-'}</td>
-                    </tr>
-                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
+                historyTableBody.innerHTML = filteredHistory.map(h => `<tr class="text-sm border-b hover:bg-slate-50/50 transition-colors"><td class="py-1.5 px-2.5 text-slate-500 font-medium text-center">${h.date}</td><td class="py-1.5 px-2.5 font-bold text-slate-800">${h.title}</td><td class="py-1.5 px-2.5 text-center font-bold ${h.is_present ? 'text-emerald-600' : 'text-rose-500'}">${h.is_present ? '출석' : '결석'}</td><td class="py-1.5 px-2.5 text-slate-600 text-xs whitespace-pre-wrap">${h.testimony_snapshot || '-'}</td></tr>`).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
             }
 
             // 심방 기록 탭
