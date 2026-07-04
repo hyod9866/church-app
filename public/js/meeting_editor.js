@@ -30,6 +30,11 @@
         const mode = window.__attMode;
         const rows = mainRows();
         rows.forEach(r => r.classList.toggle('hidden', mode === 'testimony' && r.dataset.present !== 'true'));
+        // 구역 그룹: 보이는 행이 하나도 없는 그룹은 헤더째 숨김
+        document.querySelectorAll('#attendanceList .att-district-group').forEach(g => {
+            const anyVisible = Array.from(g.querySelectorAll('.attendance-row')).some(r => !r.classList.contains('hidden'));
+            g.classList.toggle('hidden', !anyVisible);
+        });
         const hint = $id('testimonyModeHint');
         if (hint) {
             const showHint = mode === 'testimony' && presentRows().length === 0;
@@ -60,9 +65,9 @@
         const chip = row.querySelector('.attend-chip');
         if (chip) chip.classList.add('att-editing', 'ring-2', 'ring-amber-400');
         const nameEl = row.querySelector('.att-name');
-        const distEl = row.querySelector('.attend-district');
         const nEl = $id('testimonyPanelName'); if (nEl) nEl.textContent = nameEl ? nameEl.textContent : '';
-        const dEl = $id('testimonyPanelDistrict'); if (dEl) dEl.textContent = distEl ? distEl.textContent : '';
+        const distEl = row.querySelector('.attend-district');
+        const dEl = $id('testimonyPanelDistrict'); if (dEl) dEl.textContent = row.dataset.district || (distEl ? distEl.textContent : '');
         const list = presentRows();
         const idx = list.indexOf(row);
         const pEl = $id('testimonyPanelPos'); if (pEl) pEl.textContent = idx >= 0 ? `${idx + 1}/${list.length}` : '';
@@ -1628,15 +1633,29 @@ async function refreshAttendanceList() {
         const chipCls = isP
             ? 'bg-blue-600 border-blue-600 text-white'
             : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
-        const distCls = isP ? 'bg-blue-500/70 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500';
-        return `<div class="attendance-row relative" data-id="${m.id}" data-present="${isP}">
-            <button type="button" class="attend-chip w-full h-full flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-xl border-2 transition-all duration-150 active:scale-[0.97] ${chipCls}">
-                <span class="att-name font-extrabold text-[13px] leading-tight w-full text-center truncate">${m.name}</span>
-                <span class="attend-district text-[9px] font-bold px-1.5 py-px rounded-md ${distCls}">${m.district}</span>
+        return `<div class="attendance-row relative" data-id="${m.id}" data-present="${isP}" data-district="${m.district || ''}">
+            <button type="button" class="attend-chip w-full h-full flex items-center justify-center px-1 py-2.5 rounded-xl border-2 transition-all duration-150 active:scale-[0.97] ${chipCls}">
+                <span class="att-name font-extrabold text-[13px] leading-tight truncate">${m.name}</span>
             </button>
             <span class="testimony-dot absolute top-1 right-1.5 w-2 h-2 rounded-full bg-amber-400 shadow ${test ? '' : 'hidden'}"></span>
             <input type="hidden" class="testimony-input" value="${test}">
         </div>`;
+    };
+
+    // 구역별 그룹핑 (같은 구역끼리 묶어 헤더 한 번만 표시, 단일 구역이면 헤더 생략)
+    const renderGrouped = (list) => {
+        const groups = new Map();
+        list.forEach(m => {
+            const key = m.district || '기타';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(m);
+        });
+        const single = groups.size <= 1;
+        return Array.from(groups.entries()).map(([dist, arr]) => `
+            <div class="att-district-group" data-district="${dist}">
+                ${single ? '' : `<div class="flex items-center gap-2 mb-1.5 mt-0.5"><span class="text-[10px] font-black text-blue-500/90 dark:text-blue-400/90 tracking-wider">${dist}</span><span class="flex-1 border-t border-dashed border-slate-200 dark:border-slate-800"></span><span class="text-[9px] font-bold text-slate-300 dark:text-slate-600">${arr.length}명</span></div>`}
+                <div class="grid grid-cols-4 gap-1.5">${arr.map(renderRow).join('')}</div>
+            </div>`).join('');
     };
 
     function updateAttendCount() {
@@ -1649,24 +1668,19 @@ async function refreshAttendanceList() {
         const nowPresent = row.dataset.present !== 'true';
         row.dataset.present = String(nowPresent);
         const chip = row.querySelector('.attend-chip');
-        const dist = row.querySelector('.attend-district');
         if (nowPresent) {
             chip.classList.remove('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
             chip.classList.add('bg-blue-600', 'border-blue-600', 'text-white');
-            dist.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
-            dist.classList.add('bg-blue-500/70', 'text-blue-50');
         } else {
             chip.classList.remove('bg-blue-600', 'border-blue-600', 'text-white');
             chip.classList.add('bg-white', 'dark:bg-slate-800/50', 'border-slate-200', 'dark:border-slate-700', 'text-slate-700', 'dark:text-slate-300');
-            dist.classList.remove('bg-blue-500/70', 'text-blue-50');
-            dist.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-400', 'dark:text-slate-500');
         }
         updateAttendCount();
     }
 
     const attListEl = document.getElementById('attendanceList');
-    attListEl.className = 'grid grid-cols-3 gap-1.5 max-h-[600px] overflow-y-auto no-scrollbar';
-    attListEl.innerHTML = members.map(renderRow).join('');
+    attListEl.className = 'space-y-3 max-h-[600px] overflow-y-auto no-scrollbar';
+    attListEl.innerHTML = renderGrouped(members);
     attListEl.onclick = (e) => {
         const chip = e.target.closest('.attend-chip');
         if (!chip) return;
