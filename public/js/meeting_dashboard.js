@@ -6,19 +6,8 @@ let sortDirection = 'desc'; // 'asc' or 'desc'
 
 let selectedMeetingTypes = new Set();
 let wordCloudChart = null;
-let selectedType = '전체';
-
-const CATEGORIES = [
-    { label: '전체', value: '전체' },
-    { label: '🎙️ 내부설교', value: '설교' },
-    { label: '⛪ 외부설교', value: '외부설교' },
-    { label: '🏠 구역모임', value: '구역모임' },
-    { label: '👥 조모임', value: '조모임' },
-    { label: '👨 형제모임', value: '형제모임' },
-    { label: '⚡ 청년모임', value: '청년모임' },
-    { label: '💼 임원모임', value: '임원모임' },
-    { label: '💬 기타', value: '기타' }
-];
+let selectedWordFilter = null;
+let leaderProfile = null;
 
 // 키워드 분석을 위한 한국어 불용어(StopWords) 목록 (백엔드와 정렬)
 const KEYWORD_STOP_WORDS = ['수', '있', '하', '것', '들', '그', '되', '이', '보', '않', '없', '나', '사람', '주', '아니', '등', '같', '우리', '때', '년', '가', '한', '지', '대하', '오', '말', '일', '그렇', '위하', '때문', '그것', '두', '말하', '알', '그러나', '받', '못하', '그런', '또', '문제', '더', '사회', '많', '그리고', '좋', '크', '따르', '중', '나오', '가지', '씨', '시키', '만들', '지금', '생각하', '그러', '속', '하나', '집', '살', '모르', '적', '월', '데', '자신', '안', '어떤', '내', '경우', '명', '생각', '시간', '그녀', '다시', '이런', '앞', '보이', '번', '나', '다른', '어떻', '여자', '개', '전', '들', '사실', '이렇', '점', '싶', '말', '정도', '좀', '원', '잘', '통하', '소리', '놓', '위해', '대한'];
@@ -32,14 +21,36 @@ function renderKeywordFilters() {
     const container = document.getElementById('keywordCloudFilterContainer');
     if (!container) return;
 
-    // 현재 로드된 설교가 있는 모임들의 고유 타입 추출 (정렬)
-    const types = new Set();
+    // 1. 관리자 구역 정보 기반 필터 버튼 조합 (예: 581구역모임, 581조모임 등)
+    const activeTypes = [];
+    if (leaderProfile && leaderProfile.districts && leaderProfile.districts.length > 0) {
+        leaderProfile.districts.forEach(distNum => {
+            activeTypes.push(`${distNum}구역모임`);
+        });
+        leaderProfile.districts.forEach(distNum => {
+            activeTypes.push(`${distNum}조모임`);
+        });
+    }
+
+    // 2. 공통 교구 전체 모임들 순서 정의
+    const globalTypes = ['교구전체모임', '교구형제모임', '전체조모임', '교구임원모임', '교구청년모임', '설교', '외부설교'];
+    globalTypes.forEach(g => {
+        if (!activeTypes.includes(g)) activeTypes.push(g);
+    });
+
+    // 3. 폴백: 현재 DB 상의 모임 중 activeTypes에 지정되지 않은 기타/과거 모임들이 있으면 맨 뒤에 덧붙임
+    const dbTypes = new Set();
     currentSermons.forEach(s => {
-        if (s.type) {
-            types.add(s.type);
+        if (s.type) dbTypes.add(s.type);
+    });
+    dbTypes.forEach(t => {
+        if (!activeTypes.includes(t)) {
+            activeTypes.push(t);
         }
     });
-    const typeList = Array.from(types).sort();
+
+    // 4. 실제로 데이터가 존재하는 종류만 최종 노출
+    const typeList = activeTypes.filter(t => dbTypes.has(t));
 
     container.innerHTML = '';
 
@@ -57,6 +68,7 @@ function renderKeywordFilters() {
         selectedMeetingTypes.clear();
         renderKeywordFilters();
         updateWordCloud();
+        applyFilters();
     };
     container.appendChild(allBtn);
 
@@ -80,6 +92,7 @@ function renderKeywordFilters() {
             }
             renderKeywordFilters();
             updateWordCloud();
+            applyFilters();
         };
         container.appendChild(btn);
     });
@@ -133,11 +146,18 @@ function updateWordCloud() {
         wordCloudChart.background().fill("transparent");
         wordCloudChart.palette(['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6', '#6366f1']);
         
-        // 키워드 클릭 시 이력 모달 연동
+        // 키워드 클릭 시 최근 설교 목록 필터링 연동
         wordCloudChart.listen("pointClick", function(e) {
             const clickedTag = e.point.get("x");
             if (clickedTag) {
-                openTagSermonsModal(clickedTag);
+                selectedWordFilter = clickedTag;
+                const badgeContainer = document.getElementById("activeKeywordContainer");
+                const badgeText = document.getElementById("activeKeywordText");
+                if (badgeContainer && badgeText) {
+                    badgeText.textContent = `#${clickedTag}`;
+                    badgeContainer.classList.remove("hidden");
+                }
+                applyFilters();
             }
         });
 
@@ -146,58 +166,35 @@ function updateWordCloud() {
     }
 }
 
-function renderFilterChips() {
-    const container = document.getElementById('filterChipsContainer');
-    if (!container) return;
-    container.innerHTML = CATEGORIES.map(cat => {
-        const isActive = selectedType === cat.value;
-        const activeClass = isActive 
-            ? 'bg-blue-600 text-white shadow-sm border-blue-600 font-extrabold' 
-            : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#131B2E] dark:hover:bg-[#1E293B] text-slate-650 dark:text-slate-350 border-slate-200/60 dark:border-slate-800/85 font-bold transition-colors';
-        return `
-            <button type="button" class="filter-chip px-3.5 py-1.5 rounded-full text-xs border transition duration-150 whitespace-nowrap cursor-pointer ${activeClass}" data-value="${cat.value}">
-                ${cat.label}
-            </button>
-        `;
-    }).join('');
-
-    document.querySelectorAll('.filter-chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            selectedType = btn.dataset.value;
-            renderFilterChips();
-            applyFilters();
-        });
-    });
-}
-
 function applyFilters() {
     const searchInput = document.getElementById('sermonSearch');
     const query = searchInput ? searchInput.value.toLowerCase() : '';
 
     const filtered = currentSermons.filter(s => {
+        // 1. 텍스트 검색 필터
         const matchesSearch = (s.sermon_title && s.sermon_title.toLowerCase().includes(query)) ||
                             (s.meeting_title && s.meeting_title.toLowerCase().includes(query)) ||
                             (s.date && s.date.includes(query)) ||
                             (s.memo && s.memo.toLowerCase().includes(query));
         
+        // 2. 모임 구분 필터 (상단 칩 동기화)
         let matchesType = true;
-        if (selectedType !== '전체') {
-            if (selectedType === '설교') {
-                matchesType = s.type === '설교';
-            } else if (selectedType === '외부설교') {
-                matchesType = s.type === '외부설교';
-            } else if (selectedType === '임원모임') {
-                matchesType = s.type.includes('임원');
-            } else if (selectedType === '형제모임') {
-                matchesType = s.type.includes('형제');
-            } else if (selectedType === '청년모임') {
-                matchesType = s.type.includes('청년');
+        if (selectedMeetingTypes && selectedMeetingTypes.size > 0) {
+            matchesType = selectedMeetingTypes.has(s.type);
+        }
+
+        // 3. 키워드 클릭 필터 (워드 클라우드 연동)
+        let matchesWord = true;
+        if (selectedWordFilter) {
+            if (!s.sermon_tags) {
+                matchesWord = false;
             } else {
-                matchesType = s.type.includes(selectedType.replace('모임', ''));
+                const tagList = s.sermon_tags.replace(/[#]/g, '').replace(/[^\w\s가-힣]/g, ' ').split(/\s+/).map(t => t.trim());
+                matchesWord = tagList.includes(selectedWordFilter);
             }
         }
         
-        return matchesSearch && matchesType;
+        return matchesSearch && matchesType && matchesWord;
     });
 
     renderSermonTable(filtered);
@@ -210,6 +207,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('sermonSearch');
     if (searchInput) {
         searchInput.addEventListener('input', () => {
+            applyFilters();
+        });
+    }
+
+    const clearKeywordBtn = document.getElementById('clearKeywordFilter');
+    if (clearKeywordBtn) {
+        clearKeywordBtn.addEventListener('click', () => {
+            selectedWordFilter = null;
+            const badgeContainer = document.getElementById("activeKeywordContainer");
+            if (badgeContainer) badgeContainer.classList.add("hidden");
             applyFilters();
         });
     }
@@ -337,6 +344,16 @@ window.sortSermons = function(key) {
 
 async function fetchStats() {
     try {
+        // 관리자 프로필 정보 동적 조회
+        if (!leaderProfile) {
+            try {
+                const uRes = await fetch('/api/users/default-profile');
+                leaderProfile = await uRes.json();
+            } catch (err) {
+                console.error('관리자 프로필 로드 실패:', err);
+            }
+        }
+
         const res = await fetch('/api/sermon-stats');
         const data = await res.json();
         
@@ -344,7 +361,6 @@ async function fetchStats() {
 
         // 1. 데이터 캐싱 및 목록 렌더링
         currentSermons = data.matchedSermons || [];
-        renderFilterChips();
         applyFilters();
 
         // 2. 모임 구분 해시태그 필터 칩 렌더링
