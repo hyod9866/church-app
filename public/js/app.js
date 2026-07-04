@@ -2485,6 +2485,7 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
                 searchSection.classList.add('hidden');
                 searchSection.style.display = 'none';
             }
+            if (window.attSnapshotModalState) window.attSnapshotModalState();
             return;
         } else {
             if (endDateField) endDateField.classList.add('hidden');
@@ -2541,6 +2542,7 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
                 extraAttendees = [];
                 renderExtras();
             }
+            if (window.attSnapshotModalState) window.attSnapshotModalState();
             return;
         }
 
@@ -2634,6 +2636,9 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
         }
         if (window.initAttendanceModeUX) {
             window.initAttendanceModeUX();
+            // 간증 즉시 저장용 모임 ID — 반복 일정은 인스턴스 저장 시 새 모임이 생성되므로(부모 오염 방지) 비활성
+            const isRecurringMeeting = currentMeetingData && currentMeetingData.rrule_type && currentMeetingData.rrule_type !== 'none';
+            window.__attMeetingId = (id && !isRecurringMeeting) ? id : null;
             // 기존 모임 수정(기록 수정)이고 이미 출석자가 있으면 간증 모드로 바로 진입
             const hasSavedPresent = att.some(a => a.is_present);
             window.attSetMode(id && hasSavedPresent ? 'testimony' : 'check');
@@ -2648,6 +2653,7 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
         } else {
             renderExtras(); // 신규 시 비우기
         }
+        if (window.attSnapshotModalState) window.attSnapshotModalState(); // 닫기 가드용 기준 상태 저장
     };
 
     // 구분 변경 시 명단 갱신 이벤트 리스너
@@ -2915,6 +2921,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
 });
 
 function closeMeetingPanels() {
+    if (window.attConfirmDiscardIfDirty && !window.attConfirmDiscardIfDirty()) return;
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('returnUrl')) {
         window.location.href = urlParams.get('returnUrl');

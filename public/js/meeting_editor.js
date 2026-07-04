@@ -8,11 +8,40 @@
 
     window.__attMode = 'check';
     window.__attCurrentRowId = null;
+    window.__attMeetingId = null; // 간증 즉시 저장용 (반복 일정 인스턴스 편집 시엔 null)
 
     const $id = (id) => document.getElementById(id);
     const mainRows = () => Array.from(document.querySelectorAll('#attendanceList .attendance-row'));
     const presentRows = () => mainRows().filter(r => r.dataset.present === 'true');
     const rowTestInput = (row) => row.querySelector('.testimony-input');
+
+    // ── 간증 즉시 저장 ──
+    // 저장하기 버튼을 안 누르고 모달을 닫아도 간증이 유실되지 않도록,
+    // 입력 후 잠시 쉬거나 다른 사람으로 이동/패널 닫기 시 서버에 바로 반영한다.
+    let panelBaseline = '';   // 패널 오픈(또는 마지막 저장) 시점 값 — 변경 감지용
+    let autoSaveTimer = null;
+
+    function flushTestimonyAutoSave() {
+        if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+        const rowId = window.__attCurrentRowId;
+        const mid = window.__attMeetingId;
+        if (!rowId || !mid) return;
+        const row = mainRows().find(r => r.dataset.id === rowId);
+        if (!row) return;
+        const t = rowTestInput(row);
+        if (!t) return;
+        const val = t.value.trim();
+        if (val === panelBaseline) return; // 변경 없음
+        panelBaseline = val;
+        fetch('/api/attendance/testimony', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_id: parseInt(rowId, 10), meeting_id: mid, testimony: val })
+        }).then(r => {
+            const s = $id('testimonyPanelSaved');
+            if (s && r.ok && window.__attCurrentRowId === rowId) s.classList.remove('hidden');
+        }).catch(() => { /* 실패해도 숨은 input에 값이 남아 있어 저장하기 버튼으로 복구 가능 */ });
+    }
 
     const TAB_ACTIVE = ['bg-white', 'dark:bg-slate-700', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm'];
     const TAB_INACTIVE = ['text-slate-500', 'dark:text-slate-400'];
@@ -59,6 +88,7 @@
     window.attOpenTestimonyPanel = function (row) {
         const panel = $id('testimonyPanel');
         if (!panel || !row) return;
+        flushTestimonyAutoSave(); // 이전 사람 간증 즉시 저장
         document.querySelectorAll('#attendanceList .attend-chip.att-editing')
             .forEach(c => c.classList.remove('att-editing', 'ring-2', 'ring-amber-400'));
         window.__attCurrentRowId = row.dataset.id;
@@ -74,12 +104,16 @@
         const input = $id('testimonyPanelInput');
         const t = rowTestInput(row);
         if (input) { input.value = t ? t.value : ''; }
+        panelBaseline = (t ? t.value : '').trim();
+        const savedEl = $id('testimonyPanelSaved');
+        if (savedEl) savedEl.classList.add('hidden');
         panel.classList.remove('hidden');
         if (input) input.focus();
         row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     };
 
     window.attCloseTestimonyPanel = function () {
+        flushTestimonyAutoSave(); // 닫기 전 즉시 저장
         const panel = $id('testimonyPanel');
         if (panel) panel.classList.add('hidden');
         window.__attCurrentRowId = null;
@@ -96,6 +130,43 @@
         window.attOpenTestimonyPanel(list[idx]);
     };
 
+    // ── 저장 안 된 변경 감지 (모달 닫기 가드) ──
+    // 메모/출석 체크가 저장 없이 닫히며 유실되는 사고 방지.
+    // 간증은 자동 저장되므로(__attMeetingId 있을 때) 비교에서 제외한다.
+    function computeModalState() {
+        const memoEl = $id('meetingMemo');
+        const titleEl = $id('meetingTitle');
+        const sermonEl = $id('meetingSermon');
+        const includeTestimony = !window.__attMeetingId;
+        const rows = Array.from(document.querySelectorAll('.attendance-row')).map(r => {
+            const t = r.querySelector('.testimony-input');
+            return `${r.dataset.id}:${r.dataset.present}${includeTestimony ? ':' + (t ? t.value : '') : ''}`;
+        }).join('|');
+        return [memoEl ? memoEl.value : '', titleEl ? titleEl.value : '', sermonEl ? sermonEl.value : '', rows].join('¶');
+    }
+
+    window.attSnapshotModalState = function () {
+        window.__attModalSnapshot = computeModalState();
+    };
+
+    window.attModalDirty = function () {
+        const modal = $id('meetingModal');
+        if (!modal || modal.classList.contains('hidden')) return false;
+        if (window.__attModalSnapshot == null) return false;
+        return computeModalState() !== window.__attModalSnapshot;
+    };
+
+    // 닫기 핸들러가 두 모듈(app.js/meeting_editor.js)에서 같은 클릭에 연달아 불려도 confirm은 한 번만.
+    // 같은 이벤트 디스패치 내 핸들러들은 동기 실행되므로 setTimeout(0)으로 클릭 단위 래치를 건다.
+    window.attConfirmDiscardIfDirty = function () {
+        if (!window.attModalDirty()) return true;
+        if (window.__attDiscardPending) return window.__attDiscardPending.ok;
+        const ok = confirm('저장하지 않은 변경사항이 있습니다.\n저장하지 않고 닫을까요?');
+        window.__attDiscardPending = { ok };
+        setTimeout(() => { window.__attDiscardPending = null; }, 0);
+        return ok;
+    };
+
     // 탭/패널 이벤트 바인딩 (onclick 대입이라 중복 호출해도 안전)
     window.initAttendanceModeUX = function () {
         const checkBtn = $id('attModeCheckBtn');
@@ -110,7 +181,14 @@
                 const t = rowTestInput(row);
                 if (t) t.value = input.value;
                 window.attUpdateDot(row);
+                const savedEl = $id('testimonyPanelSaved');
+                if (savedEl) savedEl.classList.add('hidden');
+                if (window.__attMeetingId) {
+                    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+                    autoSaveTimer = setTimeout(flushTestimonyAutoSave, 1200); // 입력 멈추면 자동 저장
+                }
             };
+            input.onblur = () => flushTestimonyAutoSave();
             input.onkeydown = (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); window.attNav(1); }
             };
@@ -337,6 +415,7 @@ function injectEditorElements() {
                         <span id="testimonyPanelName" class="font-black text-sm text-slate-800 dark:text-slate-100 truncate"></span>
                         <span id="testimonyPanelDistrict" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex-shrink-0"></span>
                         <span id="testimonyPanelPos" class="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex-shrink-0"></span>
+                        <span id="testimonyPanelSaved" class="hidden text-[9px] font-black text-emerald-500 flex-shrink-0">✓ 자동저장</span>
                     </div>
                     <div class="flex items-center gap-1.5 flex-shrink-0">
                         <button type="button" id="testimonyPrevBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition-all">◀ 이전</button>
@@ -554,6 +633,7 @@ function bindEditorEvents() {
     const closeBtn = document.getElementById('closeModal');
     const cancelBtn = document.getElementById('cancelMeeting');
     const handleClose = () => {
+        if (window.attConfirmDiscardIfDirty && !window.attConfirmDiscardIfDirty()) return;
         modal.classList.add('hidden');
         const detailPanel = document.getElementById('meetingDetailPanel');
         if (detailPanel) detailPanel.classList.remove('hidden');
@@ -1539,6 +1619,7 @@ async function refreshAttendanceList() {
             searchSection.classList.add('hidden');
             searchSection.style.display = 'none';
         }
+        window.attSnapshotModalState();
         return;
     } else {
         if (endDateField) endDateField.classList.add('hidden');
@@ -1597,6 +1678,7 @@ async function refreshAttendanceList() {
             extraAttendees = [];
             renderExtras();
         }
+        window.attSnapshotModalState();
         return;
     }
 
@@ -1690,6 +1772,9 @@ async function refreshAttendanceList() {
     };
     updateAttendCount();
     window.initAttendanceModeUX();
+    // 간증 즉시 저장용 모임 ID — 반복 일정은 인스턴스 저장 시 새 모임이 생성되므로(부모 오염 방지) 비활성
+    const isRecurringMeeting = currentMeetingData && currentMeetingData.rrule_type && currentMeetingData.rrule_type !== 'none';
+    window.__attMeetingId = (currentMeetingId && !isRecurringMeeting) ? currentMeetingId : null;
     // 기존 모임 수정(기록 수정)이고 이미 출석자가 있으면 간증 모드로 바로 진입
     const hasSavedPresent = att.some(a => a.is_present);
     window.attSetMode(currentMeetingId && hasSavedPresent ? 'testimony' : 'check');
@@ -1703,6 +1788,7 @@ async function refreshAttendanceList() {
         extraAttendees = [];
         renderExtras();
     }
+    window.attSnapshotModalState(); // 닫기 가드용 기준 상태 저장
 }
 
 // 상담 태그 렌더링
