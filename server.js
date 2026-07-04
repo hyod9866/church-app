@@ -26,6 +26,26 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Supabase/PostgREST는 한 번의 select 응답을 기본 1000행으로 제한한다.
+// attendance처럼 전체 행 수가 1000을 넘을 수 있는 테이블을 필터 없이(또는 넓은 필터로) 조회하면
+// 나머지 행이 조용히 잘려나가 집계가 틀어진다(예: 특정 모임의 출석 인원이 0명으로 보이는 버그).
+// 이 헬퍼는 .range()로 페이지를 나눠 끝까지 가져와 그런 누락을 방지한다.
+// buildQuery(from, to)는 매 페이지마다 새 쿼리 객체를 만들어 .range(from, to)를 적용해 반환해야 한다.
+// 사용법: await fetchAllRows((from, to) => supabase.from('attendance').select('...').eq('is_present', 1).range(from, to))
+async function fetchAllRows(buildQuery) {
+  const pageSize = 1000;
+  let allRows = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(from, from + pageSize - 1);
+    if (error) throw error;
+    allRows = allRows.concat(data || []);
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return allRows;
+}
+
 // 강효근(관리자)의 현재 소속(교회/교구) 조회 헬퍼.
 // 교구전체모임 생성 시점 스냅샷 기록, 출석률 계산, /api/users/default-profile 에서 공통으로 사용.
 // (호출 시점의 "현재" 값을 반환 — 과거 시점 값이 필요하면 meetings.leader_church_snapshot 등을 대신 사용할 것)
@@ -1706,11 +1726,16 @@ app.get('/api/meetings', async (req, res) => {
       .order('date', { ascending: false });
     if (meetErr) throw meetErr;
 
-    const { data: presentAttendance, error: attErr } = await supabase
-      .from('attendance')
-      .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
-      .eq('is_present', 1);
-    if (attErr) throw attErr;
+    // ⚠ 페이지네이션 없이 조회하면 PostgREST 기본 1000행 제한에 걸려 참석 데이터가 잘려나가고,
+    // 그 결과 일부 모임의 참석 인원이 실제와 다르게(대개 0명으로) 표시되는 버그가 있었다.
+    // fetchAllRows로 전체 페이지를 끝까지 가져와 집계한다.
+    const presentAttendance = await fetchAllRows((from, to) =>
+      supabase
+        .from('attendance')
+        .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
+        .eq('is_present', 1)
+        .range(from, to)
+    );
 
     const countMap = {};
     const testimonyCountMap = {};
@@ -2186,13 +2211,15 @@ app.get('/api/visitation/status', async (req, res) => {
 
         let attendance = [];
         if (meetingIds.length > 0) {
-            const { data: attData, error: attErr } = await supabase
-                .from('attendance')
-                .select('member_id, meeting_id, is_present')
-                .eq('is_present', 1)
-                .in('meeting_id', meetingIds);
-            if (attErr) throw attErr;
-            attendance = attData || [];
+            // 심방/상담 건수가 늘어나 1000행을 넘어도 누락되지 않도록 페이지네이션 조회 (fetchAllRows 참고: /api/meetings 버그와 동일 패턴)
+            attendance = await fetchAllRows((from, to) =>
+                supabase
+                    .from('attendance')
+                    .select('member_id, meeting_id, is_present')
+                    .eq('is_present', 1)
+                    .in('meeting_id', meetingIds)
+                    .range(from, to)
+            );
         }
 
         const memberVisitations = {};
@@ -2443,14 +2470,16 @@ app.get('/api/counseling', async (req, res) => {
     (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
 
     // 3. 해당 meetings의 attendance 조회 (모든 성도 포함 - is_present 무관)
+    // 상담 건수가 늘어나 1000행을 넘어도 누락되지 않도록 페이지네이션 조회
     let attRows = [];
     if (counselingMeetingIds.length > 0) {
-      const { data: attData, error: attErr } = await supabase
-        .from('attendance')
-        .select('member_id, meeting_id, testimony_snapshot, is_present')
-        .in('meeting_id', counselingMeetingIds);
-      if (attErr) throw attErr;
-      attRows = attData || [];
+      attRows = await fetchAllRows((from, to) =>
+        supabase
+          .from('attendance')
+          .select('member_id, meeting_id, testimony_snapshot, is_present')
+          .in('meeting_id', counselingMeetingIds)
+          .range(from, to)
+      );
     }
 
     // 4. member_records COUNSELING 조회 (기존 레거시 데이터)
