@@ -668,6 +668,8 @@ function bindEditorEvents() {
     const tagsContainer = document.getElementById('sermonTagsContainer');
     if (tagsContainer && tagsInput) {
         tagsContainer.onclick = (e) => {
+            // ✕ 버튼(removeSermonTag) 클릭 시 전파 차단 — focus() 호출 방지
+            if (e.target.closest('button[onclick^="removeSermonTag"]')) return;
             if (e.target === tagsContainer || e.target === document.getElementById('sermonTagBadgesList')) {
                 tagsInput.focus();
             }
@@ -696,8 +698,16 @@ function bindEditorEvents() {
                 flushTagInput();
             }
         });
+        let _tagBlurSkip = false;
         tagsInput.addEventListener('blur', () => {
+            if (_tagBlurSkip) { _tagBlurSkip = false; return; }
             flushTagInput();
+        });
+        // ✕ 버튼 mousedown 시 blur가 먼저 발생하는 것 방지
+        tagsContainer.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button[onclick^="removeSermonTag"]')) {
+                _tagBlurSkip = true;
+            }
         });
     }
 
