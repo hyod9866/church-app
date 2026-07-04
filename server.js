@@ -676,7 +676,7 @@ app.get('/api/members/search', async (req, res) => {
     // 성도 등록/수정/삭제 시 개별 프로필 동기화가 이미 수행되므로, 검색 API를 호출할 때마다 전체 성도를 동기화하는 무거운 로직은 제외합니다.
     // await syncAllMembersProfilePromise();
     
-    const { q, gender, category, district, status: st, parish, church, marital_status } = req.query;
+    const { q, gender, category, district, status: st, parish, church, marital_status, member_status: ms } = req.query;
     let query = supabase.from('members').select('*');
     
     if (st === 'inactive') {
@@ -685,6 +685,16 @@ app.get('/api/members/search', async (req, res) => {
       // 전체 조회
     } else {
       query = query.eq('status', 'active');
+    }
+
+    // 기본적으로 member_status가 'member'인 성도만 노출 (명시적으로 'all'이나 'evangelism'을 요구하지 않는 한)
+    if (ms === 'evangelism') {
+      query = query.eq('member_status', 'evangelism');
+    } else if (ms === 'all') {
+      // 전도대상 + 성도 모두 포함
+    } else {
+      // 기본값: 일반 성도만
+      query = query.eq('member_status', 'member');
     }
     
     if (gender && gender !== '전체') {
@@ -2666,7 +2676,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, lead_target, counseling_method, church, parish, district, category, bs, member_status } = req.body;
+  const { member_id, name, date, content, tags, remark_memo, lead_target, counseling_method, church, parish, district, category, bs, member_status, is_salvation_checked, is_assign_checked } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -2674,7 +2684,6 @@ app.post('/api/counseling', async (req, res) => {
     let finalMemberId = member_id;
 
     // 1. 성도 조회 또는 신규 생성
-    // 만약 이름이 '익명'이고 member_id가 비어있다면, 새로운 개별 '익명' 성도를 매번 생성합니다.
     if (name.trim() === '익명' && !member_id) {
       const insertData = {
         name: name.trim(),
@@ -2696,17 +2705,14 @@ app.post('/api/counseling', async (req, res) => {
         await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
       }
     } else if (!finalMemberId) {
-      // 일반적인 성도 등록/조회 로직 (여기서는 프론트에서 member_id 없이 이름만 온 경우 이름 중복을 확인해서 ID를 잡습니다)
       const { data: existing, error: findErr } = await supabase
         .from('members').select('id').eq('name', name.trim()).eq('status', 'active');
       
       if (findErr) throw findErr;
 
       if (existing && existing.length > 0) {
-        // 이름이 같은 기존 성도가 있다면 그 성도의 ID를 가져옴
         finalMemberId = existing[0].id;
       } else {
-        // 신규 성도 생성
         const insertData = {
           name: name.trim(),
           church: church ? church.trim() : '교회정보없음',
@@ -2728,13 +2734,34 @@ app.post('/api/counseling', async (req, res) => {
         }
       }
     } else {
-      // 기존 성도 — 소속/구분 정보 업데이트 (입력값 있는 경우)
       const updateFields = {};
       if (category) updateFields.category = category;
       if (bs) updateFields.bs = bs;
       if (Object.keys(updateFields).length > 0) {
         await supabase.from('members').update(updateFields).eq('id', finalMemberId);
       }
+    }
+
+    // 1-2. 구원받음 처리
+    if (is_salvation_checked) {
+      await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'SALVATION', remark: '구원받음' });
+      await supabase
+        .from('members')
+        .update({ member_status: 'member', status: 'active' })
+        .eq('id', finalMemberId);
+    }
+
+    // 1-3. 교구/구역편입 처리
+    if (is_assign_checked && (church || parish || district)) {
+      const remarkStr = `${(church || '서울중앙교회').trim()} > ${(parish || '').trim()} > ${(district || '').trim()}`;
+      await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+      
+      await supabase
+        .from('members')
+        .update({ member_status: 'member', status: 'active' })
+        .eq('id', finalMemberId);
+      
+      await syncMemberProfileFromRecords(finalMemberId);
     }
 
     // 2. meetings에 개인상담 일정 생성
@@ -2776,7 +2803,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id } = req.body;
+  const { date, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id, is_salvation_checked, is_assign_checked, church, parish, district } = req.body;
 
   try {
     let fullContent = '';
@@ -2784,13 +2811,33 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
     fullContent += content ? content.trim() : '';
 
     const memberId = member_id ? parseInt(member_id) : null;
-    if (memberId && member_status) {
-      const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
-      if (updErr) {
-        console.error('Error updating member status in PUT:', updErr);
-        throw updErr;
+    if (memberId) {
+      if (is_salvation_checked) {
+        await supabase.from('member_records').insert({ member_id: memberId, date, status: 'SALVATION', remark: '구원받음' });
+        await supabase
+          .from('members')
+          .update({ member_status: 'member', status: 'active' })
+          .eq('id', memberId);
       }
-      console.log('Successfully updated member status in PUT:', updRes);
+
+      if (is_assign_checked && (church || parish || district)) {
+        const remarkStr = `${(church || '서울중앙교회').trim()} > ${(parish || '').trim()} > ${(district || '').trim()}`;
+        await supabase.from('member_records').insert({ member_id: memberId, date, status: 'CHURCH_IN', remark: remarkStr });
+        
+        await supabase
+          .from('members')
+          .update({ member_status: 'member', status: 'active' })
+          .eq('id', memberId);
+          
+        await syncMemberProfileFromRecords(memberId);
+      } else if (!is_salvation_checked && member_status) {
+        const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
+        if (updErr) {
+          console.error('Error updating member status in PUT:', updErr);
+          throw updErr;
+        }
+        console.log('Successfully updated member status in PUT:', updRes);
+      }
     }
 
     if (sessionId.startsWith('m_')) {

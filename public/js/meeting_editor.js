@@ -407,6 +407,32 @@ function injectEditorElements() {
         <label class="text-[10px] font-black text-slate-400 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">비고 / 기타 메모</label>
         <input type="text" id="modalCounselingRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500" placeholder="기타 특이사항이나 비고를 입력하세요...">
     </div>
+    <div class="bg-indigo-50/40 dark:bg-indigo-950/10 rounded-xl p-3 border border-indigo-100/60 dark:border-indigo-900/20 space-y-3 mt-2">
+        <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="modalCounselingSalvationCheck" class="rounded text-indigo-650 focus:ring-indigo-500 border-slate-350 w-4 h-4">
+                <span class="text-xs font-black text-indigo-750 dark:text-indigo-400">구원받음 처리</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="modalCounselingAssignCheck" class="rounded text-indigo-650 focus:ring-indigo-500 border-slate-350 w-4 h-4">
+                <span class="text-xs font-black text-indigo-750 dark:text-indigo-400">교구/구역편입 처리</span>
+            </label>
+        </div>
+        <div id="modalCounselingAssignSubPanel" class="hidden grid grid-cols-2 gap-2.5 mt-1.5 pt-2 border-t border-indigo-100/60 dark:border-indigo-900/30">
+            <div class="col-span-2">
+                <span class="block text-[10px] font-bold text-slate-400 mb-1">소속 교회</span>
+                <input type="text" id="modalCounselingAssignChurch" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-gray-50 dark:bg-slate-800 dark:text-slate-200 outline-none" value="서울중앙교회" readonly>
+            </div>
+            <div>
+                <span class="block text-[10px] font-bold text-slate-400 mb-1">편입 교구</span>
+                <select id="modalCounselingAssignParish" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none"></select>
+            </div>
+            <div>
+                <span class="block text-[10px] font-bold text-slate-400 mb-1">편입 구역</span>
+                <select id="modalCounselingAssignDistrict" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none"></select>
+            </div>
+        </div>
+    </div>
 </div>
             </div>
             <div id="testimonyPanel" class="hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131B2E] px-4 pt-3 pb-2 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
@@ -721,7 +747,7 @@ function bindEditorEvents() {
             const val = modalNameInput.value.trim();
             if (val.length < 1) { modalSuggestions.classList.add('hidden'); modalMemberIdInput.value = ''; return; }
             try {
-                const res = await fetch(`/api/members/search?name=${encodeURIComponent(val)}&status=active`);
+                const res = await fetch(`/api/members/search?q=${encodeURIComponent(val)}&status=active&member_status=all`);
                 const list = await res.json();
                 if (!list.length) { modalSuggestions.classList.add('hidden'); return; }
                 modalSuggestions.innerHTML = list.slice(0, 8).map(m => `
@@ -1267,6 +1293,96 @@ function bindEditorEvents() {
     const deleteBtn = document.getElementById('deleteMeeting');
     if (deleteBtn) {
         deleteBtn.onclick = handleDeleteMeeting;
+    }
+
+    // ----------------------------------------------------
+    // 구원 및 구역편입 연동 패널 이벤트 처리
+    // ----------------------------------------------------
+    const salvationCheck = document.getElementById('modalCounselingSalvationCheck');
+    const assignCheck = document.getElementById('modalCounselingAssignCheck');
+    const assignSubPanel = document.getElementById('modalCounselingAssignSubPanel');
+    const assignParish = document.getElementById('modalCounselingAssignParish');
+    const assignDistrict = document.getElementById('modalCounselingAssignDistrict');
+
+    if (salvationCheck) {
+        salvationCheck.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // 구원 처리 시, 성도 구분을 강제로 '성도'로 변경하고 UI 동기화
+                const statusInput = document.getElementById('modalCounselingMemberStatus');
+                if (statusInput) statusInput.value = 'member';
+                document.querySelectorAll('.modal-status-btn').forEach(b => {
+                    const isActive = b.dataset.val === 'member';
+                    b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
+                        isActive 
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400'
+                            : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-350'
+                    }`;
+                });
+                const bsLabel = document.getElementById('modalBsLabel');
+                if (bsLabel) bsLabel.textContent = '성별(형제/자매)';
+                document.querySelectorAll('.modal-bs-btn').forEach(b => {
+                    const bVal = b.dataset.val;
+                    if (bVal === 'B') b.textContent = '형제';
+                    if (bVal === 'S') b.textContent = '자매';
+                });
+            }
+        });
+    }
+
+    if (assignCheck && assignSubPanel) {
+        assignCheck.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                assignSubPanel.classList.remove('hidden');
+                
+                if (assignParish && assignParish.options.length === 0) {
+                    try {
+                        const pRes = await fetch('/api/parishes?church_id=1');
+                        const parishes = await pRes.json();
+                        assignParish.innerHTML = parishes.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+                        
+                        const uRes = await fetch('/api/users/default-profile');
+                        const profile = await uRes.json();
+                        if (profile && profile.parish) {
+                            const matchedOpt = Array.from(assignParish.options).find(opt => opt.dataset.name === profile.parish);
+                            if (matchedOpt) {
+                                assignParish.value = matchedOpt.value;
+                            }
+                        }
+                        
+                        triggerDistrictLoad();
+                    } catch (err) {
+                        console.error('교구 로드 실패:', err);
+                    }
+                }
+            } else {
+                assignSubPanel.classList.add('hidden');
+            }
+        });
+
+        if (assignParish) {
+            assignParish.addEventListener('change', triggerDistrictLoad);
+        }
+
+        async function triggerDistrictLoad() {
+            if (!assignParish.value || !assignDistrict) return;
+            try {
+                const dRes = await fetch(`/api/districts?parish_id=${assignParish.value}`);
+                const districts = await dRes.json();
+                assignDistrict.innerHTML = districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+
+                const uRes = await fetch('/api/users/default-profile');
+                const profile = await uRes.json();
+                if (profile && profile.districts && profile.districts.length > 0) {
+                    const firstDistrictName = profile.districts[0] + '구역';
+                    const matchedOpt = Array.from(assignDistrict.options).find(opt => opt.value === firstDistrictName);
+                    if (matchedOpt) {
+                        assignDistrict.value = matchedOpt.value;
+                    }
+                }
+            } catch (err) {
+                console.error('구역 로드 실패:', err);
+            }
+        }
     }
 
     modal._eventsBound = true;
@@ -1898,6 +2014,14 @@ function resetCounselingPanel() {
     });
 
     updateModalPresetTags('member');
+
+    // 구원 및 구역편입 체크박스 리셋
+    const salvationCheck = document.getElementById('modalCounselingSalvationCheck');
+    if (salvationCheck) salvationCheck.checked = false;
+    const assignCheck = document.getElementById('modalCounselingAssignCheck');
+    if (assignCheck) assignCheck.checked = false;
+    const assignSubPanel = document.getElementById('modalCounselingAssignSubPanel');
+    if (assignSubPanel) assignSubPanel.classList.add('hidden');
 }
 
 // 개인상담 저장
@@ -1914,6 +2038,18 @@ async function handleSaveCounseling() {
     const memberStatus = document.getElementById('modalCounselingMemberStatus')?.value || 'member';
     const isAnonymous = document.getElementById('modalAnonymousCheck')?.checked || false;
     const finalName = isAnonymous ? '익명' : name;
+
+    const salvationCheck = document.getElementById('modalCounselingSalvationCheck');
+    const isSalvationChecked = salvationCheck ? salvationCheck.checked : false;
+
+    const assignCheck = document.getElementById('modalCounselingAssignCheck');
+    const isAssignChecked = assignCheck ? assignCheck.checked : false;
+    let assignParishName = '';
+    const assignParishEl = document.getElementById('modalCounselingAssignParish');
+    if (assignParishEl && assignParishEl.selectedIndex > -1) {
+        assignParishName = assignParishEl.options[assignParishEl.selectedIndex].dataset.name || '';
+    }
+    const assignDistrictName = document.getElementById('modalCounselingAssignDistrict')?.value || '';
 
     if (!finalName) return alert('상담 대상자 이름을 입력하세요.');
     if (!date) return alert('날짜를 입력하세요.');
@@ -1945,12 +2081,17 @@ async function handleSaveCounseling() {
                     content: fullContent,
                     tags,
                     remark_memo: editRemark,
-                    member_status: memberStatus,
+                    member_status: (isSalvationChecked || isAssignChecked) ? 'member' : memberStatus,
                     counseling_method: method,
                     category: document.getElementById('modalCounselingCategory')?.value || null,
                     bs: document.getElementById('modalCounselingBs')?.value || null,
                     member_id: document.getElementById('modalCounselingMemberId')?.value
-                        ? parseInt(document.getElementById('modalCounselingMemberId').value) : null
+                        ? parseInt(document.getElementById('modalCounselingMemberId').value) : null,
+                    is_salvation_checked: isSalvationChecked,
+                    is_assign_checked: isAssignChecked,
+                    church: isAssignChecked ? '서울중앙교회' : null,
+                    parish: isAssignChecked ? assignParishName : null,
+                    district: isAssignChecked ? assignDistrictName : null
                 })
             });
             if (!res.ok) throw new Error('수정 실패');
@@ -1960,13 +2101,18 @@ async function handleSaveCounseling() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    member_id: (memberStatus === 'member' && memberId) ? parseInt(memberId) : null,
+                    member_id: ( (isSalvationChecked || isAssignChecked || memberStatus === 'member') && memberId ) ? parseInt(memberId) : null,
                     name: finalName, date, content,
                     tags: tags || null,
                     remark_memo: `[${method}상담][${statusLabel}]${remark ? ' ' + remark : ''}`,
                     category: category || null,
                     bs: bs || null,
-                    member_status: memberStatus
+                    member_status: (isSalvationChecked || isAssignChecked) ? 'member' : memberStatus,
+                    is_salvation_checked: isSalvationChecked,
+                    is_assign_checked: isAssignChecked,
+                    church: isAssignChecked ? '서울중앙교회' : null,
+                    parish: isAssignChecked ? assignParishName : null,
+                    district: isAssignChecked ? assignDistrictName : null
                 })
             });
             if (!res.ok) throw new Error('저장 실패');
