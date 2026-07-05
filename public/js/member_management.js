@@ -607,6 +607,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 
+    // 성도 상세 조회 모달(#memberHistoryModal) 닫기 버튼
+    // (member-edit.js 통합 작업 중 실수로 같이 지워졌던 부분을 복구함 — 2026-07-05)
+    [document.getElementById('closeHistoryModal'), document.getElementById('closeHistoryModalBtn')].forEach(b => { if (b) b.addEventListener('click', () => memberHistoryModal.classList.add('hidden')); });
+
     // 등록/수정 모달(교회·교구·구역 연동, 가족검색, 인적사항 기록 CRUD, 삭제, 저장) 전체는
     // 공용 member-edit.js가 전담. 여기서는 초기화만 호출.
     if (window.MemberEditModule) {
