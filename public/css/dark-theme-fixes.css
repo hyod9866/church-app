@@ -741,3 +741,16 @@ html:not(.dark) #nodeAddressContainer {
 .dark #familyRelationSelectModal .text-slate-450 {
     color: #94a3b8 !important;
 }
+
+/* 성도 정보 수정 모달의 "가족 관계" 뱃지 — 아직 family_id로 연결 안 된(회색) 뱃지가
+   다크모드에서 배경색 오버라이드가 없어서 밝은 배경 위에 밝은 글자만 겹쳐 거의 안 보이던 문제.
+   연결된(파란) 뱃지는 .bg-blue-100.text-blue-800 규칙이 이미 있어서 문제 없었음 (2026-07-05) */
+.dark #linkedFamilyContainer .bg-gray-100.text-gray-700 {
+    background-color: #1e293b !important;
+    color: #94a3b8 !important;
+    border-color: #475569 !important;
+}
+.dark #linkedFamilyContainer {
+    background-color: #0B0F19 !important;
+    border-color: #334155 !important;
+}
