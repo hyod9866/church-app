@@ -1,17 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    function sortFamilyRelations(relationsArray) {
-        const priority = (entry) => {
-            const match = entry.match(/\(([^)]+)\)/);
-            if (!match) return 999;
-            const rel = match[1].trim();
-            if (rel.includes('아내') || rel.includes('남편') || rel.includes('배우자') || rel.includes('부부')) return 1;
-            if (rel.includes('자녀') || rel.includes('아들') || rel.includes('딸')) return 2;
-            if (rel.includes('부모') || rel.includes('아버지') || rel.includes('어머니') || rel.includes('아빠') || rel.includes('엄마')) return 3;
-            if (rel.includes('기타')) return 4;
-            return 5;
-        };
-        return [...relationsArray].sort((a, b) => priority(a) - priority(b));
-    }
+    
 
     // 인도대상 / 모임 / 특징을 해시태그 칩으로 렌더링
     //  - @이름  → 인도대상 (클릭 시 해당 인물 이력 열림, 앰버 칩)
@@ -820,19 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'CHURCH_MOVE': '교회 이동', 'PARISH_MOVE': '교구 이동', 'COUNSELING': '상담', 'ETC': '기타' 
     };
 
-    function calculateAge(birthYear) {
-        if (!birthYear) return '-';
-        const year = parseInt(birthYear);
-        return isNaN(year) ? '-' : (2026 - year + 1);
-    }
+    
 
-    function getDC(d) {
-        if (!d || d === '-') return 'bg-gray-100 text-gray-400 border-gray-200';
-        if (d.includes('581')) return 'bg-blue-100 text-blue-800 border-blue-200';
-        if (d.includes('582')) return 'bg-green-100 text-green-800 border-green-200';
-        if (d.includes('583')) return 'bg-purple-100 text-purple-800 border-purple-200';
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-    }
+    
 
     window.openMemberHistoryModal = async function(id) {
         try {
@@ -844,7 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch(`/api/members/${id}/records?_t=` + Date.now(), { cache: 'no-store' }),
                 fetch(`/api/counseling/${id}?_t=` + Date.now(), { cache: 'no-store' })
             ]);
-            const { member, history, family } = await historyRes.json();
+            const { member, history, family, leaderProfile } = await historyRes.json();
             const records = await recRes.json();
             const counselingSessions = await counselingRes.json();
             currentMemberData = member;
@@ -870,137 +848,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             const finalCalculatedSvc = calculatedSvcArray.length ? calculatedSvcArray.join(', ') : '없음';
-            const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
-            
-            const fDispHTML = fEnt.map(e => {
-                const match = e.match(/^(.+?)\(/);
-                const name = match ? match[1].trim() : e.trim();
-                const found = family ? family.find(f => f.name.trim() === name) : null;
-                if (found) {
-                    return `<button type="button" class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[11px] px-2.5 py-1.5 rounded-full font-bold border border-blue-200 shadow-sm transition active:scale-[0.97]" onclick="openMemberHistoryModal(${found.id})">${e} ➔</button>`;
-                }
-                return `<span class="bg-gray-100 text-gray-600 text-[11px] px-2.5 py-1.5 rounded-full font-medium border border-gray-200 shadow-sm">${e}</span>`;
-            }).join(' ') || '<span class="text-slate-400 italic text-xs">없음</span>';
-
-            const initial = member.name ? member.name[0] : '';
-            const avatarColors = member.bs === 'B' 
-                ? 'from-blue-500 to-indigo-600 shadow-blue-100' 
-                : 'from-pink-500 to-rose-600 shadow-rose-100';
-            
-            const badges = [
-                member.district ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold ${getDC(member.district)} border">${member.district}</span>` : '',
-                member.category ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">${member.category}</span>` : '',
-                ...calculatedPosArray.map(p => `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">${p}</span>`)
-            ].filter(x => x).join(' ');
-
             const memberBasicInfo = document.getElementById('memberBasicInfo');
             if (memberBasicInfo) {
-                memberBasicInfo.innerHTML = `
-                <div class="col-span-2 md:col-span-4 flex flex-col md:flex-row items-center gap-5 pb-5 border-b border-slate-100 w-full">
-                    <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-tr ${avatarColors} flex items-center justify-center text-white text-2xl md:text-3xl font-black shadow-lg">
-                        ${initial}
-                    </div>
-                    <div class="flex-1 text-center md:text-left">
-                        <div class="flex flex-col md:flex-row items-center gap-2 mb-2">
-                            <h3 class="text-2xl font-black text-slate-800">${member.name}</h3>
-                            <span class="text-xs font-black text-slate-400 bg-slate-100/70 px-2 py-0.5 rounded-md">${member.bs === 'B' ? '형제' : '자매'} (${calculateAge(member.birth_year)}세, ${member.birth_year || '-'}년생)</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1.5 justify-center md:justify-start">
-                            ${badges}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-span-2 md:col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">구원일</span>
-                    <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        ${member.salvation_date || '-'}
-                    </span>
-                </div>
-                <div class="col-span-2 md:col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">연락처</span>
-                    <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                        ${member.phone || '-'}
-                    </span>
-                </div>
-                <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">가족 관계</span>
-                    <div class="flex flex-wrap gap-1.5 mt-1">${fDispHTML}</div>
-                </div>
-                <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                    <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">주소</span>
-                    <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        <span class="truncate" title="${member.address || ''}">${member.address || '-'}</span>
-                    </span>
-                </div>
-                <div class="col-span-2 md:col-span-4 bg-blue-50/40 p-4 rounded-xl border border-blue-100/50 flex flex-col gap-1">
-                    <span class="text-blue-700 text-[10px] font-black uppercase tracking-wider">교회 봉사 내역</span>
-                    <span class="font-extrabold text-blue-900 text-sm">${finalCalculatedSvc}</span>
-                </div>
-                <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
-                    <div class="flex items-center justify-between">
-                        <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">간증 및 기타 메모</span>
-                        <button type="button" id="testimonyEditBtn" onclick="toggleTestimonyEdit(true)" class="text-yellow-700 hover:text-yellow-900 text-xs font-bold transition flex items-center gap-1">
-                            <i class="fa-regular fa-pen-to-square"></i> 수정
-                        </button>
-                    </div>
-                    <div id="testimonyViewMode" class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">
-                        ${member.testimony || '내용 없음'}
-                    </div>
-                    <div id="testimonyEditMode" class="hidden flex flex-col gap-2 mt-1">
-                        <textarea id="testimonyTextarea" class="w-full border border-slate-200 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 rounded-xl px-3 py-2 h-24 outline-none text-xs leading-relaxed text-slate-700 transition duration-150 resize-y" placeholder="간증 및 기타 메모 내용을 입력하세요...">${member.testimony || ''}</textarea>
-                        <div class="flex justify-end gap-1.5">
-                            <button type="button" onclick="toggleTestimonyEdit(false)" class="px-2.5 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition active:scale-[0.97]">취소</button>
-                            <button type="button" onclick="saveTestimonyDirect(${member.id})" class="px-2.5 py-1.5 text-[11px] font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition active:scale-[0.97] shadow-sm">저장</button>
-                        </div>
-                    </div>
-                </div>`;
+                memberBasicInfo.innerHTML = window.renderMemberProfileHeader(member, family, calculatedPosArray, finalCalculatedSvc);
             }
 
-            // 출석 히스토리 탭
-            const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= todayStr);
-            function isMandatoryMeeting(member, meeting) {
-                const mType = meeting.type || '';
-                const mDistMatch = mType.match(/\d+/);
-                const mDistNum = mDistMatch ? mDistMatch[0] : null;
-                const memDistNum = (member.district || '').replace(/[^0-9]/g, '');
-                if (mType.includes('조모임')) {
-                    if (member.category === '청년회' && member.bs === 'S') return false;
-                    if (member.bs === 'B') return false;
-                }
-                if (mType.includes('구역모임')) { if (!mDistNum || mDistNum === memDistNum) return true; }
-                if (mType.includes('조모임')) { if (!mDistNum || mDistNum === memDistNum) return true; }
-                if (mType.includes('교구전체모임')) return true;
-                if (mType.includes('교구형제모임') && member.bs === 'B') return true;
-                if (mType.includes('전체조모임') && member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회')) return true;
-                if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-                if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
-                return false;
-            }
-            const filteredHistory = rawFilteredHistory.filter(h => isMandatoryMeeting(member, h) || h.is_present);
-            const getMeetingCategory = (type) => {
-                if (type.includes('구역모임')) return 'district';
-                if (type.includes('조모임')) return 'group';
-                return 'other';
-            };
-            const stats = { all: { count: 0, present: 0 }, district: { count: 0, present: 0 }, group: { count: 0, present: 0 }, other: { count: 0, present: 0 } };
-            filteredHistory.forEach(h => {
-                const cat = getMeetingCategory(h.type);
-                stats.all.count++;
-                if (h.is_present) stats.all.present++;
-                stats[cat].count++;
-                if (h.is_present) stats[cat].present++;
-            });
-            const getRate = (s) => s.count > 0 ? Math.round((s.present / s.count) * 100) : 0;
-
-            const historyTableBody = document.getElementById('historyTableBody');
-            if (historyTableBody) {
-                const memberAttendanceStats = document.getElementById('memberAttendanceStats');
-                if (memberAttendanceStats) memberAttendanceStats.textContent = `${getRate(stats.all)}% (${stats.all.present}/${stats.all.count})`;
-                historyTableBody.innerHTML = filteredHistory.map(h => `<tr class="text-sm border-b hover:bg-slate-50/50 transition-colors"><td class="py-1.5 px-2.5 text-slate-500 font-medium text-center">${h.date}</td><td class="py-1.5 px-2.5 font-bold text-slate-800">${h.title}</td><td class="py-1.5 px-2.5 text-center font-bold ${h.is_present ? 'text-emerald-600' : 'text-rose-500'}">${h.is_present ? '출석' : '결석'}</td><td class="py-1.5 px-2.5 text-slate-600 text-xs whitespace-pre-wrap">${h.testimony_snapshot || '-'}</td></tr>`).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
-            }
+            // 출석 히스토리 탭 (공용 member-profile.js가 규칙+화면을 모두 그림)
+            window.renderAttendanceTab(id, member, history, leaderProfile);
 
             // 심방 기록 탭
             const visMemos = history.filter(h => h.type === '심방');
@@ -1482,40 +1336,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeHistoryModal) closeHistoryModal.addEventListener('click', () => memberHistoryModal.classList.add('hidden'));
     if (closeHistoryModalBtn) closeHistoryModalBtn.addEventListener('click', () => memberHistoryModal.classList.add('hidden'));
 
-    window.toggleTestimonyEdit = function(isEdit) {
-        const viewMode = document.getElementById('testimonyViewMode');
-        const editMode = document.getElementById('testimonyEditMode');
-        const editBtn = document.getElementById('testimonyEditBtn');
-        if (isEdit) {
-            viewMode.classList.add('hidden');
-            editMode.classList.remove('hidden');
-            editBtn.classList.add('hidden');
-            const textarea = document.getElementById('testimonyTextarea');
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-        } else {
-            viewMode.classList.remove('hidden');
-            editMode.classList.add('hidden');
-            editBtn.classList.remove('hidden');
-            document.getElementById('testimonyTextarea').value = currentMemberData.testimony || '';
-        }
-    };
+    ;
 
-    window.saveTestimonyDirect = async function(id) {
-        try {
-            const text = document.getElementById('testimonyTextarea').value;
-            const updatedData = { ...currentMemberData, testimony: text };
-            const response = await fetch(`/api/members/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedData) });
-            if (response.ok) {
-                currentMemberData = updatedData;
-                document.getElementById('testimonyViewMode').textContent = text || '내용 없음';
-                window.toggleTestimonyEdit(false);
-                loadStatus();
-            } else {
-                alert('저장에 실패했습니다.');
-            }
-        } catch (e) { console.error(e); alert('에러가 발생했습니다.'); }
-    };
+    ;
 
     window.openMemberHistoryModalByName = async function(name) {
         try {

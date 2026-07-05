@@ -824,27 +824,42 @@ app.put('/api/users/default-profile', async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------------
+// 출석 의무 대상 판정 규칙 (2026-07-05 통일)
+// 이 함수는 public/js/member-profile.js의 window.isMandatoryMeeting과
+// 반드시 동일한 규칙을 유지해야 한다 (성도 상세 모달 출석 탭 vs 이 집계 API가
+// 서로 다른 출석률을 보여주는 문제를 막기 위함). 한쪽만 고치지 말 것.
+//
+// - 구역모임: 구역이 배정된 성도 전원 (구역 번호 일치)
+// - 조모임(구역 단위): 그 구역 소속 "어머니회/은장회" 자매만
+// - 교구전체모임: 모임을 만든 리더와 같은 교회(+서울중앙교회면 교구까지) 소속 성도 전원
+// - 전체조모임: 위와 동일한 소속 범위의 "어머니회/은장회" 자매
+// - 교구청년모임/청년모임: 위와 동일한 소속 범위의 "청년회" (id=270은 청년모임 참석률이
+//   낮아 의도적으로 제외된 케이스로 확인됨 - 2026-07-05 사용자 확인, 그대로 유지)
+// - 교구형제모임: 위와 동일한 소속 범위의 "봉사회" 형제 (예전엔 형제이기만 하면 다 포함되던 버그를 수정)
+// - 교구임원모임: 직분(position)이 임명된 성도
+// ------------------------------------------------------------------
 function isMandatoryMeeting(member, meeting, leaderProfile) {
   const mType = meeting.type || '';
   const mDistMatch = mType.match(/\d+/);
   const mDistNum = mDistMatch ? mDistMatch[0] : null;
   const memDistNum = (member.district || '').replace(/[^0-9]/g, '');
+  const isGroupEligibleSister = member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회');
 
-  if (mType.includes('조모임')) {
-    if (member.category === '청년회' && member.bs === 'S') return false;
-    if (member.bs === 'B') return false;
-  }
-
+  // 구역모임: 구역 배정자 전원
   if (mType.includes('구역모임')) {
-    if (!mDistNum || mDistNum === memDistNum) return true;
+    return !mDistNum || mDistNum === memDistNum;
   }
 
-  if (mType.includes('조모임')) {
-    if (!mDistNum || mDistNum === memDistNum) return true;
+  // 조모임(구역 단위, "전체조모임"은 제외): 어머니회/은장회 자매만
+  if (mType.includes('조모임') && !mType.includes('전체조모임')) {
+    if (!isGroupEligibleSister) return false;
+    return !mDistNum || mDistNum === memDistNum;
   }
 
-  // 교구 모임 조건 통일 (교구전체모임, 교구형제모임, 전체조모임, 교구임원모임, 교구청년모임 등)
-  const isParishMeeting = mType.includes('교구전체모임') || mType.includes('교구형제모임') || mType.includes('전체조모임') || mType.includes('교구임원모임') || mType.includes('청년') || mType.includes('교구청년모임');
+  // 교구 단위 모임 (교구전체모임, 교구형제모임, 전체조모임, 교구임원모임, 청년모임 등):
+  // 모임을 만든 리더와 같은 교회(+서울중앙교회면 교구까지)에 속한 성도만 대상.
+  const isParishMeeting = mType.includes('교구전체모임') || mType.includes('교구형제모임') || mType.includes('전체조모임') || mType.includes('교구임원모임') || mType.includes('청년');
 
   if (isParishMeeting) {
     if (member.member_status === 'evangelism') return false;
@@ -858,9 +873,9 @@ function isMandatoryMeeting(member, meeting, leaderProfile) {
   }
 
   if (mType.includes('교구전체모임')) return true;
-  if (mType.includes('교구형제모임') && member.bs === 'B') return true;
-  if (mType.includes('전체조모임') && member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회')) return true;
-  if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
+  if (mType.includes('교구형제모임')) return member.bs === 'B' && member.category === '봉사회';
+  if (mType.includes('전체조모임')) return isGroupEligibleSister;
+  if (mType.includes('교구임원모임')) return (member.position || '').trim() !== '';
   if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 
   return false;
@@ -970,7 +985,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
 app.get('/api/members/:id/history', async (req, res) => {
   const { id } = req.params;
   try {
-    const { data: attendanceData, error: attError } = await supabase
+    let { data: attendanceData, error: attError } = await supabase
       .from('attendance')
       .select(`
         meeting_id,
@@ -980,13 +995,35 @@ app.get('/api/members/:id/history', async (req, res) => {
           title,
           date,
           type,
-          memo
+          memo,
+          leader_church_snapshot,
+          leader_parish_snapshot
         )
       `)
       .eq('member_id', id);
-      
+
+    // leader_*_snapshot 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    if (attError && /leader_church_snapshot|leader_parish_snapshot/i.test(attError.message || '')) {
+      const retry = await supabase
+        .from('attendance')
+        .select(`
+          meeting_id,
+          is_present,
+          testimony_snapshot,
+          meetings (
+            title,
+            date,
+            type,
+            memo
+          )
+        `)
+        .eq('member_id', id);
+      attendanceData = retry.data;
+      attError = retry.error;
+    }
+
     if (attError) throw attError;
-    
+
     const history = attendanceData.map(a => ({
       meeting_id: a.meeting_id,
       title: a.meetings?.title || '',
@@ -994,17 +1031,19 @@ app.get('/api/members/:id/history', async (req, res) => {
       type: a.meetings?.type || '',
       memo: a.meetings?.memo || '',
       is_present: a.is_present,
-      testimony_snapshot: a.testimony_snapshot
+      testimony_snapshot: a.testimony_snapshot,
+      leader_church_snapshot: a.meetings?.leader_church_snapshot || null,
+      leader_parish_snapshot: a.meetings?.leader_parish_snapshot || null
     })).sort((a, b) => b.date.localeCompare(a.date));
-    
+
     const { data: member, error: memError } = await supabase
       .from('members')
       .select('*')
       .eq('id', id)
       .single();
-      
+
     if (memError) throw memError;
-    
+
     let family = [];
     if (member?.family_id) {
       const { data: familyData, error: famError } = await supabase
@@ -1012,12 +1051,15 @@ app.get('/api/members/:id/history', async (req, res) => {
         .select('id, name, district, bs')
         .eq('family_id', member.family_id)
         .neq('id', id);
-        
+
       if (famError) throw famError;
       family = familyData || [];
     }
-    
-    res.json({ member, history, family });
+
+    // isMandatoryMeeting의 교구 단위 모임 판정용 폴백 (attendance-rates와 동일 기준)
+    const leaderProfile = await fetchLeaderChurchParish();
+
+    res.json({ member, history, family, leaderProfile });
   } catch (err) {
     console.error('Get member history error:', err);
     res.status(500).json({ error: err.message });

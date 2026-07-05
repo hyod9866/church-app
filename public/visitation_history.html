@@ -655,8 +655,62 @@
 
 
 
+    <!-- Modal: Map Integration App Selector (member-profile.js 공용) -->
+    <div id="mapModal" class="fixed inset-0 bg-[#0f172a]/65 hidden z-[110] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white w-full max-w-xs rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col">
+            <div class="p-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex justify-between items-center px-5 py-3.5">
+                <h3 class="font-extrabold text-xs tracking-tight flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-400"></i> 길찾기 지도선택</h3>
+                <button type="button" id="closeMapModal" class="text-slate-400 hover:text-white transition-colors duration-150"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="p-5 space-y-3.5">
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">성도 주소</span>
+                    <div class="text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-150 font-bold select-all text-center break-all leading-normal" id="mapModalAddress">-</div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <span class="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">앱 선택</span>
+                    <div class="grid grid-cols-1 gap-1.5">
+                        <a href="#" id="modalTmapLink" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-orange-500 text-white rounded-lg text-xs flex items-center justify-center font-black">T</span>
+                                <span class="text-slate-800">티맵 (T-map)</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">실행 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                        <a href="#" id="modalKakaomapLink" target="_blank" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-yellow-400 text-slate-900 rounded-lg text-xs flex items-center justify-center font-black">K</span>
+                                <span class="text-slate-800">카카오맵</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">이동 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                        <a href="#" id="modalNavermapLink" target="_blank" class="flex items-center justify-between px-3.5 py-3 text-xs font-bold bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl transition duration-150">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 bg-emerald-500 text-white rounded-lg text-xs flex items-center justify-center font-black">N</span>
+                                <span class="text-slate-800">네이버 지도</span>
+                            </div>
+                            <span class="text-[9px] text-slate-450 font-bold">이동 <i class="fa-solid fa-chevron-right text-[7px] ml-0.5"></i></span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex gap-2">
+                    <button type="button" id="modalCopyAddressBtn" class="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center justify-center gap-1.5">
+                        <i class="fa-regular fa-copy text-slate-400 text-[11px]"></i>
+                        주소 복사
+                    </button>
+                    <button type="button" id="closeMapModalBtn" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center">
+                        닫기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
-    <script src="/js/visitation_history.js?v=ui-density-3"></script>
+    <script src="/js/member-profile.js?v=1"></script>
+    <script src="/js/visitation_history.js?v=shared-profile-1"></script>
 </body>
 </html>

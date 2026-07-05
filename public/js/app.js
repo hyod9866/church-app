@@ -31,19 +31,7 @@ window.onerror = function(message, source, lineno, colno, error) {
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
 
-    function sortFamilyRelations(relationsArray) {
-        const priority = (entry) => {
-            const match = entry.match(/\(([^)]+)\)/);
-            if (!match) return 999;
-            const rel = match[1].trim();
-            if (rel.includes('아내') || rel.includes('남편') || rel.includes('배우자') || rel.includes('부부')) return 1;
-            if (rel.includes('자녀') || rel.includes('아들') || rel.includes('딸')) return 2;
-            if (rel.includes('부모') || rel.includes('아버지') || rel.includes('어머니') || rel.includes('아빠') || rel.includes('엄마')) return 3;
-            if (rel.includes('기타')) return 4;
-            return 5;
-        };
-        return [...relationsArray].sort((a, b) => priority(a) - priority(b));
-    }
+    
 
     function injectTimeGuides() {
         const cols = document.querySelectorAll('.fc-timegrid-col');
@@ -474,13 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingCrossUpdates = [];
     let pendingRecords = [];
 
-    const getDC = (d) => {
-        if (!d || d === '-') return 'bg-gray-100 text-gray-400 border-gray-200';
-        if (d.includes('581')) return 'bg-blue-100 text-blue-800 border-blue-200';
-        if (d.includes('582')) return 'bg-green-100 text-green-800 border-green-200';
-        if (d.includes('583')) return 'bg-purple-100 text-purple-800 border-purple-200';
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-    };
+    ;
 
     function getSelectedChurchName() {
         const select = document.getElementById('headerChurchSelect');
@@ -549,11 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function calculateAge(birthYear) {
-        if (!birthYear) return '-';
-        const year = parseInt(birthYear);
-        return isNaN(year) ? '-' : (2026 - year + 1);
-    }
+    
 
     window.openMemberHistoryModal = async function(id) {
         try {
@@ -561,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const defaultTabBtn = document.querySelector('.member-tab-btn[data-tab="attendance"]');
             if (defaultTabBtn) defaultTabBtn.click();
 
-            const res = await fetch(`/api/members/${id}/history`); const { member, history, family } = await res.json(); currentMemberData = member;
+            const res = await fetch(`/api/members/${id}/history`); const { member, history, family, leaderProfile } = await res.json(); currentMemberData = member;
             
             // Fetch records for real-time calculation
             const recRes = await fetch(`/api/members/${id}/records`);
@@ -588,358 +566,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const finalCalculatedSvc = calculatedSvcArray.length ? calculatedSvcArray.join(', ') : '없음';
 
-            const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
+            document.getElementById('memberBasicInfo').innerHTML = window.renderMemberProfileHeader(member, family, calculatedPosArray, finalCalculatedSvc);
             
-            // 가족관계 대화형 카드 생성 (클릭 시 순간이동)
-            const fDispHTML = fEnt.map(e => {
-                const match = e.match(/^(.+?)\(/);
-                const name = match ? match[1].trim() : e.trim();
-                const found = family ? family.find(f => f.name.trim() === name) : null;
-                if (found) {
-                    return `<button type="button" class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[11px] px-2.5 py-1.5 rounded-full font-bold border border-blue-200 shadow-sm transition active:scale-[0.97]" onclick="openMemberHistoryModal(${found.id})">${e} ➔</button>`;
-                }
-                return `<span class="bg-gray-100 text-gray-600 text-[11px] px-2.5 py-1.5 rounded-full font-medium border border-gray-200 shadow-sm">${e}</span>`;
-            }).join(' ') || '<span class="text-slate-400 italic text-xs">없음</span>';
-
-            const initial = member.name ? member.name[0] : '';
-            const avatarColors = member.bs === 'B' 
-                ? 'from-blue-500 to-indigo-600 shadow-blue-100' 
-                : 'from-pink-500 to-rose-600 shadow-rose-100';
-            
-            const badges = [
-                member.church ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">${member.church}</span>` : '',
-                member.parish ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">${member.parish}</span>` : '',
-                member.district ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold ${getDC(member.district)} border">${member.district}</span>` : '',
-                member.category ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">${member.category}</span>` : '',
-                member.marital_status ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">${member.marital_status}</span>` : '',
-                ...calculatedPosArray.map(p => `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">${p}</span>`)
-            ].filter(x => x).join(' ');
-
-            document.getElementById('memberBasicInfo').innerHTML = `
-            <div class="col-span-2 md:col-span-4 flex flex-col md:flex-row items-center gap-5 pb-5 border-b border-slate-100 w-full">
-                <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-tr ${avatarColors} flex items-center justify-center text-white text-2xl md:text-3xl font-black shadow-lg">
-                    ${initial}
-                </div>
-                <div class="flex-1 text-center md:text-left">
-                    <div class="flex flex-col md:flex-row items-center gap-2 mb-2">
-                        <h3 class="text-2xl font-black text-slate-800">${member.name}</h3>
-                        <span class="text-xs font-black text-slate-400 bg-slate-100/70 px-2 py-0.5 rounded-md">${member.bs === 'B' ? '형제' : '자매'} (${calculateAge(member.birth_year)}세, ${member.birth_year || '-'}년생)</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 justify-center md:justify-start">
-                        ${badges}
-                    </div>
-                </div>
-            </div>
-            <div class="col-span-2 md:col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">구원일</span>
-                <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    ${member.salvation_date || '-'}
-                </span>
-            </div>
-            <div class="col-span-2 md:col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">연락처</span>
-                <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                    ${member.phone || '-'}
-                </span>
-            </div>
-            <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">가족 관계 <span class="text-[9px] text-slate-400 font-normal ml-1">(이름을 누르면 프로필로 바로 전환됩니다)</span></span>
-                <div class="flex flex-wrap gap-1.5 mt-1">
-                    ${fDispHTML}
-                </div>
-            </div>
-            <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
-                <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">주소</span>
-                <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span class="truncate" title="${member.address || ''}">${member.address || '-'}</span>
-                </span>
-            </div>
-            <div class="col-span-2 md:col-span-4 bg-blue-50/40 p-4 rounded-xl border border-blue-100/50 flex flex-col gap-1">
-                <span class="text-blue-700 text-[10px] font-black uppercase tracking-wider">교회 봉사 내역</span>
-                <span class="font-extrabold text-blue-900 text-sm">${finalCalculatedSvc}</span>
-            </div>
-            <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
-                <div class="flex items-center justify-between">
-                    <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">간증 및 기타 메모</span>
-                    <button type="button" id="testimonyEditBtn" onclick="toggleTestimonyEdit(true)" class="text-yellow-700 hover:text-yellow-900 text-xs font-bold transition flex items-center gap-1">
-                        <i class="fa-regular fa-pen-to-square"></i> 수정
-                    </button>
-                </div>
-                <div id="testimonyViewMode" class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">
-                    ${member.testimony || '내용 없음'}
-                </div>
-                <div id="testimonyEditMode" class="hidden flex flex-col gap-2 mt-1">
-                    <textarea id="testimonyTextarea" class="w-full border border-slate-200 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 rounded-xl px-3 py-2 h-24 outline-none text-xs leading-relaxed text-slate-700 transition duration-150 resize-y" placeholder="간증 및 기타 메모 내용을 입력하세요...">${member.testimony || ''}</textarea>
-                    <div class="flex justify-end gap-1.5">
-                        <button type="button" onclick="toggleTestimonyEdit(false)" class="px-2.5 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition active:scale-[0.97]">
-                            취소
-                        </button>
-                        <button type="button" onclick="saveTestimonyDirect(${member.id})" class="px-2.5 py-1.5 text-[11px] font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition active:scale-[0.97] shadow-sm">
-                            저장
-                        </button>
-                    </div>
-                </div>
-            </div>`;
-            
-            // Attendance History
-            const filteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= today);
-            
-            const getMeetingCategory = (type) => {
-                if (type.includes('구역모임')) return 'district';
-                if (type.includes('조모임')) return 'group';
-                return 'other';
-            };
-
-            const stats = {
-                all: { count: 0, present: 0 },
-                district: { count: 0, present: 0 },
-                group: { count: 0, present: 0 },
-                other: { count: 0, present: 0 }
-            };
-
-            filteredHistory.forEach(h => {
-                const cat = getMeetingCategory(h.type);
-                stats.all.count++;
-                if (h.is_present) stats.all.present++;
-                
-                stats[cat].count++;
-                if (h.is_present) stats[cat].present++;
-            });
-
-            const getRate = (s) => s.count > 0 ? Math.round((s.present / s.count) * 100) : 0;
-
-            const attendanceTabContainer = document.getElementById('tabContent_attendance');
-            if (attendanceTabContainer) {
-                attendanceTabContainer.innerHTML = `
-                    <div class="mb-4 grid grid-cols-4 gap-3">
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-blue-500 bg-blue-50/20 ring-2 ring-blue-100/50" data-filter="all">
-                            <span class="text-xl md:text-2xl mb-0.5">📊</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">전체 모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.all)}%</span>
-                                <span class="text-xs md:text-sm font-extrabold text-blue-600">(${stats.all.present}/${stats.all.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="district">
-                            <span class="text-xl md:text-2xl mb-0.5">🏠</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">구역모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.district)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.district.present}/${stats.district.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="group">
-                            <span class="text-xl md:text-2xl mb-0.5">👥</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">조모임</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.group)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.group.present}/${stats.group.count}회)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="att-filter-card p-3.5 rounded-2xl border bg-white flex flex-col items-center gap-1 active:scale-95 transition-all duration-150 shadow-sm border-slate-200 hover:border-slate-300 hover:bg-slate-50/30" data-filter="other">
-                            <span class="text-xl md:text-2xl mb-0.5">⛪</span>
-                            <span class="text-[10px] md:text-xs font-bold text-slate-400 tracking-wider">교구/기타</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-base md:text-lg font-black text-slate-800">${getRate(stats.other)}%</span>
-                                <span class="text-xs md:text-sm font-bold text-slate-500">(${stats.other.present}/${stats.other.count}회)</span>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div class="mb-3">
-                        <h4 class="font-extrabold mb-2.5 text-slate-800 border-l-4 border-emerald-600 pl-3 flex justify-between items-center text-sm md:text-base">
-                            <span id="attListTitle" class="font-black text-slate-800">전체 출석 히스토리</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs md:text-sm font-semibold text-slate-500">선택 출석률</span>
-                                <span id="memberAttendanceStats" class="text-xs md:text-sm font-black text-blue-700 bg-blue-50/80 border border-blue-150 px-3 py-1 rounded-full shadow-sm">${getRate(stats.all)}% (${stats.all.present}/${stats.all.count})</span>
-                            </div>
-                        </h4>
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <table class="w-full text-sm text-left border-collapse bg-white">
-                                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
-                                    <tr>
-                                        <th class="py-1.5 px-2.5 w-[110px] border-r">날짜</th>
-                                        <th class="py-1.5 px-2.5 min-w-[150px] border-r">모임정보</th>
-                                        <th class="py-1.5 px-2.5 text-center w-[90px] border-r">출석 여부</th>
-                                        <th class="py-1.5 px-2.5">간증 스냅샷</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-
-                const renderAttendanceRows = (filterType) => {
-                    const historyTableBody = document.getElementById('historyTableBody');
-                    if (!historyTableBody) return;
-
-                    const listTitle = document.getElementById('attListTitle');
-                    const statsLabel = document.getElementById('memberAttendanceStats');
-                    
-                    const listMap = {
-                        all: '전체 출석 히스토리',
-                        district: '🏠 구역모임 히스토리',
-                        group: '👥 조모임 히스토리',
-                        other: '⛪ 기타/교구모임 히스토리'
-                    };
-                    if (listTitle) listTitle.textContent = listMap[filterType];
-                    if (statsLabel) {
-                        const s = stats[filterType];
-                        statsLabel.textContent = `${getRate(s)}% (${s.present}/${s.count})`;
-                    }
-
-                    const displayHistory = filterType === 'all' 
-                        ? filteredHistory 
-                        : filteredHistory.filter(h => getMeetingCategory(h.type) === filterType);
-
-                    historyTableBody.innerHTML = displayHistory.map(h => {
-                        const statusBadge = `
-                            <button type="button" class="toggle-attendance-btn inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border transition duration-150 active:scale-95 cursor-pointer ${h.is_present ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-present="${h.is_present ? 1 : 0}">
-                                ${h.is_present ? '출석' : '결석'}
-                            </button>
-                        `;
-
-                        return `
-                            <tr class="text-sm border-b hover:bg-slate-50/50 transition-colors">
-                                <td class="py-1 px-2.5 align-top text-slate-500 font-medium whitespace-nowrap">${h.date}</td>
-                                <td class="py-1 px-2.5 align-top font-bold text-slate-800">${h.title}</td>
-                                <td class="py-1 px-2.5 align-top text-center">${statusBadge}</td>
-                                <td class="py-1 px-2.5 align-top text-slate-650 dark:text-slate-300 font-medium text-xs md:text-sm leading-relaxed cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/40 rounded-lg transition-colors testimony-cell" data-meeting-id="${h.meeting_id}" data-member-id="${id}" data-testimony="${h.testimony_snapshot || ''}" title="${(h.testimony_snapshot || '').replace(/"/g, '&quot;')}"><div class="flex items-start justify-between gap-2 group w-full">
-                                        <span class="testimony-text flex-1 line-clamp-2 max-h-8 overflow-hidden whitespace-pre-wrap">${h.testimony_snapshot || '<span class="text-slate-350 dark:text-slate-600 italic font-normal">-</span>'}</span>
-                                        <span class="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] whitespace-nowrap">✏️ 수정</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">출석 기록이 존재하지 않습니다.</td></tr>';
-
-                    // 출석 토글 이벤트 바인딩
-                    historyTableBody.querySelectorAll('.toggle-attendance-btn').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            e.preventDefault();
-                            const meetingId = btn.dataset.meetingId;
-                            const memberId = btn.dataset.memberId;
-                            const currentPresent = parseInt(btn.dataset.present);
-                            const newPresent = currentPresent === 1 ? 0 : 1;
-
-                            btn.disabled = true;
-                            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin mr-1"></i> 저장`;
-
-                            try {
-                                const response = await fetch('/api/attendance/toggle', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, is_present: newPresent })
-                                });
-
-                                if (response.ok) {
-                                    openMemberHistoryModal(memberId);
-                                } else {
-                                    alert('출석 상태 변경에 실패했습니다.');
-                                    btn.disabled = false;
-                                    btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
-                                }
-                            } catch (err) {
-                                console.error('Toggle error:', err);
-                                alert('서버 오류로 인해 실패했습니다.');
-                                btn.disabled = false;
-                                btn.innerHTML = currentPresent === 1 ? '출석' : '결석';
-                            }
-                        });
-                    });
-
-                    // 간증 인라인 편집 이벤트 바인딩
-                    historyTableBody.querySelectorAll('.testimony-cell').forEach(cell => {
-                        cell.addEventListener('click', function(e) {
-                            if (cell.querySelector('.testimony-edit-input')) return;
-                            if (e.target.closest('.save-testimony-btn') || e.target.closest('.cancel-testimony-btn')) return;
-
-                            const meetingId = cell.dataset.meetingId;
-                            const memberId = cell.dataset.memberId;
-                            const currentVal = cell.dataset.testimony || '';
-
-                            cell.innerHTML = `
-                                <div class="flex flex-col gap-1.5 w-full">
-                                    <textarea class="testimony-edit-input w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/25 focus:outline-none" rows="2">${currentVal}</textarea>
-                                    <div class="flex justify-end gap-1.5">
-                                        <button type="button" class="save-testimony-btn bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer shadow-sm">저장</button>
-                                        <button type="button" class="cancel-testimony-btn bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded text-[10px] font-black transition active:scale-95 cursor-pointer border dark:border-slate-700">취소</button>
-                                    </div>
-                                </div>
-                            `;
-
-                            const textarea = cell.querySelector('.testimony-edit-input');
-                            textarea.focus();
-                            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-                            cell.querySelector('.save-testimony-btn').addEventListener('click', async (evt) => {
-                                evt.stopPropagation();
-                                const newVal = textarea.value.trim();
-                                const saveBtn = cell.querySelector('.save-testimony-btn');
-                                saveBtn.disabled = true;
-                                saveBtn.textContent = '저장중...';
-
-                                try {
-                                    const response = await fetch('/api/attendance/testimony', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ member_id: memberId, meeting_id: meetingId, testimony: newVal })
-                                    });
-
-                                    if (response.ok) {
-                                        openMemberHistoryModal(memberId);
-                                    } else {
-                                        alert('간증 저장에 실패했습니다.');
-                                        openMemberHistoryModal(memberId);
-                                    }
-                                } catch(err) {
-                                    console.error(err);
-                                    alert('간증 저장 중 에러가 발생했습니다.');
-                                    openMemberHistoryModal(memberId);
-                                }
-                            });
-
-                            cell.querySelector('.cancel-testimony-btn').addEventListener('click', (evt) => {
-                                evt.stopPropagation();
-                                openMemberHistoryModal(memberId);
-                            });
-                        });
-                    });
-                };
-
-                renderAttendanceRows('all');
-
-                const cards = attendanceTabContainer.querySelectorAll('.att-filter-card');
-                cards.forEach(card => {
-                    card.addEventListener('click', () => {
-                        cards.forEach(c => {
-                            c.classList.remove('border-blue-500', 'bg-blue-50/20', 'ring-2', 'ring-blue-100/50');
-                            c.classList.add('border-slate-200', 'hover:border-slate-300', 'hover:bg-slate-50/30');
-                            
-                            const countSpan = c.querySelector('span:nth-child(4)');
-                            if (countSpan) {
-                                countSpan.classList.remove('text-blue-600');
-                                countSpan.classList.add('text-slate-500');
-                            }
-                        });
-                        card.classList.add('border-blue-500', 'bg-blue-50/20', 'ring-2', 'ring-blue-100/50');
-                        card.classList.remove('border-slate-200', 'hover:border-slate-300', 'hover:bg-slate-50/30');
-
-                        const countSpan = card.querySelector('span:nth-child(4)');
-                        if (countSpan) {
-                            countSpan.classList.remove('text-slate-500');
-                            countSpan.classList.add('text-blue-600');
-                        }
-
-                        const filter = card.dataset.filter;
-                        renderAttendanceRows(filter);
-                    });
-                });
-            }
+            // Attendance History (공용 member-profile.js가 규칙+화면을 모두 그림)
+            window.renderAttendanceTab(id, member, history, leaderProfile);
 
             // Visitation Memos
             const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
@@ -1058,53 +688,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.deleteRecord = async (id) => { if (confirm('삭제할까요?')) { try { await fetch(`/api/members/records/${id}`, { method: 'DELETE' }); openMemberHistoryModal(currentMemberData.id); } catch (e) { console.error(e); } } };
 
-    window.toggleTestimonyEdit = function(isEdit) {
-        const viewMode = document.getElementById('testimonyViewMode');
-        const editMode = document.getElementById('testimonyEditMode');
-        const editBtn = document.getElementById('testimonyEditBtn');
-        if (isEdit) {
-            viewMode.classList.add('hidden');
-            editMode.classList.remove('hidden');
-            editBtn.classList.add('hidden');
-            const textarea = document.getElementById('testimonyTextarea');
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-        } else {
-            viewMode.classList.remove('hidden');
-            editMode.classList.add('hidden');
-            editBtn.classList.remove('hidden');
-            document.getElementById('testimonyTextarea').value = currentMemberData.testimony || '';
-        }
-    };
+    ;
 
-    window.saveTestimonyDirect = async function(id) {
-        try {
-            const text = document.getElementById('testimonyTextarea').value;
-            const updatedData = { ...currentMemberData, testimony: text };
-            
-            const response = await fetch(`/api/members/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedData)
-            });
-            
-            if (response.ok) {
-                currentMemberData = updatedData;
-                document.getElementById('testimonyViewMode').textContent = text || '내용 없음';
-                window.toggleTestimonyEdit(false);
-                if (typeof loadMemberList === 'function') {
-                    loadMemberList();
-                }
-            } else {
-                alert('저장에 실패했습니다.');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('에러가 발생했습니다.');
-        }
-    };
+    ;
 
     const RECORD_STATUS_MAP = { 'DISTRICT': '구역 변경', 'CATEGORY': '소속 변경', 'POSITION': '직분 임명', 'POSITION_DISMISS': '직분 면직', 'SERVICE': '봉사 임무', 'SERVICE_DISMISS': '봉사 면직', 'FELLOWSHIP': '교제 상태', 'TRANSFER': '전입/전출', 'CHURCH_IN': '교회 전입', 'CHURCH_MOVE': '교회 이동', 'PARISH_MOVE': '교구 이동', 'ETC': '기타' };
 
