@@ -801,12 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ──────────────────────────────────────────────────
     // Member Detail Modal (상담 이력 탭: meetings+records 병합)
     // ──────────────────────────────────────────────────
-    const RECORD_STATUS_MAP = { 
-        'DISTRICT': '구역 변경', 'CATEGORY': '소속 변경', 'POSITION': '직분 임명', 
-        'POSITION_DISMISS': '직분 면직', 'SERVICE': '봉사 임무', 'SERVICE_DISMISS': '봉사 면직', 
-        'FELLOWSHIP': '교제 상태', 'TRANSFER': '전입/전출 (메모)', 'CHURCH_IN': '교회 전입',
-        'CHURCH_MOVE': '교회 이동', 'PARISH_MOVE': '교구 이동', 'COUNSELING': '상담', 'ETC': '기타' 
-    };
+    // RECORD_STATUS_MAP은 공용 member-edit.js가 window.RECORD_STATUS_MAP으로 노출 (COUNSELING 상태 포함)
 
     
 
@@ -1994,79 +1989,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const editMemberBtn = document.getElementById('editMemberBtn');
-    const counselEditMemberModal = document.getElementById('counselEditMemberModal');
-    const counselEditMemberForm = document.getElementById('counselEditMemberForm');
-    const counselEditMemberSubmitBtn = document.getElementById('counselEditMemberSubmitBtn');
 
-    if (editMemberBtn && counselEditMemberModal && counselEditMemberForm) {
-        editMemberBtn.addEventListener('click', () => {
-            if (!currentMemberData) return;
-            
-            counselEditMemberForm.querySelector('input[name="name"]').value = currentMemberData.name || '';
-            counselEditMemberForm.querySelector('select[name="category"]').value = currentMemberData.category || '모름';
-            counselEditMemberForm.querySelector('input[name="birth_year"]').value = currentMemberData.birth_year || '';
-            counselEditMemberForm.querySelector('select[name="bs"]').value = currentMemberData.bs || 'B';
-            counselEditMemberForm.querySelector('input[name="salvation_date"]').value = currentMemberData.salvation_date || '';
-            counselEditMemberForm.querySelector('input[name="phone"]').value = currentMemberData.phone || '';
-            counselEditMemberForm.querySelector('input[name="address"]').value = currentMemberData.address || '';
-            counselEditMemberForm.querySelector('textarea[name="testimony"]').value = currentMemberData.testimony || '';
-
-            counselEditMemberModal.classList.remove('hidden');
-        });
-    }
-
-    if (counselEditMemberSubmitBtn && counselEditMemberForm) {
-        counselEditMemberSubmitBtn.addEventListener('click', async () => {
-            if (!currentMemberData) return;
-
-            const name = counselEditMemberForm.querySelector('input[name="name"]').value.trim();
-            if (!name) return alert('성명을 입력하세요.');
-
-            const category = counselEditMemberForm.querySelector('select[name="category"]').value;
-            const birth_year = counselEditMemberForm.querySelector('input[name="birth_year"]').value;
-            const bs = counselEditMemberForm.querySelector('select[name="bs"]').value;
-            const salvation_date = counselEditMemberForm.querySelector('input[name="salvation_date"]').value;
-            const phone = counselEditMemberForm.querySelector('input[name="phone"]').value.trim();
-            const address = counselEditMemberForm.querySelector('input[name="address"]').value.trim();
-            const testimony = counselEditMemberForm.querySelector('textarea[name="testimony"]').value.trim();
-
-            counselEditMemberSubmitBtn.disabled = true;
-            counselEditMemberSubmitBtn.textContent = '저장 중...';
-
-            try {
-                const updatedMember = {
-                    ...currentMemberData,
-                    name,
-                    category,
-                    birth_year: birth_year ? parseInt(birth_year) : null,
-                    bs,
-                    salvation_date: salvation_date || null,
-                    phone: phone || null,
-                    address: address || null,
-                    testimony: testimony || null
-                };
-
-                const res = await fetch(`/api/members/${currentMemberData.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedMember)
-                });
-
-                if (!res.ok) throw new Error('성도 정보 수정 실패');
-
-                alert('성공적으로 수정되었습니다.');
-                counselEditMemberModal.classList.add('hidden');
-                
-                await openMemberHistoryModal(currentMemberData.id);
-                loadStatus();
-            } catch (err) {
-                console.error(err);
-                alert('성도 정보 수정 중 오류가 발생했습니다.');
-            } finally {
-                counselEditMemberSubmitBtn.disabled = false;
-                counselEditMemberSubmitBtn.textContent = '수정 완료';
-            }
+    // 성도 정보 수정(#memberAddModal)은 공용 member-edit.js가 전담.
+    // 기존엔 여기서 축소판 모달(#counselEditMemberModal, 8개 필드만)을 썼으나
+    // 다른 화면과 동일한 전체 기능(교회/교구/구역, 가족연결, 인적사항 기록)으로 통일함.
+    if (window.MemberEditModule) {
+        window.MemberEditModule.init({
+            getMember: () => currentMemberData,
+            setMember: (m) => { currentMemberData = m; },
+            refreshList: () => { if (typeof loadStatus === 'function') loadStatus(); },
+            refreshHistoryModal: (id) => { if (typeof openMemberHistoryModal === 'function') openMemberHistoryModal(id); }
         });
     }
 

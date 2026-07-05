@@ -647,6 +647,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     };
 
+    // 성도 정보 수정(#memberAddModal)은 공용 member-edit.js가 전담.
+    // 심방 관리 화면엔 원래 수정/교제안나옴 기능 자체가 없었는데, 다른 화면과 동일하게 새로 추가함.
+    if (window.MemberEditModule) {
+        window.MemberEditModule.init({
+            getMember: () => currentMemberData,
+            setMember: (m) => { currentMemberData = m; },
+            refreshList: () => { if (typeof loadStatus === 'function') loadStatus(); },
+            refreshHistoryModal: (id) => { if (typeof openMemberHistoryModal === 'function') openMemberHistoryModal(id); }
+        });
+    }
+
     // 상담 기록의 "인도대상" 태그 클릭 시 그 사람 상세정보로 이동 (counseling_history.js와 동일 기능)
     window.openMemberHistoryModalByName = async function(name) {
         try {

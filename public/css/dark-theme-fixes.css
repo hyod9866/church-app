@@ -674,3 +674,70 @@ html:not(.dark) #nodeAddressContainer {
     color: #cbd5e1 !important;
     border-color: #334155 !important;
 }
+
+/* ── 성도 등록/수정 모달 (#memberAddModal, #familySearchModal, #familyRelationSelectModal) ──
+   member-edit.js로 4개 화면(메인/성도현황/심방관리/상담관리) 공용화됨에 따라 다크모드 스타일도
+   공용 파일로 이동. 예전엔 이 규칙이 member_management.html에만 있어서 다른 화면에서 모달을
+   열면 다크모드에서도 밝은 배경으로 보였음 (2026-07-05) */
+.dark #memberAddModal .bg-white {
+    background-color: #131B2E !important;
+    border-color: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+.dark #memberAddModal .bg-slate-50,
+.dark #memberAddModal .bg-slate-50\/10 {
+    background-color: #0B0F19 !important;
+    border-color: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+.dark #familySearchModal .bg-white {
+    background-color: #131B2E !important;
+    border-color: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+.dark #familySearchModal .bg-slate-50\/50 {
+    background-color: #0B0F19 !important;
+}
+.dark #familySearchResultList .hover\:bg-blue-50:hover {
+    background-color: rgba(37, 99, 235, 0.15) !important;
+}
+.dark #familyRelationSelectModal .bg-white {
+    background-color: #131B2E !important;
+    border-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+.dark #familyRelationSelectModal .bg-blue-50 {
+    background-color: rgba(37, 99, 235, 0.15) !important;
+    border-color: rgba(37, 99, 235, 0.3) !important;
+    color: #60a5fa !important;
+}
+.dark #familyRelationSelectModal .bg-blue-50:hover {
+    background-color: rgba(37, 99, 235, 0.25) !important;
+}
+.dark #familyRelationSelectModal .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+    color: #34d399 !important;
+}
+.dark #familyRelationSelectModal .bg-emerald-50:hover {
+    background-color: rgba(16, 185, 129, 0.25) !important;
+}
+.dark #familyRelationSelectModal .bg-amber-50 {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+    color: #fbbf24 !important;
+}
+.dark #familyRelationSelectModal .bg-amber-50:hover {
+    background-color: rgba(245, 158, 11, 0.25) !important;
+}
+.dark #familyRelationSelectModal .bg-slate-50 {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+.dark #familyRelationSelectModal .bg-slate-50:hover {
+    background-color: #243249 !important;
+}
+.dark #familyRelationSelectModal .text-slate-450 {
+    color: #94a3b8 !important;
+}
