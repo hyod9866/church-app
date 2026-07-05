@@ -591,3 +591,81 @@ html:not(.dark) #nodeParentHierarchy,
 html:not(.dark) #nodeAddressContainer {
     color: #94a3b8 !important;
 }
+
+/* ── 성도 상세 모달 프로필 카드 (#memberBasicInfo, member-profile.js가 4개 페이지에 공통으로 그림) ──
+   예전엔 이 규칙들이 member_management.html / visitation_history.html에만 각자 따로
+   들어있어서, 메인 화면과 상담 관리에서는 다크모드일 때 카드가 밋밋한 회색으로만 보였음.
+   공용 다크모드 파일로 옮겨서 4개 페이지 전부 동일하게 보이도록 통일 (2026-07-05). */
+.dark #memberBasicInfo {
+    background-color: #131B2E !important;
+    border-color: #1e293b !important;
+}
+
+.dark #memberBasicInfo h3 {
+    color: #f8fafc !important;
+}
+.dark #memberBasicInfo .text-slate-400 {
+    color: #cbd5e1 !important;
+    font-weight: 800 !important;
+}
+.dark #memberBasicInfo .bg-slate-100\/70 {
+    background-color: #1e293b !important;
+}
+
+/* 모달 내 각각의 정보 카드 블록 (구원일, 연락처, 주소, 가족 등) */
+.dark #memberBasicInfo .bg-slate-50\/50 {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+.dark #memberBasicInfo .bg-slate-50\/50 .text-slate-400 {
+    color: #94a3b8 !important;
+    font-weight: 800 !important;
+}
+.dark #memberBasicInfo .bg-slate-50\/50 .text-slate-700 {
+    color: #f8fafc !important;
+}
+.dark #memberBasicInfo .bg-slate-50\/50 span.truncate {
+    color: #f8fafc !important;
+}
+.dark #memberBasicInfo .bg-slate-50\/50 span.truncate:hover {
+    color: #60a5fa !important;
+}
+.dark #memberBasicInfo .bg-slate-50\/50 .text-[9px].text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+/* 봉사 내역 카드 */
+.dark #memberBasicInfo .bg-blue-50\/40 {
+    background-color: rgba(30, 58, 138, 0.25) !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+}
+.dark #memberBasicInfo .bg-blue-50\/40 .text-blue-700 {
+    color: #93c5fd !important;
+}
+.dark #memberBasicInfo .bg-blue-50\/40 .text-blue-900 {
+    color: #60a5fa !important;
+}
+
+/* 간증 및 메모 카드 */
+.dark #memberBasicInfo .bg-yellow-50\/30 {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+    border-color: rgba(245, 158, 11, 0.25) !important;
+}
+.dark #memberBasicInfo .bg-yellow-50\/30 .text-yellow-700 {
+    color: #fde047 !important;
+}
+.dark #memberBasicInfo #testimonyViewMode {
+    color: #cbd5e1 !important;
+}
+
+/* 가족관계 뱃지 링크 */
+.dark #memberBasicInfo .bg-blue-50.text-blue-700 {
+    background-color: #1e293b !important;
+    color: #60a5fa !important;
+    border-color: #3b82f6 !important;
+}
+.dark #memberBasicInfo .bg-slate-100.text-slate-700 {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
