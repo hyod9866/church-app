@@ -121,7 +121,11 @@ window.renderMemberProfileHeader = function(member, family, calculatedPosArray, 
             ${fDispHTML}
         </div>
     </div>
-    <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
+    <div class="col-span-2 md:col-span-4 flex items-center gap-2 pt-2 pb-0.5">
+        <span class="text-[10px] font-black uppercase tracking-wider text-slate-300">추가 정보</span>
+        <div class="flex-1 h-px bg-slate-100"></div>
+    </div>
+    <div class="col-span-2 md:col-span-4 bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col gap-1">
         <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider">주소</span>
         <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
             <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -130,11 +134,11 @@ window.renderMemberProfileHeader = function(member, family, calculatedPosArray, 
                 : '-'}
         </span>
     </div>
-    <div class="col-span-2 md:col-span-4 bg-blue-50/40 p-4 rounded-xl border border-blue-100/50 flex flex-col gap-1">
+    <div class="col-span-2 md:col-span-4 bg-blue-50/40 p-3 rounded-xl border border-blue-100/50 flex flex-col gap-1">
         <span class="text-blue-700 text-[10px] font-black uppercase tracking-wider">교회 봉사 내역</span>
         <span class="font-extrabold text-blue-900 text-sm">${finalCalculatedSvc}</span>
     </div>
-    <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
+    <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-3 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
         <div class="flex items-center justify-between">
             <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">메모</span>
             <button type="button" id="testimonyEditBtn" onclick="toggleTestimonyEdit(true)" class="text-yellow-700 hover:text-yellow-900 text-xs font-bold transition flex items-center gap-1">
