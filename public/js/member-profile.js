@@ -136,14 +136,12 @@ window.renderMemberProfileHeader = function(member, family, calculatedPosArray, 
     </div>
     <div class="col-span-2 md:col-span-4 bg-yellow-50/30 p-4 rounded-xl border border-yellow-100/50 flex flex-col gap-1 relative group">
         <div class="flex items-center justify-between">
-            <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">간증 및 기타 메모</span>
+            <span class="text-yellow-700 text-[10px] font-black uppercase tracking-wider">메모</span>
             <button type="button" id="testimonyEditBtn" onclick="toggleTestimonyEdit(true)" class="text-yellow-700 hover:text-yellow-900 text-xs font-bold transition flex items-center gap-1">
                 <i class="fa-regular fa-pen-to-square"></i> 수정
             </button>
         </div>
-        <div id="testimonyViewMode" class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">
-            ${member.testimony || '내용 없음'}
-        </div>
+        <div id="testimonyViewMode" class="font-medium text-slate-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">${member.testimony || '내용 없음'}</div>
         <div id="testimonyEditMode" class="hidden flex flex-col gap-2 mt-1">
             <textarea id="testimonyTextarea" class="w-full border border-slate-200 focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 rounded-xl px-3 py-2 h-24 outline-none text-xs leading-relaxed text-slate-700 transition duration-150 resize-y" placeholder="간증 및 기타 메모 내용을 입력하세요...">${member.testimony || ''}</textarea>
             <div class="flex justify-end gap-1.5">
