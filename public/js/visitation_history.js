@@ -205,13 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newPos = rec.remark.split(',').map(p => p.trim()).filter(p => p);
                     calculatedPosArray = Array.from(new Set([...calculatedPosArray, ...newPos]));
                 } else if (rec.status === 'POSITION_DISMISS') {
-                    const removePos = rec.remark.split(',').map(p => p.trim()).filter(p => p);
+                    // 구버전 데이터는 remark에 "[면직] " 접두어가 남아있을 수 있어 제거 후 비교해야 함
+                    // (server.js의 syncMemberProfileFromRecords와 동일한 정제 로직 — 2026-07-05)
+                    const cleanedRemark = rec.remark.replace(/\[면직\]\s*|면직\s*/g, '');
+                    const removePos = cleanedRemark.split(',').map(p => p.trim()).filter(p => p);
                     calculatedPosArray = calculatedPosArray.filter(p => !removePos.includes(p));
                 } else if (rec.status === 'SERVICE') {
                     const newSvc = rec.remark.split(',').map(s => s.trim()).filter(s => s);
                     calculatedSvcArray = Array.from(new Set([...calculatedSvcArray, ...newSvc]));
                 } else if (rec.status === 'SERVICE_DISMISS') {
-                    const removeSvc = rec.remark.split(',').map(s => s.trim()).filter(s => s);
+                    const cleanedRemark = rec.remark.replace(/\[면직\]\s*|면직\s*/g, '');
+                    const removeSvc = cleanedRemark.split(',').map(s => s.trim()).filter(s => s);
                     calculatedSvcArray = calculatedSvcArray.filter(s => !removeSvc.includes(s));
                 }
             });
