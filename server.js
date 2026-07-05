@@ -1210,20 +1210,25 @@ app.put('/api/members/:id', async (req, res) => {
       marital_status: maritalStatusVal
     };
 
+    // 소속 교회/교구/구역 변경 감지를 위해 "수정 전" 값을 먼저 조회
+    // (반드시 update()보다 먼저 실행해야 함 — update 이후에 조회하면 이미 새 값으로 덮어써진 뒤라
+    //  "변경 전"과 "변경 후"를 비교하는 것이 아니라 새 값끼리 비교하는 꼴이 되어 오작동할 수 있음)
+    const { data: oldMemberBeforeUpdate, error: getOldErr } = await supabase
+      .from('members')
+      .select('church, parish, district')
+      .eq('id', id)
+      .single();
+
     const { error } = await supabase
       .from('members')
       .update(updateData)
       .eq('id', id);
-      
+
     if (error) throw error;
 
     // 소속 교회/교구/구역 변경 감지 및 자동 인적기록 생성
     try {
-      const { data: oldMember, error: getOldErr } = await supabase
-        .from('members')
-        .select('church, parish, district')
-        .eq('id', id)
-        .single();
+      const oldMember = oldMemberBeforeUpdate;
 
       if (!getOldErr && oldMember) {
         const todayStr = new Date().toISOString().split('T')[0];
