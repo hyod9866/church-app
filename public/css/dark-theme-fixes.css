@@ -374,6 +374,11 @@
 .dark .bg-amber-100.text-amber-800 { background-color: rgba(120, 53, 15, 0.4) !important; color: #fcd34d !important; border-color: #92400e !important; }
 .dark .bg-gray-100.text-gray-400 { background-color: #1e293b !important; color: #94a3b8 !important; border-color: #475569 !important; }
 
+/* 성도 상세 카드의 "미연결" 가족관계 뱃지 (family_id로 연결 안 된 경우) —
+   배경색 오버라이드가 없어서 다른 전역 .text-gray-600 규칙(밝은 글자색)만 적용되어
+   밝은 배경 위에 밝은 글자가 겹쳐 거의 안 보이던 문제 수정 (2026-07-05) */
+.dark .bg-gray-100.text-gray-600 { background-color: #1e293b !important; color: #94a3b8 !important; border-color: #475569 !important; }
+
 /* ── List cards (counseling, visitation, member) ── */
 .dark .main-counsel-card,
 .dark .bg-gray-50.rounded-lg {

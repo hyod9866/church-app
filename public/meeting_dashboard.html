@@ -191,9 +191,15 @@
                 </div>
             </div>
 
-            <!-- Wrapping Filter Chips -->
-            <div class="flex flex-wrap items-center gap-1.5 py-0.5 border-t border-slate-100 dark:border-slate-800/60 pt-3" id="filterChipsContainer">
-                <!-- Chips will be dynamically injected by JS -->
+            <!-- Active Keyword Filter Badge Container -->
+            <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 pt-3 hidden" id="activeKeywordContainer">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 dark:text-slate-400">선택된 키워드:</span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-black shadow-sm">
+                        <span id="activeKeywordText">#예수님</span>
+                        <button type="button" id="clearKeywordFilter" class="text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-bold cursor-pointer transition-colors text-[13px] ml-0.5">✕</button>
+                    </span>
+                </div>
             </div>
 
             <div class="overflow-x-auto pt-2">
