@@ -837,9 +837,33 @@ app.put('/api/users/default-profile', async (req, res) => {
 // - 교구청년모임/청년모임: 위와 동일한 소속 범위의 "청년회" (id=270은 청년모임 참석률이
 //   낮아 의도적으로 제외된 케이스로 확인됨 - 2026-07-05 사용자 확인, 그대로 유지)
 // - 교구형제모임: 위와 동일한 소속 범위의 "봉사회" 형제 (예전엔 형제이기만 하면 다 포함되던 버그를 수정)
-// - 교구임원모임: 직분(position)이 임명된 성도
+// - 교구임원모임: "그 모임이 열린 날짜" 기준으로 직분(position)이 있었던 성도
+//   (2026-07-05 수정: 예전엔 회원의 "현재" position 값 하나로 과거 모임까지 전부 판정해서,
+//    임기 중간에 임명된 사람은 임명 전에 열린 임원모임까지 참석 의무 대상으로 잘못 잡혔었음.
+//    인적사항(POSITION/POSITION_DISMISS) 이력을 모임 날짜 시점까지만 재생해서 판정하도록 변경)
 // ------------------------------------------------------------------
-function isMandatoryMeeting(member, meeting, leaderProfile) {
+function hasPositionAsOf(positionRecords, dateStr) {
+  if (!positionRecords || positionRecords.length === 0) return false;
+  const sorted = [...positionRecords].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return (a.id || 0) - (b.id || 0);
+  });
+  let positions = [];
+  sorted.forEach(rec => {
+    if (rec.date > dateStr) return; // 모임 날짜 이후에 벌어진 임명/면직은 아직 반영되지 않은 것으로 취급
+    if (rec.status === 'POSITION') {
+      const newPos = (rec.remark || '').split(',').map(p => p.trim()).filter(p => p);
+      positions = Array.from(new Set([...positions, ...newPos]));
+    } else if (rec.status === 'POSITION_DISMISS') {
+      const cleaned = (rec.remark || '').replace(/\[면직\]\s*|면직\s*/g, '');
+      const removePos = cleaned.split(',').map(p => p.trim()).filter(p => p);
+      positions = positions.filter(p => !removePos.includes(p));
+    }
+  });
+  return positions.length > 0;
+}
+
+function isMandatoryMeeting(member, meeting, leaderProfile, positionRecords) {
   const mType = meeting.type || '';
   const mDistMatch = mType.match(/\d+/);
   const mDistNum = mDistMatch ? mDistMatch[0] : null;
@@ -875,7 +899,7 @@ function isMandatoryMeeting(member, meeting, leaderProfile) {
   if (mType.includes('교구전체모임')) return true;
   if (mType.includes('교구형제모임')) return member.bs === 'B' && member.category === '봉사회';
   if (mType.includes('전체조모임')) return isGroupEligibleSister;
-  if (mType.includes('교구임원모임')) return (member.position || '').trim() !== '';
+  if (mType.includes('교구임원모임')) return hasPositionAsOf(positionRecords, meeting.date);
   if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 
   return false;
@@ -922,6 +946,19 @@ app.get('/api/members/attendance-rates', async (req, res) => {
     //  스냅샷이 없는 과거 모임에 한해서만 이 현재 값으로 대체 계산한다)
     const leaderProfile = await fetchLeaderChurchParish();
 
+    // 교구임원모임 의무 대상 판정을 "모임 날짜 시점" 기준으로 정확히 하기 위한 직분 이력 일괄 조회
+    // (2026-07-05: isMandatoryMeeting의 날짜 인지 판정과 함께 추가)
+    const { data: positionRecordsRaw, error: posRecErr } = await supabase
+      .from('member_records')
+      .select('id, member_id, date, status, remark')
+      .in('status', ['POSITION', 'POSITION_DISMISS']);
+    if (posRecErr) throw posRecErr;
+    const positionRecordsByMember = {};
+    (positionRecordsRaw || []).forEach(r => {
+      if (!positionRecordsByMember[r.member_id]) positionRecordsByMember[r.member_id] = [];
+      positionRecordsByMember[r.member_id].push(r);
+    });
+
     let allAttendance = [];
     let page = 0;
     const pageSize = 1000;
@@ -961,7 +998,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
     members.forEach(member => {
       const atts = memberAtts[member.id] || [];
       const filtered = atts.filter(h => {
-        return isMandatoryMeeting(member, h, leaderProfile) || h.is_present;
+        return isMandatoryMeeting(member, h, leaderProfile, positionRecordsByMember[member.id]) || h.is_present;
       });
 
       const totalCount = filtered.length;

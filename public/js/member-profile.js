@@ -270,7 +270,32 @@ document.addEventListener('DOMContentLoaded', function() {
 // 보여주면 안 되므로). 규칙을 고칠 땐 양쪽 다 고칠 것.
 // ------------------------------------------------------------------
 
-window.isMandatoryMeeting = function(member, meeting, leaderProfile) {
+// 특정 날짜 시점에 그 성도가 "임원"이었는지를 인적사항(POSITION/POSITION_DISMISS) 이력으로 판정.
+// (2026-07-05: server.js의 동명 함수와 동일 — 현재 직분만 보면 임기 중간에 임명된 사람이
+//  임명 전 모임까지 참석 의무 대상으로 잘못 잡히는 문제가 있어서 날짜 인지 계산으로 변경)
+function hasPositionAsOf(positionRecords, dateStr) {
+    if (!positionRecords || positionRecords.length === 0) return false;
+    const sorted = [...positionRecords].sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (a.id || 0) - (b.id || 0);
+    });
+    let positions = [];
+    sorted.forEach(rec => {
+        if (rec.date > dateStr) return;
+        if (rec.status === 'POSITION') {
+            const newPos = (rec.remark || '').split(',').map(p => p.trim()).filter(p => p);
+            positions = Array.from(new Set([...positions, ...newPos]));
+        } else if (rec.status === 'POSITION_DISMISS') {
+            const cleaned = (rec.remark || '').replace(/\[면직\]\s*|면직\s*/g, '');
+            const removePos = cleaned.split(',').map(p => p.trim()).filter(p => p);
+            positions = positions.filter(p => !removePos.includes(p));
+        }
+    });
+    return positions.length > 0;
+}
+window.hasPositionAsOf = hasPositionAsOf;
+
+window.isMandatoryMeeting = function(member, meeting, leaderProfile, positionRecords) {
     const mType = meeting.type || '';
     const mDistMatch = mType.match(/\d+/);
     const mDistNum = mDistMatch ? mDistMatch[0] : null;
@@ -305,7 +330,7 @@ window.isMandatoryMeeting = function(member, meeting, leaderProfile) {
     if (mType.includes('교구전체모임')) return true;
     if (mType.includes('교구형제모임')) return member.bs === 'B' && member.category === '봉사회';
     if (mType.includes('전체조모임')) return isGroupEligibleSister;
-    if (mType.includes('교구임원모임')) return (member.position || '').trim() !== '';
+    if (mType.includes('교구임원모임')) return hasPositionAsOf(positionRecords, meeting.date);
     // id=270: 청년모임 참석률이 낮아 의도적으로 제외된 케이스로 확인됨 (2026-07-05 사용자 확인, 유지)
     if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
 
@@ -315,15 +340,24 @@ window.isMandatoryMeeting = function(member, meeting, leaderProfile) {
 // 성도 상세 모달의 "출석 히스토리" 탭 전체(필터 카드 + 표 + 토글 + 간증 인라인수정)를
 // 그려주는 공용 함수. 4개 페이지 모두 동일한 화면/동일한 계산 규칙을 쓰게 된다.
 // history: /api/members/:id/history 가 내려주는 원본 history 배열 (심방/상담/설교 포함, 미필터)
-window.renderAttendanceTab = function(id, member, history, leaderProfile) {
+window.renderAttendanceTab = async function(id, member, history, leaderProfile) {
     const attendanceTabContainer = document.getElementById('tabContent_attendance');
     if (!attendanceTabContainer) return;
+
+    // 교구임원모임 의무 대상을 "모임 날짜 시점" 기준으로 정확히 판정하기 위한 직분 이력 조회
+    // (2026-07-05: isMandatoryMeeting의 날짜 인지 판정과 함께 추가)
+    let positionRecords = [];
+    try {
+        const recRes = await fetch(`/api/members/${id}/records`);
+        const recs = await recRes.json();
+        positionRecords = (recs || []).filter(r => r.status === 'POSITION' || r.status === 'POSITION_DISMISS');
+    } catch (e) { console.error(e); }
 
     const todayStr = new Date().toISOString().split('T')[0];
     const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= todayStr);
 
     // 의무 대상 모임이거나, 실제로 참석(is_present)했던 기록만 카운트
-    const filteredHistory = rawFilteredHistory.filter(h => window.isMandatoryMeeting(member, h, leaderProfile) || h.is_present);
+    const filteredHistory = rawFilteredHistory.filter(h => window.isMandatoryMeeting(member, h, leaderProfile, positionRecords) || h.is_present);
 
     const getMeetingCategory = (type) => {
         if (type.includes('구역모임')) return 'district';
