@@ -1890,6 +1890,9 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
     }
 
     const saveAction = async (isSingleOnly = false) => {
+        // [2026-07-06] 저장 버튼 연타 가드 (meeting_editor.js와 공유)
+        if (window.__meetingSaveInProgress) return;
+        window.__meetingSaveInProgress = true;
         try {
             let finalMemo = memo;
             if (rrule_type && rrule_type !== 'none') {
@@ -1913,7 +1916,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                 const parentMemo = `__RECURRING__:${JSON.stringify(parentMeta)}\n${currentMeetingData.memo}`;
 
                 // 부모 일정 업데이트
-                await fetch(`/api/meetings/${currentMeetingId}`, {
+                const parentRes = await fetch(`/api/meetings/${currentMeetingId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1928,6 +1931,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                         end_time: currentMeetingData.end_time
                     })
                 });
+                if (!parentRes.ok) throw new Error('반복 모임 원본 저장에 실패했습니다.');
 
                 // 2. 새로운 단일 일정 등록
                 const newRes = await fetch('/api/meetings', {
@@ -1947,6 +1951,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                         sermon_tags
                     })
                 });
+                if (!newRes.ok) throw new Error('모임 저장에 실패했습니다.');
                 const { id } = await newRes.json();
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
@@ -1954,7 +1959,10 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                     is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
+                // [2026-07-06] 응답 성공 여부 확인 — 예전엔 서버가 500을 반환해도
+                // 저장된 것처럼 화면이 넘어가 출석 유실을 알아챌 수 없었음
+                const attRes = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
+                if (!attRes.ok) throw new Error('출석 기록 저장에 실패했습니다.');
             } else {
                 // 전체 일정 수정 / 등록
                 const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
@@ -1975,6 +1983,7 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                         sermon_tags
                     })
                 });
+                if (!res.ok) throw new Error('모임 저장에 실패했습니다.');
                 const { id } = await res.json();
                 const mid = currentMeetingId || id;
 
@@ -1983,7 +1992,9 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
                     is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
+                // [2026-07-06] 응답 성공 여부 확인 (위와 동일한 이유)
+                const attRes = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
+                if (!attRes.ok) throw new Error('출석 기록 저장에 실패했습니다.');
             }
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('returnUrl')) {
@@ -1991,7 +2002,13 @@ document.getElementById('saveMeeting').addEventListener('click', async () => {
             } else {
                 location.reload();
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            // [2026-07-06] 예전엔 실패해도 아무 표시가 없어 저장된 줄 알기 쉬웠음
+            alert(e && e.message ? `저장 실패: ${e.message}\n페이지를 새로고침해 출석 기록을 확인해주세요.` : '저장 중 오류가 발생했습니다.');
+        } finally {
+            window.__meetingSaveInProgress = false;
+        }
     };
 
     if (currentMeetingId && currentMeetingData && currentMeetingData.rrule_type && currentMeetingData.rrule_type !== 'none') {

@@ -2050,31 +2050,79 @@ app.get('/api/meetings/:id/attendance', async (req, res) => {
   }
 });
 
+// [2026-07-06 안전화] 예전에는 "전체 삭제 → 재삽입" 방식이라
+//  (1) 삭제 성공 후 삽입이 실패하면 그 모임의 출석이 통째로 유실되고
+//  (2) 프론트가 스냅샷을 안 보내므로 재저장할 때마다 district/category_snapshot이
+//      null로 초기화되어 과거 모임의 구역별 통계가 소급 변경되는 문제가 있었다.
+// 이제 upsert(있으면 갱신, 없으면 삽입) 후 목록에서 빠진 행만 삭제한다.
+//  → 어느 단계에서 실패해도 기존 데이터가 통째로 사라지지 않고,
+//    기존 스냅샷은 프론트가 값을 보내지 않는 한 그대로 보존된다.
+// ※ upsert는 attendance UNIQUE(meeting_id, member_id) 제약 필요
+//   (migrations/2026-07-06_attendance_unique.sql 참고). 제약이 아직 없으면
+//   기존 방식으로 폴백하되 경고 로그를 남긴다.
 app.post('/api/attendance', async (req, res) => {
   const { meeting_id, attendance_data } = req.body;
   try {
-    const { error: deleteErr } = await supabase
-      .from('attendance')
-      .delete()
-      .eq('meeting_id', meeting_id);
-      
-    if (deleteErr) throw deleteErr;
+    if (meeting_id === undefined || meeting_id === null) {
+      return res.status(400).json({ error: 'meeting_id가 필요합니다.' });
+    }
+    const rawRows = Array.isArray(attendance_data) ? attendance_data : [];
 
-    if (attendance_data && attendance_data.length > 0) {
-      const insertRows = attendance_data.map(d => ({
-        meeting_id,
-        member_id: d.member_id,
-        is_present: d.is_present || 0,
-        testimony_snapshot: d.testimony_snapshot || null,
-        district_snapshot: d.district_snapshot || null,
-        category_snapshot: d.category_snapshot || null
-      }));
+    // 같은 성도가 payload에 중복으로 들어오면 upsert가 실패하므로 성도당 1행으로 정리
+    const byMember = {};
+    rawRows.forEach(d => {
+      if (d && d.member_id !== undefined && d.member_id !== null) byMember[d.member_id] = d;
+    });
+    const rows = Object.values(byMember);
 
-      const { error: insertErr } = await supabase
+    // 기존 행 조회 — 스냅샷 보존 + "빠진 성도" 삭제 대상 파악용
+    const existing = await fetchAllRows((from, to) =>
+      supabase
         .from('attendance')
-        .insert(insertRows);
-        
-      if (insertErr) throw insertErr;
+        .select('id, member_id, district_snapshot, category_snapshot')
+        .eq('meeting_id', meeting_id)
+        .range(from, to)
+    );
+    const existingByMember = {};
+    existing.forEach(r => { existingByMember[r.member_id] = r; });
+
+    if (rows.length > 0) {
+      const upsertRows = rows.map(d => {
+        const prev = existingByMember[d.member_id];
+        return {
+          meeting_id,
+          member_id: d.member_id,
+          is_present: d.is_present || 0,
+          testimony_snapshot: d.testimony_snapshot || null,
+          // 프론트가 스냅샷을 안 보내면 기존 값을 보존 (과거 구역 통계 소실 방지)
+          district_snapshot: d.district_snapshot || (prev ? prev.district_snapshot : null),
+          category_snapshot: d.category_snapshot || (prev ? prev.category_snapshot : null)
+        };
+      });
+
+      const { error: upErr } = await supabase
+        .from('attendance')
+        .upsert(upsertRows, { onConflict: 'meeting_id,member_id' });
+
+      if (upErr && /no unique|there is no unique|exclusion constraint/i.test(upErr.message || '')) {
+        // UNIQUE 제약 미적용 DB 폴백 (구 방식) — 데이터 유실 위험이 있으므로 마이그레이션 권장
+        console.warn('[attendance] UNIQUE(meeting_id, member_id) 제약이 없어 delete+insert 폴백으로 저장합니다. Supabase SQL Editor에서 migrations/2026-07-06_attendance_unique.sql 실행을 권장합니다.');
+        const { error: delAllErr } = await supabase.from('attendance').delete().eq('meeting_id', meeting_id);
+        if (delAllErr) throw delAllErr;
+        const { error: insErr } = await supabase.from('attendance').insert(upsertRows);
+        if (insErr) throw insErr;
+        return res.json({ status: 'success' });
+      } else if (upErr) {
+        throw upErr;
+      }
+    }
+
+    // upsert가 성공한 뒤에만, 이번 목록에서 빠진 성도의 행을 삭제한다
+    const keepIds = new Set(rows.map(d => d.member_id));
+    const toDeleteIds = existing.filter(r => !keepIds.has(r.member_id)).map(r => r.id);
+    if (toDeleteIds.length > 0) {
+      const { error: delErr } = await supabase.from('attendance').delete().in('id', toDeleteIds);
+      if (delErr) throw delErr;
     }
 
     res.json({ status: 'success' });
@@ -2084,31 +2132,33 @@ app.post('/api/attendance', async (req, res) => {
   }
 });
 
+// [2026-07-06 안전화] 예전에는 "조회 후 없으면 삽입" 방식이라
+//  (1) 연타/동시 요청 시 둘 다 "없음"으로 판정해 같은 (모임, 성도) 출석 행이
+//      2개 생기고 참석 인원 집계가 부풀려지는 경쟁 조건이 있었고
+//  (2) maybeSingle()은 이미 중복 행이 있는 성도를 만나면 500 오류를 냈다.
+// 이제 업데이트를 먼저 시도하고(중복 행이 있어도 전부 갱신됨), 갱신된 행이
+// 없을 때만 삽입한다. 삽입이 UNIQUE 충돌(23505)로 실패하면 경쟁 상황이므로
+// 업데이트로 재시도한다. (UNIQUE 제약: migrations/2026-07-06_attendance_unique.sql)
 app.post('/api/attendance/toggle', async (req, res) => {
   const { member_id, meeting_id, is_present } = req.body;
   try {
-    const { data: existing, error: selectErr } = await supabase
+    const presentVal = is_present ? 1 : 0;
+
+    const { data: updated, error: updateErr } = await supabase
       .from('attendance')
-      .select('id')
+      .update({ is_present: presentVal })
       .eq('meeting_id', meeting_id)
       .eq('member_id', member_id)
-      .maybeSingle();
+      .select('id');
+    if (updateErr) throw updateErr;
 
-    if (selectErr) throw selectErr;
-
-    if (existing) {
-      const { error: updateErr } = await supabase
-        .from('attendance')
-        .update({ is_present: is_present ? 1 : 0 })
-        .eq('id', existing.id);
-      if (updateErr) throw updateErr;
-    } else {
+    if (!updated || updated.length === 0) {
       const { data: member, error: memErr } = await supabase
         .from('members')
         .select('district, category')
         .eq('id', member_id)
         .single();
-        
+
       if (memErr) throw memErr;
 
       const { error: insertErr } = await supabase
@@ -2116,11 +2166,24 @@ app.post('/api/attendance/toggle', async (req, res) => {
         .insert({
           meeting_id,
           member_id,
-          is_present: is_present ? 1 : 0,
+          is_present: presentVal,
           district_snapshot: member?.district || null,
           category_snapshot: member?.category || null
         });
-      if (insertErr) throw insertErr;
+
+      if (insertErr) {
+        // 동시 요청이 먼저 삽입한 경우(UNIQUE 충돌) → 업데이트로 재시도
+        if (insertErr.code === '23505' || /duplicate key/i.test(insertErr.message || '')) {
+          const { error: retryErr } = await supabase
+            .from('attendance')
+            .update({ is_present: presentVal })
+            .eq('meeting_id', meeting_id)
+            .eq('member_id', member_id);
+          if (retryErr) throw retryErr;
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
     res.json({ status: 'success' });
@@ -2139,28 +2202,23 @@ app.post('/api/attendance/testimony', async (req, res) => {
       return res.status(400).json({ error: '유효한 member_id와 meeting_id가 필요합니다.' });
     }
 
-    const { data: existing, error: selectErr } = await supabase
+    // [2026-07-06 안전화] toggle과 동일 — "조회 후 삽입"의 경쟁 조건으로 중복 행이
+    // 생기고, 중복이 이미 있으면 maybeSingle()이 500을 내던 문제를 업데이트 우선 방식으로 수정
+    const { data: updated, error: updateErr } = await supabase
       .from('attendance')
-      .select('id')
+      .update({ testimony_snapshot: testimony || null })
       .eq('meeting_id', meetingId)
       .eq('member_id', memberId)
-      .maybeSingle();
+      .select('id');
+    if (updateErr) throw updateErr;
 
-    if (selectErr) throw selectErr;
-
-    if (existing) {
-      const { error: updateErr } = await supabase
-        .from('attendance')
-        .update({ testimony_snapshot: testimony || null })
-        .eq('id', existing.id);
-      if (updateErr) throw updateErr;
-    } else {
+    if (!updated || updated.length === 0) {
       const { data: member, error: memErr } = await supabase
         .from('members')
         .select('district, category')
         .eq('id', memberId)
         .single();
-        
+
       if (memErr) throw memErr;
 
       const { error: insertErr } = await supabase
@@ -2173,7 +2231,19 @@ app.post('/api/attendance/testimony', async (req, res) => {
           district_snapshot: member?.district || null,
           category_snapshot: member?.category || null
         });
-      if (insertErr) throw insertErr;
+
+      if (insertErr) {
+        if (insertErr.code === '23505' || /duplicate key/i.test(insertErr.message || '')) {
+          const { error: retryErr } = await supabase
+            .from('attendance')
+            .update({ testimony_snapshot: testimony || null })
+            .eq('meeting_id', meetingId)
+            .eq('member_id', memberId);
+          if (retryErr) throw retryErr;
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
     res.json({ status: 'success' });
@@ -3144,7 +3214,35 @@ app.get('/api/dashboard/attendance', async (req, res) => {
             return { ...member, attendance: memberAttendance };
         });
 
-        res.json({ meetings: meetings || [], members: membersWithAttendance });
+        // [2026-07-06] 프론트(dashboard.js/meeting_dashboard.js)가 서버와 동일한
+        // 의무출석 판정(js/mandatory_meeting.js)을 쓸 수 있도록
+        // 리더 소속 폴백과 직분 이력(모임 날짜 시점 임원 판정용)을 함께 내려준다.
+        // (attendance-rates 집계와 동일한 데이터 기준 — 페이지마다 출석률이 다르게 나오던 버그 방지)
+        const leaderProfile = await fetchLeaderChurchParish();
+
+        let positionRecordsByMember = {};
+        try {
+            const positionRecordsRaw = await fetchAllRows((from, to) =>
+                supabase
+                    .from('member_records')
+                    .select('id, member_id, date, status, remark')
+                    .in('status', ['POSITION', 'POSITION_DISMISS'])
+                    .range(from, to)
+            );
+            (positionRecordsRaw || []).forEach(r => {
+                if (!positionRecordsByMember[r.member_id]) positionRecordsByMember[r.member_id] = [];
+                positionRecordsByMember[r.member_id].push(r);
+            });
+        } catch (posErr) {
+            console.error('Dashboard position records load failed:', posErr);
+        }
+
+        res.json({
+            meetings: meetings || [],
+            members: membersWithAttendance,
+            leaderProfile: leaderProfile || null,
+            positionRecords: positionRecordsByMember
+        });
     } catch (err) {
         console.error('Dashboard attendance error:', err);
         res.status(500).json({ error: err.message });

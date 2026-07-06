@@ -2192,6 +2192,10 @@ async function handleSaveMeeting() {
     }
 
     const executeSave = async (isSingleOnly = false) => {
+        // [2026-07-06] 저장 버튼 연타 가드 — 빠르게 두 번 누르면 모임이 2개 생기거나
+        // 출석 저장이 겹쳐 중복 행이 생기던 문제 방지
+        if (window.__meetingSaveInProgress) return;
+        window.__meetingSaveInProgress = true;
         try {
             let finalMemo = memo;
             if (rrule_type && rrule_type !== 'none') {
@@ -2212,7 +2216,7 @@ async function handleSaveMeeting() {
                 };
                 const parentMemo = `__RECURRING__:${JSON.stringify(parentMeta)}\n${currentMeetingData.memo}`;
 
-                await fetch(`/api/meetings/${currentMeetingId}`, {
+                const parentRes = await fetch(`/api/meetings/${currentMeetingId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2227,6 +2231,7 @@ async function handleSaveMeeting() {
                         end_time: currentMeetingData.end_time
                     })
                 });
+                if (!parentRes.ok) throw new Error('반복 모임 원본 저장에 실패했습니다.');
 
                 const newRes = await fetch('/api/meetings', {
                     method: 'POST',
@@ -2245,6 +2250,7 @@ async function handleSaveMeeting() {
                         sermon_tags
                     })
                 });
+                if (!newRes.ok) throw new Error('모임 저장에 실패했습니다.');
                 const { id } = await newRes.json();
 
                 const attData = Array.from(document.querySelectorAll('.attendance-row')).map(row => ({
@@ -2252,7 +2258,10 @@ async function handleSaveMeeting() {
                     is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
+                // [2026-07-06] 응답 성공 여부 확인 — 예전엔 서버가 500을 반환해도
+                // 저장된 것처럼 모달이 닫혀서 출석 유실을 알아챌 수 없었음
+                const attRes = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: id, attendance_data: attData }) });
+                if (!attRes.ok) throw new Error('출석 기록 저장에 실패했습니다.');
             } else {
                 const url = currentMeetingId ? `/api/meetings/${currentMeetingId}` : '/api/meetings';
                 const res = await fetch(url, {
@@ -2272,6 +2281,7 @@ async function handleSaveMeeting() {
                         sermon_tags
                     })
                 });
+                if (!res.ok) throw new Error('모임 저장에 실패했습니다.');
                 const { id } = await res.json();
                 const mid = currentMeetingId || id;
 
@@ -2280,7 +2290,9 @@ async function handleSaveMeeting() {
                     is_present: row.dataset.present === 'true' ? 1 : 0,
                     testimony_snapshot: row.querySelector('.testimony-input').value.trim()
                 }));
-                await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
+                // [2026-07-06] 응답 성공 여부 확인 (위와 동일한 이유)
+                const attRes = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting_id: mid, attendance_data: attData }) });
+                if (!attRes.ok) throw new Error('출석 기록 저장에 실패했습니다.');
             }
 
             document.getElementById('meetingModal').classList.add('hidden');
@@ -2300,7 +2312,9 @@ async function handleSaveMeeting() {
 
         } catch (err) {
             console.error(err);
-            alert('저장 중 실패했습니다.');
+            alert(err && err.message ? `저장 실패: ${err.message}\n모임 목록을 새로고침해 출석 기록을 확인해주세요.` : '저장 중 실패했습니다.');
+        } finally {
+            window.__meetingSaveInProgress = false;
         }
     };
 

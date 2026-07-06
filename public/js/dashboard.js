@@ -51,36 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
+    // [2026-07-06 통일] 예전에는 이 파일 안에 별도 판정 로직이 복사돼 있었고
+    // server.js / member-profile.js 와 규칙이 달라서(교구 범위 미검증, 교구형제모임
+    // 봉사회 조건 누락, 조모임 대상 확대, 임원 판정이 현재 직분 기준 등)
+    // 대시보드와 성도 상세 화면의 출석률이 서로 다르게 나오는 버그가 있었다.
+    // 이제 공유 모듈 js/mandatory_meeting.js (server.js와 동일 규칙)만 사용한다.
     function isMandatoryMeeting(member, meeting) {
-        const mType = meeting.type || '';
-        const mDistMatch = mType.match(/\d+/);
-        const mDistNum = mDistMatch ? mDistMatch[0] : null;
-        const memDistNum = (member.district || '').replace(/[^0-9]/g, '');
-
-        // 0. Hard Exclusion: Youth Sisters (category: '청년회', bs: 'S') are excluded from ALL Group meetings (조모임)
-        if (mType.includes('조모임')) {
-            if (member.category === '청년회' && member.bs === 'S') return false;
-            if (member.bs === 'B') return false; // Brothers are also excluded from Sisters' Group meetings
-        }
-
-        // 1. District Meetings (구역모임)
-        if (mType.includes('구역모임')) {
-            if (!mDistNum || mDistNum === memDistNum) return true;
-        }
-
-        // 2. Group Meetings (조모임) - Now only Sisters (S) who are NOT youth reach here
-        if (mType.includes('조모임')) {
-            if (!mDistNum || mDistNum === memDistNum) return true;
-        }
-
-        // 3. Global/Specific Meetings
-        if (mType.includes('교구전체모임')) return true;
-        if (mType.includes('교구형제모임') && member.bs === 'B') return true;
-        if (mType.includes('전체조모임') && member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회')) return true;
-        if (mType.includes('교구임원모임') && (member.position || '').trim() !== '') return true;
-        if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
-
-        return false;
+        const positionRecords = (allData.positionRecords && allData.positionRecords[member.id]) || [];
+        return window.isMandatoryMeeting(member, meeting, allData.leaderProfile || null, positionRecords);
     }
 
     function calculateAttendanceStats(member, filteredMeetings) {

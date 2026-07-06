@@ -384,6 +384,65 @@ if (typeof ChartDataLabels !== 'undefined') {
     Chart.register(ChartDataLabels);
 }
 
+// [2026-07-06] "이번 달 교구 출석률" KPI 실계산.
+// 예전에는 '78%' 하드코딩 표시였음 (통계 오류). 대시보드(dashboard.js)와 완전히
+// 동일한 데이터(/api/dashboard/attendance)와 동일한 판정(js/mandatory_meeting.js)으로,
+// 이번 달에 이미 지난 모임들에 대해 [참석 연인원 ÷ 의무대상(또는 실제 참석) 연인원]을 계산한다.
+// 계산할 데이터가 없으면 숫자를 지어내지 않고 '--%'로 둔다.
+async function updateAttendanceKpi() {
+    const kpiEl = document.getElementById('kpiAttendance');
+    if (!kpiEl) return;
+    try {
+        // 한국시간 기준 오늘/올해 (UTC 기준을 쓰면 새벽 0~9시에 어제로 계산되는 버그가 있음)
+        const kstToday = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const kstYear = parseInt(kstToday.substring(0, 4));
+        const kstMonthPrefix = kstToday.substring(0, 7); // 'YYYY-MM'
+
+        const res = await fetch(`/api/dashboard/attendance?year=${kstYear}`);
+        if (!res.ok) throw new Error('attendance data fetch failed');
+        const data = await res.json();
+
+        const excludedTypes = ['심방', '상담', '설교', '외부설교'];
+        const monthMeetings = (data.meetings || []).filter(m =>
+            m.date && m.date.startsWith(kstMonthPrefix) &&
+            m.date <= kstToday &&
+            !excludedTypes.some(t => (m.type || '').includes(t))
+        );
+
+        if (monthMeetings.length === 0 || typeof window.isMandatoryMeeting !== 'function') {
+            kpiEl.textContent = '--%';
+            kpiEl.title = '이번 달에 집계할 모임이 아직 없습니다.';
+            return;
+        }
+
+        let denom = 0;
+        let numer = 0;
+        (data.members || []).forEach(member => {
+            const positionRecords = (data.positionRecords && data.positionRecords[member.id]) || [];
+            monthMeetings.forEach(m => {
+                const rec = member.attendance ? member.attendance[m.id] : null;
+                const present = !!(rec && rec.is_present);
+                if (window.isMandatoryMeeting(member, m, data.leaderProfile || null, positionRecords) || present) {
+                    denom++;
+                    if (present) numer++;
+                }
+            });
+        });
+
+        if (denom === 0) {
+            kpiEl.textContent = '--%';
+            kpiEl.title = '이번 달에 집계할 대상이 없습니다.';
+            return;
+        }
+        kpiEl.textContent = Math.round((numer / denom) * 100) + '%';
+        kpiEl.title = `이번 달 모임 ${monthMeetings.length}회 · 참석 ${numer} / 대상 ${denom} (연인원)`;
+    } catch (e) {
+        console.error('출석률 KPI 계산 실패:', e);
+        kpiEl.textContent = '--%';
+        kpiEl.title = '출석률을 불러오지 못했습니다.';
+    }
+}
+
 async function fetchAttendanceCharts() {
     try {
         const res = await fetch('/api/meetings');
@@ -522,7 +581,8 @@ async function fetchAttendanceCharts() {
         
         document.getElementById('kpiVisitations').textContent = visitations + '건';
         document.getElementById('kpiCounselings').textContent = counselings + '건';
-        document.getElementById('kpiAttendance').textContent = '78%'; // Placeholder
+        // [2026-07-06] 예전엔 '78%' 하드코딩(Placeholder)이었음 — 실제 데이터로 계산해 채운다.
+        updateAttendanceKpi();
         
         // 누적 세로막대 상단에 총합 표시 플러그인
         const stackedBarTotalPlugin = {
