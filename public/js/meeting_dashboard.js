@@ -683,9 +683,51 @@ async function fetchAttendanceCharts() {
                 return globalAvg;
             });
 
+            // [2026-07-06] 차트 제목 옆 월평균 표기 (구역모임/조모임 차트 전용 — HTML에
+            // <span id="{차트id}AvgLabel">이 있는 차트만 표시됨)
+            //  - 전체: 달별 "모든 구역 합계"의 평균 (월평균 총원)
+            //  - 각 구역: 그 구역의 달별 출석 평균
+            //  - 모임이 없던 달(출석 0명)은 평균에서 제외 (빨간 점선과 동일 기준)
+            const avgLabelEl = document.getElementById(id + 'AvgLabel');
+            if (avgLabelEl) {
+                const groups = Object.keys(catData).sort();
+                const monthlyTotals = [];
+                targetKeys.forEach(mk => {
+                    if (mk > currentMonthKey) return;
+                    let tot = 0;
+                    groups.forEach(g => {
+                        const d = catData[g][mk];
+                        if (d && d.att > 0) tot += d.att;
+                    });
+                    if (tot > 0) monthlyTotals.push(tot);
+                });
+
+                if (monthlyTotals.length > 0) {
+                    const parts = [];
+                    const totalAvg = monthlyTotals.reduce((a, b) => a + b, 0) / monthlyTotals.length;
+                    parts.push(`전체 ${totalAvg.toFixed(1)}명`);
+                    groups.forEach(g => {
+                        const vals = [];
+                        targetKeys.forEach(mk => {
+                            if (mk > currentMonthKey) return;
+                            const d = catData[g][mk];
+                            if (d && d.att > 0) vals.push(d.att);
+                        });
+                        if (vals.length > 0) {
+                            const gAvg = vals.reduce((a, b) => a + b, 0) / vals.length;
+                            const gLabel = /^\d+$/.test(g) ? `${g}구역` : g;
+                            parts.push(`${gLabel} ${gAvg.toFixed(1)}명`);
+                        }
+                    });
+                    avgLabelEl.textContent = `(월평균 - ${parts.join(' / ')})`;
+                } else {
+                    avgLabelEl.textContent = '';
+                }
+            }
+
             // At-Risk Calculation
             const atRiskGroups = [];
-            
+
             // Current month stats for KPIs
             let currentMonthTotalAtt = 0;
             let currentMonthTotalTest = 0;
