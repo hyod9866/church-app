@@ -203,42 +203,68 @@ function getSymmetricRelation(relation) {
     return '기타';
 }
 
-async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, providedFid, callback) {
+async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, providedFid, callback, familyRelationIds) {
   if (!familyRelation) return callback(null, providedFid);
   const entries = familyRelation.split(',').map(s => s.trim()).filter(s => s);
-  const inputMap = {}; // 핵심 성명 -> 관계 태그
-  entries.forEach(e => { 
-    const m = e.match(/^(.+?)\((.+?)\)$/); 
-    if (m) inputMap[m[1].trim().replace(/[DBS P]$/i, '').trim()] = m[2]; 
+  const inputMap = {}; // 핵심 성명 -> 관계 태그 (역관계 텍스트 생성용)
+  const idHints = familyRelationIds || {}; // "이름(관계)" 문자열 -> member_id (검색으로 특정 사람을 골랐을 때 프론트가 함께 보냄)
+
+  // [2026-07-07 감사 보고서 8번 항목] 예전에는 가족관계 텍스트의 이름과 핵심 성명이 같은
+  // "모든" active 성도를 무조건 가족 그룹에 편입시켰다. 동명이인이 있으면 전혀 남남인
+  // 사람이 같은 가족으로 묶이고 그 사람의 가족관계 텍스트까지 덮어써지는 위험이 있었다.
+  // 이제는 이름이 아니라 ID를 우선 기준으로 삼는다:
+  //   1) 검색으로 특정 사람을 골랐다면(idHints) 그 사람의 id로 정확히 매칭
+  //   2) 이미 같은 family_id를 가진 사람(과거에 이미 정확히 연결된 그룹원 — 이후 아래에서
+  //      family_id로 다시 매칭하므로 이름이 같은 다른 사람과 섞이지 않음)
+  //   3) 위 둘 다 해당 안 되는, ID 정보가 전혀 없는 레거시 입력만 예전처럼 이름으로 찾는다
+  //      (기존 데이터 호환용 — 새로 입력되는 항목은 프론트가 항상 idHints를 함께 보낸다)
+  const hintedIds = new Set();
+  const unresolvedCoreNames = new Set();
+  entries.forEach(e => {
+    const m = e.match(/^(.+?)\((.+?)\)$/);
+    if (!m) return;
+    const coreName = m[1].trim().replace(/[DBS P]$/i, '').trim();
+    inputMap[coreName] = m[2];
+    const hintedId = idHints[e];
+    if (hintedId !== undefined && hintedId !== null && hintedId !== '') {
+      hintedIds.add(parseInt(hintedId));
+    } else {
+      unresolvedCoreNames.add(coreName);
+    }
   });
-  
+
   const familyCoreNames = Object.keys(inputMap);
   if (familyCoreNames.length === 0) return callback(null, providedFid);
 
-  const myNameCore = memberName.trim().replace(/[DBS P]$/i, '').trim();
-  const allCoreNames = [myNameCore, ...familyCoreNames];
-
   try {
-    // active 성도를 모두 가져온 뒤 메모리에서 정규화된 이름으로 매칭
-    const { data: activeMembers, error } = await supabase
-      .from('members')
-      .select('id, name, bs, family_id, family_relation')
-      .eq('status', 'active');
-
-    if (error) throw error;
-
-    const groupMembers = activeMembers.filter(m => {
-      const coreName = m.name.trim().replace(/[DBS P]$/i, '').trim();
-      return allCoreNames.includes(coreName);
-    });
+    // active 성도를 모두 가져온 뒤 메모리에서 매칭
+    // [2026-07-07 페이지네이션] 활성 성도가 1000명을 넘으면 조용히 잘려나가, 뒤쪽에 있는
+    // 동명이인 가족 구성원을 찾지 못해 가족관계 연결이 누락될 수 있으므로 fetchAllRows 사용.
+    const activeMembers = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, bs, family_id, family_relation')
+        .eq('status', 'active')
+        .range(from, to)
+    );
 
     const meId = parseInt(memberId);
     let fid = (providedFid && providedFid !== 'null' && providedFid !== '') ? parseInt(providedFid) : null;
+
+    const groupMembers = activeMembers.filter(m => {
+      if (m.id === meId) return true; // 본인은 항상 id로 정확히 포함 (이름 매칭 아님)
+      if (fid !== null && m.family_id !== null && m.family_id !== '' && parseInt(m.family_id) === fid) return true;
+      if (hintedIds.has(m.id)) return true;
+      if (unresolvedCoreNames.size === 0) return false;
+      const coreName = m.name.trim().replace(/[DBS P]$/i, '').trim();
+      return unresolvedCoreNames.has(coreName);
+    });
+
     if (!fid) {
         const ex = groupMembers.find(m => m.family_id !== null && m.family_id !== '');
         if (ex) fid = parseInt(ex.family_id);
     }
-    
+
     const finalizeSync = async (targetFid) => {
       const tasks = [];
       groupMembers.forEach(target => {
@@ -339,8 +365,21 @@ async function syncMemberProfileFromRecords(memberId) {
     let currentDistrict = member.district || '구역정보없음';
     let currentCategory = member.category || '봉사회';
     let currentStatus = member.status || 'active';
-    let currentPosition = [];
-    let currentService = [];
+
+    // [2026-07-07 감사 보고서 7번 항목] 원래는 position/church_service를 무조건 빈 배열에서
+    // 시작해 POSITION/SERVICE 기록만으로 재구성했다. 그런데 그 성도에 대한 POSITION/SERVICE
+    // 기록이 하나도 없는 경우(레거시 데이터이거나 엑셀 일괄 등록 등으로 직접 입력만 된 경우)에도
+    // 무조건 빈 값에서 시작하다 보니, 수정 화면에서 직접 입력한 직분·부서가 아무 근거 기록 없이
+    // 조용히 지워져 버렸다. 이제 해당 성도에게 POSITION/SERVICE 기록이 "하나라도" 있을 때만
+    // 기록 기반으로 처음부터 재구성하고, 기록이 전혀 없다면 현재 저장된 값을 그대로 유지한다.
+    const parseListPreserving = (val) => {
+      if (!val || val === '없음') return [];
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    };
+    const hasPositionRecords = records.some(rec => rec.status === 'POSITION' || rec.status === 'POSITION_DISMISS');
+    const hasServiceRecords = records.some(rec => rec.status === 'SERVICE' || rec.status === 'SERVICE_DISMISS');
+    let currentPosition = hasPositionRecords ? [] : parseListPreserving(member.position);
+    let currentService = hasServiceRecords ? [] : parseListPreserving(member.church_service);
 
     const today = new Date().toISOString().split('T')[0];
     const activeRecords = records.filter(rec => rec.date <= today);
@@ -406,11 +445,13 @@ async function syncMemberProfileFromRecords(memberId) {
 }
 
 async function syncAllMembersProfilePromise() {
-    const { data: rows, error } = await supabase
-      .from('members')
-      .select('id');
-      
-    if (error) throw error;
+    // [2026-07-07 페이지네이션] 성도 1000명을 넘으면 뒤쪽 성도는 동기화 대상에서 조용히 빠진다.
+    const rows = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id')
+        .range(from, to)
+    );
     if (!rows || rows.length === 0) return;
     
     // Supabase 커넥션 과부하 방지를 위한 20개씩 분할(Batching) 처리
@@ -672,62 +713,74 @@ app.get('/api/run-migration-temp', async (req, res) => {
 
 app.get('/api/members/search', async (req, res) => {
   try {
-    // [성능 개선 및 Cloudflare 522 타임아웃 방지] 
+    // [성능 개선 및 Cloudflare 522 타임아웃 방지]
     // 성도 등록/수정/삭제 시 개별 프로필 동기화가 이미 수행되므로, 검색 API를 호출할 때마다 전체 성도를 동기화하는 무거운 로직은 제외합니다.
     // await syncAllMembersProfilePromise();
-    
-    const { q, gender, category, district, status: st, parish, church, marital_status, member_status: ms } = req.query;
-    let query = supabase.from('members').select('*');
-    
-    if (st === 'inactive') {
-      query = query.eq('status', 'inactive');
-    } else if (st === 'all' || st === '전체') {
-      // 전체 조회
-    } else {
-      query = query.eq('status', 'active');
-    }
 
-    // 기본적으로 member_status가 'member'인 성도만 노출 (명시적으로 'all'이나 'evangelism'을 요구하지 않는 한)
-    if (ms === 'evangelism') {
-      query = query.eq('member_status', 'evangelism');
-    } else if (ms === 'all') {
-      // 전도대상 + 성도 모두 포함
-    } else {
-      // 기본값: 일반 성도만
-      query = query.eq('member_status', 'member');
-    }
-    
-    if (gender && gender !== '전체') {
-      query = query.eq('bs', gender);
-    }
-    if (category && category !== '전체') {
-      const catClean = category.replace(/회$/, '');
-      query = query.ilike('category', `%${catClean}%`);
-    }
-    if (district && district !== '전체') {
-      query = query.eq('district', district);
-    }
-    if (parish && parish !== '전체' && parish !== 'all') {
-      query = query.eq('parish', parish);
-    }
-    if (church && church !== '전체') {
-      query = query.eq('church', church);
-    }
-    if (marital_status && marital_status !== '전체') {
-      if (marital_status === '기혼') {
-        query = query.eq('marital_status', '기혼');
-      } else if (marital_status === '미혼_미선택') {
-        query = query.or('marital_status.is.null,marital_status.neq.기혼');
+    const { q, gender, category, district, status: st, parish, church, marital_status, member_status: ms } = req.query;
+
+    // [2026-07-07 페이지네이션] 필터 없이(또는 넓은 필터로) 조회하면 PostgREST 기본 1000행
+    // 제한에 걸려 성도가 1000명을 넘는 순간부터 뒤쪽 성도가 조용히 잘려나간다.
+    // fetchAllRows는 매 페이지마다 새 쿼리 객체가 필요하므로, 필터 적용 로직을 함수로 감싸서
+    // 매 호출마다 동일한 필터를 재적용한 뒤 .range(from, to)를 붙인다.
+    const buildQuery = (from, to) => {
+      let query = supabase.from('members').select('*');
+
+      if (st === 'inactive') {
+        query = query.eq('status', 'inactive');
+      } else if (st === 'all' || st === '전체') {
+        // 전체 조회
+      } else {
+        query = query.eq('status', 'active');
       }
-    }
-    if (q) {
-      query = query.ilike('name', `%${q}%`);
-    }
-    
-    query = query.order('district', { ascending: true }).order('name', { ascending: true });
-    
-    const { data, error } = await query;
-    if (error) throw error;
+
+      // 기본적으로 member_status가 'member'인 성도만 노출 (명시적으로 'all'이나 'evangelism'을 요구하지 않는 한)
+      if (ms === 'evangelism') {
+        query = query.eq('member_status', 'evangelism');
+      } else if (ms === 'all') {
+        // 전도대상 + 성도 모두 포함
+      } else {
+        // 기본값: 일반 성도만
+        query = query.eq('member_status', 'member');
+      }
+
+      if (gender && gender !== '전체') {
+        query = query.eq('bs', gender);
+      }
+      if (category && category !== '전체') {
+        const catClean = category.replace(/회$/, '');
+        query = query.ilike('category', `%${catClean}%`);
+      }
+      if (district && district !== '전체') {
+        query = query.eq('district', district);
+      }
+      if (parish && parish !== '전체' && parish !== 'all') {
+        query = query.eq('parish', parish);
+      }
+      if (church && church !== '전체') {
+        query = query.eq('church', church);
+      }
+      if (marital_status && marital_status !== '전체') {
+        if (marital_status === '기혼') {
+          query = query.eq('marital_status', '기혼');
+        } else if (marital_status === '미혼_미선택') {
+          query = query.or('marital_status.is.null,marital_status.neq.기혼');
+        }
+      }
+      if (q) {
+        query = query.ilike('name', `%${q}%`);
+      }
+
+      // district/name만으로는 동률(tie)이 흔해 페이지 경계에서 순서가 흔들릴 수 있으므로
+      // id를 최종 타이브레이커로 추가해 페이지 간 정렬을 안정적으로 유지한다.
+      return query
+        .order('district', { ascending: true })
+        .order('name', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to);
+    };
+
+    const data = await fetchAllRows(buildQuery);
     res.json(data || []);
   } catch (err) {
     console.error('Search members error:', err);
@@ -936,10 +989,14 @@ app.get('/api/members/attendance-rates', async (req, res) => {
       meetingMap[m.id] = m;
     });
 
-    const { data: members, error: memErr } = await supabase
-      .from('members')
-      .select('id, name, category, bs, district, position, church, parish, member_status');
-    if (memErr) throw memErr;
+    // [2026-07-07 페이지네이션] 성도/직분이력 전체 조회 — 필터 없이 조회하면 1000행을 넘는
+    // 순간부터 조용히 잘려나가 출석률 분모(성도 수)가 틀어진다. fetchAllRows로 전체 페이지 조회.
+    const members = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, category, bs, district, position, church, parish, member_status')
+        .range(from, to)
+    );
 
     // 교구전체모임 의무 대상 판정용 폴백: 강효근의 "현재" 소속 교회/교구
     // (각 모임에 leader_church_snapshot/leader_parish_snapshot이 있으면 isMandatoryMeeting에서 그걸 우선 사용하고,
@@ -948,11 +1005,13 @@ app.get('/api/members/attendance-rates', async (req, res) => {
 
     // 교구임원모임 의무 대상 판정을 "모임 날짜 시점" 기준으로 정확히 하기 위한 직분 이력 일괄 조회
     // (2026-07-05: isMandatoryMeeting의 날짜 인지 판정과 함께 추가)
-    const { data: positionRecordsRaw, error: posRecErr } = await supabase
-      .from('member_records')
-      .select('id, member_id, date, status, remark')
-      .in('status', ['POSITION', 'POSITION_DISMISS']);
-    if (posRecErr) throw posRecErr;
+    const positionRecordsRaw = await fetchAllRows((from, to) =>
+      supabase
+        .from('member_records')
+        .select('id, member_id, date, status, remark')
+        .in('status', ['POSITION', 'POSITION_DISMISS'])
+        .range(from, to)
+    );
     const positionRecordsByMember = {};
     (positionRecordsRaw || []).forEach(r => {
       if (!positionRecordsByMember[r.member_id]) positionRecordsByMember[r.member_id] = [];
@@ -1173,9 +1232,15 @@ app.post('/api/members', async (req, res) => {
     if (error) throw error;
     const newId = data.id;
 
+    // [2026-07-07 감사 보고서 8번 항목] 프론트가 가족 검색에서 특정 사람을 고르면 "이름(관계)"
+    // 문자열 -> 그 사람의 member_id 매핑을 함께 보낸다. 있으면 syncFamilyLinks가 이름 대신
+    // 이 id로 정확히 매칭해 동명이인 오연결을 막는다.
+    let familyRelationIds = {};
+    try { familyRelationIds = b.family_relation_ids ? JSON.parse(b.family_relation_ids) : {}; } catch (e) { familyRelationIds = {}; }
+
     syncFamilyLinks(newId, b.name, b.bs, b.family_relation, fid, async (err, finalFid) => {
       if (err) console.error('syncFamilyLinks error:', err);
-      
+
       if (b.pendingRecords && Array.isArray(b.pendingRecords)) {
         const recordsToInsert = b.pendingRecords.map(rec => ({
           member_id: newId,
@@ -1183,7 +1248,7 @@ app.post('/api/members', async (req, res) => {
           status: rec.status,
           remark: rec.remark
         }));
-        
+
         if (recordsToInsert.length > 0) {
           const { error: recErr } = await supabase
             .from('member_records')
@@ -1191,13 +1256,39 @@ app.post('/api/members', async (req, res) => {
           if (recErr) console.error('Pending records insert error:', recErr);
         }
       }
+
+      // [2026-07-07] syncMemberProfileFromRecords는 position/church_service를 오직
+      // POSITION/SERVICE 기록으로만 재구성한다 (감사 보고서 7번 항목). 엑셀 일괄 등록처럼
+      // pendingRecords 없이 position/church_service를 직접 채워 넣는 생성 경로에서는
+      // 바로 아래 syncMemberProfileFromRecords 호출이 방금 넣은 값을 즉시 빈 값으로
+      // 되돌려버렸으므로, 값이 있으면 대응하는 POSITION/SERVICE 기록을 먼저 만들어둔다.
+      try {
+        const initialRecords = [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
+        const initialPositions = splitList(b.position);
+        if (initialPositions.length > 0) {
+          initialRecords.push({ member_id: newId, date: todayStr, status: 'POSITION', remark: initialPositions.join(', ') });
+        }
+        const initialServices = splitList(b.church_service);
+        if (initialServices.length > 0) {
+          initialRecords.push({ member_id: newId, date: todayStr, status: 'SERVICE', remark: initialServices.join(', ') });
+        }
+        if (initialRecords.length > 0) {
+          const { error: initErr } = await supabase.from('member_records').insert(initialRecords);
+          if (initErr) console.error('Initial position/service record insert error:', initErr);
+        }
+      } catch (initErr) {
+        console.error('Initial position/service record sync failed:', initErr);
+      }
+
       try {
         await syncMemberProfileFromRecords(newId);
       } catch (syncErr) {
         console.error('Initial sync error:', syncErr);
       }
       res.json({ id: newId, family_id: finalFid });
-    });
+    }, familyRelationIds);
   } catch (err) {
     console.error('Create member error:', err);
     res.status(500).json({ error: err.message });
@@ -1247,12 +1338,12 @@ app.put('/api/members/:id', async (req, res) => {
       marital_status: maritalStatusVal
     };
 
-    // 소속 교회/교구/구역 변경 감지를 위해 "수정 전" 값을 먼저 조회
+    // 소속 교회/교구/구역 + 직분/부서 변경 감지를 위해 "수정 전" 값을 먼저 조회
     // (반드시 update()보다 먼저 실행해야 함 — update 이후에 조회하면 이미 새 값으로 덮어써진 뒤라
     //  "변경 전"과 "변경 후"를 비교하는 것이 아니라 새 값끼리 비교하는 꼴이 되어 오작동할 수 있음)
     const { data: oldMemberBeforeUpdate, error: getOldErr } = await supabase
       .from('members')
-      .select('church, parish, district')
+      .select('church, parish, district, position, church_service')
       .eq('id', id)
       .single();
 
@@ -1263,7 +1354,13 @@ app.put('/api/members/:id', async (req, res) => {
 
     if (error) throw error;
 
-    // 소속 교회/교구/구역 변경 감지 및 자동 인적기록 생성
+    // 소속 교회/교구/구역 + 직분/부서 변경 감지 및 자동 인적기록 생성
+    // [2026-07-07] syncMemberProfileFromRecords는 position/church_service를 "기록으로만"
+    // 처음부터 재구성하므로(감사 보고서 7번 항목), 수정 화면에서 직접 바꾼 직분·부서가
+    // 대응하는 POSITION/SERVICE 기록 없이 저장되면 바로 다음 줄의 syncMemberProfileFromRecords
+    // 호출에서 조용히 원복(대개 빈 값)돼 버렸다. church/parish/district와 동일하게, 바뀐
+    // 항목만큼 기록을 자동 생성해 "기록이 항상 실제 값과 일치"하도록 맞춘다.
+    const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
     try {
       const oldMember = oldMemberBeforeUpdate;
 
@@ -1271,8 +1368,17 @@ app.put('/api/members/:id', async (req, res) => {
         const todayStr = new Date().toISOString().split('T')[0];
         const autoRecords = [];
 
-        if (oldMember.church !== b.church) {
-          const remarkVal = b.church && b.church.includes('서울중앙교회') 
+        // [2026-07-07] 일부 화면(엑셀 일괄 등록의 2단계 가족관계 갱신 등)은 이 PUT을 호출할 때
+        // church/parish/district/position/church_service 중 일부 필드를 아예 body에 담지 않는다.
+        // 예전에는 "안 보낸 값(undefined)"과 "기존 값"이 다르다는 이유로 그 필드가 지워진 것으로
+        // 오인해 CHURCH_MOVE 등을 잘못된 빈 값으로 자동 기록해버리는 문제가 있었다.
+        // 이제 body에 해당 필드가 실제로 존재할 때만("포함됐지만 빈 문자열"도 포함) 변경으로 간주한다.
+        const churchProvided = b.church !== undefined;
+        const parishProvided = b.parish !== undefined;
+        const districtProvided = b.district !== undefined;
+
+        if (churchProvided && oldMember.church !== b.church) {
+          const remarkVal = b.church && b.church.includes('서울중앙교회')
             ? `${b.church} > ${b.parish || ''} > ${b.district || '미배정'}`
             : b.church;
           autoRecords.push({
@@ -1282,7 +1388,7 @@ app.put('/api/members/:id', async (req, res) => {
             remark: remarkVal || ''
           });
         } else {
-          if (oldMember.parish !== b.parish) {
+          if (parishProvided && oldMember.parish !== b.parish) {
             autoRecords.push({
               member_id: id,
               date: todayStr,
@@ -1290,13 +1396,42 @@ app.put('/api/members/:id', async (req, res) => {
               remark: b.parish || ''
             });
           }
-          if (oldMember.district !== b.district) {
+          if (districtProvided && oldMember.district !== b.district) {
             autoRecords.push({
               member_id: id,
               date: todayStr,
               status: 'DISTRICT',
               remark: b.district || ''
             });
+          }
+        }
+
+        // 직분/부서도 마찬가지로 body에 실제로 포함된 경우에만 변경분을 기록으로 자동 반영한다.
+        // (감사 보고서 7번 항목 — syncMemberProfileFromRecords가 기록만으로 재구성하므로,
+        //  직접 바꾼 값이 기록으로 남지 않으면 바로 아래에서 조용히 원복되던 문제)
+        if (b.position !== undefined) {
+          const oldPositions = new Set(splitList(oldMember.position));
+          const newPositions = new Set(splitList(b.position));
+          const addedPositions = [...newPositions].filter(p => !oldPositions.has(p));
+          const removedPositions = [...oldPositions].filter(p => !newPositions.has(p));
+          if (addedPositions.length > 0) {
+            autoRecords.push({ member_id: id, date: todayStr, status: 'POSITION', remark: addedPositions.join(', ') });
+          }
+          if (removedPositions.length > 0) {
+            autoRecords.push({ member_id: id, date: todayStr, status: 'POSITION_DISMISS', remark: `[면직] ${removedPositions.join(', ')}` });
+          }
+        }
+
+        if (b.church_service !== undefined) {
+          const oldServices = new Set(splitList(oldMember.church_service));
+          const newServices = new Set(splitList(b.church_service));
+          const addedServices = [...newServices].filter(s => !oldServices.has(s));
+          const removedServices = [...oldServices].filter(s => !newServices.has(s));
+          if (addedServices.length > 0) {
+            autoRecords.push({ member_id: id, date: todayStr, status: 'SERVICE', remark: addedServices.join(', ') });
+          }
+          if (removedServices.length > 0) {
+            autoRecords.push({ member_id: id, date: todayStr, status: 'SERVICE_DISMISS', remark: `[면직] ${removedServices.join(', ')}` });
           }
         }
 
@@ -1307,9 +1442,15 @@ app.put('/api/members/:id', async (req, res) => {
     } catch (autoErr) {
       console.error('Auto record sync failed:', autoErr);
     }
-    
+
     await syncMemberProfileFromRecords(id);
-    
+
+    // [2026-07-07 감사 보고서 8번 항목] 프론트가 가족 검색에서 특정 사람을 고르면 "이름(관계)"
+    // 문자열 -> 그 사람의 member_id 매핑을 함께 보낸다. 있으면 syncFamilyLinks가 이름 대신
+    // 이 id로 정확히 매칭해 동명이인 오연결을 막는다.
+    let familyRelationIds = {};
+    try { familyRelationIds = b.family_relation_ids ? JSON.parse(b.family_relation_ids) : {}; } catch (e) { familyRelationIds = {}; }
+
     syncFamilyLinks(id, b.name, b.bs, b.family_relation, fid, async (err, finalFid) => {
       if (err) console.error('syncFamilyLinks error:', err);
       
@@ -1331,7 +1472,7 @@ app.put('/api/members/:id', async (req, res) => {
         await syncMemberProfileFromRecords(id);
       }
       res.json({ status: 'success', family_id: finalFid });
-    });
+    }, familyRelationIds);
   } catch (err) {
     console.error('Update member error:', err);
     res.status(500).json({ error: err.message });
@@ -1814,11 +1955,17 @@ app.delete('/api/districts/:id', async (req, res) => {
 // --- Meetings & Attendance API ---
 app.get('/api/meetings', async (req, res) => {
   try {
-    const { data: meetings, error: meetErr } = await supabase
-      .from('meetings')
-      .select('*')
-      .order('date', { ascending: false });
-    if (meetErr) throw meetErr;
+    // [2026-07-07 페이지네이션] 모임(meetings) 자체도 필터 없이 조회하므로 1000건을 넘으면
+    // 조용히 잘려나간다 (감사 보고서 6번 항목). date만으로는 동률이 흔하므로 id를 타이브레이커로
+    // 추가해 페이지 경계에서도 정렬이 안정적으로 유지되도록 한다.
+    const meetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+    );
 
     // ⚠ 페이지네이션 없이 조회하면 PostgREST 기본 1000행 제한에 걸려 참석 데이터가 잘려나가고,
     // 그 결과 일부 모임의 참석 인원이 실제와 다르게(대개 0명으로) 표시되는 버그가 있었다.
@@ -1902,14 +2049,17 @@ app.get('/api/meetings', async (req, res) => {
       };
     });
 
-    const { data: members, error: memErr } = await supabase
-      .from('members')
-      .select('id, name, salvation_date, bs, position')
-      .not('salvation_date', 'is', null)
-      .neq('salvation_date', '')
-      .neq('status', 'inactive');
-      
-    if (memErr) throw memErr;
+    // [2026-07-07 페이지네이션] 구원기념일 대상자 조회도 전체 성도 수에 비례해 1000명을
+    // 넘을 수 있으므로 fetchAllRows로 전체 페이지 조회.
+    const members = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, salvation_date, bs, position')
+        .not('salvation_date', 'is', null)
+        .neq('salvation_date', '')
+        .neq('status', 'inactive')
+        .range(from, to)
+    );
 
     const anniversaries = [];
     const years = [2024, 2025, 2026, 2027, 2028];
@@ -2346,11 +2496,15 @@ app.get('/api/visitation/status', async (req, res) => {
         const myChurch = (myProfile && myProfile.church) || '서울중앙교회';
         const myParish = (myProfile && myProfile.parish) || '부곡교구';
 
-        const { data: rawMembers, error: memErr } = await supabase
-            .from('members')
-            .select('id, name, district, category, position, family_relation, church, parish, member_status')
-            .eq('status', 'active');
-        if (memErr) throw memErr;
+        // [2026-07-07 페이지네이션] 성도/모임/상담기록 전체 조회가 1000행을 넘으면 조용히
+        // 잘려나가 심방 대상 명단이나 마지막 심방/상담일이 누락될 수 있으므로 fetchAllRows 사용.
+        const rawMembers = await fetchAllRows((from, to) =>
+            supabase
+                .from('members')
+                .select('id, name, district, category, position, family_relation, church, parish, member_status')
+                .eq('status', 'active')
+                .range(from, to)
+        );
 
         // 담당 범위 필터: 서울중앙교회면 담당 교구까지 일치해야 하고, 그 외 교회는 교회 전체가 대상.
         // 전도대상자(member_status = 'evangelism')는 아직 정식 성도가 아니므로 심방 대상에서 제외(상담 관리에서 별도 관리).
@@ -2361,17 +2515,21 @@ app.get('/api/visitation/status', async (req, res) => {
             return inScope && m.member_status !== 'evangelism';
         });
 
-        const { data: meetings, error: meetErr } = await supabase
-            .from('meetings')
-            .select('id, title, date, sermon_title, memo, type')
-            .in('type', ['심방', '상담']);
-        if (meetErr) throw meetErr;
+        const meetings = await fetchAllRows((from, to) =>
+            supabase
+                .from('meetings')
+                .select('id, title, date, sermon_title, memo, type')
+                .in('type', ['심방', '상담'])
+                .range(from, to)
+        );
 
-        const { data: cRecords, error: cRecErr } = await supabase
-            .from('member_records')
-            .select('member_id, date, status, remark')
-            .eq('status', 'COUNSELING');
-        if (cRecErr) throw cRecErr;
+        const cRecords = await fetchAllRows((from, to) =>
+            supabase
+                .from('member_records')
+                .select('member_id, date, status, remark')
+                .eq('status', 'COUNSELING')
+                .range(from, to)
+        );
 
         const meetingMap = {};
         if (meetings) {
@@ -2619,21 +2777,27 @@ app.get('/api/counseling', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     // 1. members 전체 조회
-    const { data: members, error: memErr } = await supabase
-      .from('members')
-      .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
-      .eq('status', 'active');
-    if (memErr) throw memErr;
+    // [2026-07-07 페이지네이션] 성도 1000명을 넘으면 조용히 잘려나가 "상담 이력이 있는 성도"
+    // 목록에서 뒤쪽 성도가 통째로 누락될 수 있으므로 fetchAllRows 사용.
+    const members = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
+        .eq('status', 'active')
+        .range(from, to)
+    );
 
     const memberMap = {};
     (members || []).forEach(m => { memberMap[m.id] = m; });
 
-    // 2. meetings(type='상담') 조회
-    const { data: counselingMeetings, error: meetErr } = await supabase
-      .from('meetings')
-      .select('id, title, date, memo, type')
-      .eq('type', '상담');
-    if (meetErr) throw meetErr;
+    // 2. meetings(type='상담') 조회 — 상담 건수가 누적되어 1000건을 넘어도 누락되지 않도록 페이지네이션
+    const counselingMeetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('id, title, date, memo, type')
+        .eq('type', '상담')
+        .range(from, to)
+    );
 
     const counselingMeetingIds = (counselingMeetings || []).map(m => m.id);
     const meetingMap = {};
@@ -2652,12 +2816,14 @@ app.get('/api/counseling', async (req, res) => {
       );
     }
 
-    // 4. member_records COUNSELING 조회 (기존 레거시 데이터)
-    const { data: cRecords, error: cRecErr } = await supabase
-      .from('member_records')
-      .select('member_id, date, remark, id')
-      .eq('status', 'COUNSELING');
-    if (cRecErr) throw cRecErr;
+    // 4. member_records COUNSELING 조회 (기존 레거시 데이터) — 역시 1000건 초과 대비 페이지네이션
+    const cRecords = await fetchAllRows((from, to) =>
+      supabase
+        .from('member_records')
+        .select('member_id, date, remark, id')
+        .eq('status', 'COUNSELING')
+        .range(from, to)
+    );
 
     // 5. memberId별로 상담 세션 수집
     const memberCounselingMap = {}; // memberId → [{ date, content, source, session_id }]
@@ -2762,11 +2928,15 @@ app.get('/api/counseling/:memberId', async (req, res) => {
     const memberStatus = memberData?.member_status || 'member';
 
     // meetings(type='상담') 기반 attendance
-    const { data: counselingMeetings, error: meetErr } = await supabase
-      .from('meetings')
-      .select('id, title, date, memo')
-      .eq('type', '상담');
-    if (meetErr) throw meetErr;
+    // [2026-07-07 페이지네이션] 상담 일정이 1000건을 넘으면 조용히 잘려나가 특정 성도의
+    // 오래된 상담 이력이 누락될 수 있으므로 fetchAllRows 사용.
+    const counselingMeetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('id, title, date, memo')
+        .eq('type', '상담')
+        .range(from, to)
+    );
 
     const meetingMap = {};
     (counselingMeetings || []).forEach(m => { meetingMap[m.id] = m; });
@@ -3087,11 +3257,14 @@ app.delete('/api/counseling/member/:memberId', async (req, res) => {
     if (recErr) throw recErr;
 
     // 2. meetings(type='상담')에 연계된 attendance 찾아서 해당 meetings 삭제
-    const { data: meetings, error: meetGetErr } = await supabase
-      .from('meetings')
-      .select('id')
-      .eq('type', '상담');
-    if (meetGetErr) throw meetGetErr;
+    // [2026-07-07 페이지네이션] 상담 일정이 1000건을 넘으면 일부가 삭제 대상에서 누락될 수 있음
+    const meetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('id')
+        .eq('type', '상담')
+        .range(from, to)
+    );
 
     const counselingMeetingIds = (meetings || []).map(m => m.id);
 
@@ -3137,12 +3310,16 @@ app.delete('/api/counseling/member/:memberId', async (req, res) => {
 app.get('/api/members/filter', async (req, res) => {
     const { q } = req.query;
     try {
-        const { data, error } = await supabase
-            .from('members')
-            .select('*')
-            .ilike('name', `%${q}%`)
-            .eq('status', 'active');
-        if (error) throw error;
+        // [2026-07-07 페이지네이션] 검색어가 넓으면(예: 흔한 성씨) 1000명을 넘을 수 있으므로
+        // fetchAllRows 사용.
+        const data = await fetchAllRows((from, to) =>
+            supabase
+                .from('members')
+                .select('*')
+                .ilike('name', `%${q}%`)
+                .eq('status', 'active')
+                .range(from, to)
+        );
         res.json(data || []);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -3157,19 +3334,27 @@ app.get('/api/dashboard/attendance', async (req, res) => {
     const endDate = `${year}-11-30`;
 
     try {
-        const { data: meetings, error: meetErr } = await supabase
-            .from('meetings')
-            .select('*')
-            .gte('date', startDate)
-            .lte('date', endDate)
-            .order('date', { ascending: true });
-        if (meetErr) throw meetErr;
+        // [2026-07-07 페이지네이션] 한 해 동안의 모임이 활발한 교회는 1년치 모임도 1000건을
+        // 넘을 수 있고, 성도 수도 1000명을 넘을 수 있으므로 둘 다 fetchAllRows로 조회한다.
+        // date만으로는 동률이 흔하므로 id를 타이브레이커로 추가.
+        const meetings = await fetchAllRows((from, to) =>
+            supabase
+                .from('meetings')
+                .select('*')
+                .gte('date', startDate)
+                .lte('date', endDate)
+                .order('date', { ascending: true })
+                .order('id', { ascending: true })
+                .range(from, to)
+        );
 
-        const { data: members, error: memErr } = await supabase
-            .from('members')
-            .select('id, name, category, bs, district, birth_year, position, church_service, family_relation')
-            .eq('status', 'active');
-        if (memErr) throw memErr;
+        const members = await fetchAllRows((from, to) =>
+            supabase
+                .from('members')
+                .select('id, name, category, bs, district, birth_year, position, church_service, family_relation')
+                .eq('status', 'active')
+                .range(from, to)
+        );
 
         let allAttendance = [];
         let page = 0;
@@ -3253,13 +3438,17 @@ app.get('/api/sermon-stats', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
 
-        const { data: allMeetings, error } = await supabase
-            .from('meetings')
-            .select('id, date, title, type, sermon_title, memo, start_time, end_time, attendance(count)')
-            .eq('attendance.is_present', 1)
-            .order('date', { ascending: false });
-
-        if (error) throw error;
+        // [2026-07-07 페이지네이션] 필터 없이 전체 모임(설교 포함 전체 이력)을 조회하므로
+        // 연차가 쌓이면 1000건을 넘어 오래된 설교가 조용히 누락될 수 있다. fetchAllRows로 전체 조회.
+        const allMeetings = await fetchAllRows((from, to) =>
+            supabase
+                .from('meetings')
+                .select('id, date, title, type, sermon_title, memo, start_time, end_time, attendance(count)')
+                .eq('attendance.is_present', 1)
+                .order('date', { ascending: false })
+                .order('id', { ascending: false })
+                .range(from, to)
+        );
 
         // Filter to match sermon_history.js logic exactly
         const excludedTypes = ['구원기념일', '교회행사', '심방', '상담', '개인상담'];

@@ -1063,6 +1063,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const entries = rawRel.split(',').map(s => s.trim()).filter(s => s);
                         const validRels = [];
                         const failedRels = [];
+                        // [2026-07-07 감사 보고서 8번 항목] 여기서 이미 구역/교구로 동명이인을
+                        // 걸러내 "이 사람이다"라고 확정한 순간의 id를 기억해뒀다가 서버로 함께
+                        // 보낸다. 그래야 서버(syncFamilyLinks)가 이름으로 다시 찾지 않고 이
+                        // id로 정확히 매칭해, 나중에 같은 이름의 다른 성도가 추가되어도 안전하다.
+                        const validRelIds = {};
 
                         for (const entry of entries) {
                             const match = entry.match(/^(.+?)\((.+?)\)$/);
@@ -1073,8 +1078,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const familyName = match[1].trim();
                             const relationTag = match[2].trim();
 
-                            const matchedTargets = dbAllMembers.filter(m => 
-                                m.name.trim() === familyName && 
+                            const matchedTargets = dbAllMembers.filter(m =>
+                                m.name.trim() === familyName &&
                                 m.parish === me.parish &&
                                 m.id !== me.id
                             );
@@ -1085,11 +1090,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const districtMatch = matchedTargets.filter(m => m.district === me.district);
                                 if (districtMatch.length === 1) {
                                     validRels.push(entry);
+                                    validRelIds[entry] = districtMatch[0].id;
                                 } else {
                                     failedRels.push({ relation: entry, reason: '교구 내 동명이인 다수' });
                                 }
                             } else {
                                 validRels.push(entry);
+                                validRelIds[entry] = matchedTargets[0].id;
                             }
                         }
 
@@ -1115,7 +1122,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         parish: me.parish,
                                         district: me.district,
                                         bs: me.bs,
-                                        family_relation: validRelationString
+                                        family_relation: validRelationString,
+                                        family_relation_ids: JSON.stringify(validRelIds)
                                     })
                                 });
                             } catch (e) {

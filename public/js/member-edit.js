@@ -95,6 +95,7 @@
         familyRelationText.value = entries.filter(e => e !== entry).join(', ');
         const nameMatch = entry.match(/^(.+?)\(/);
         if (window._sessionLinkedNames) window._sessionLinkedNames.delete(nameMatch ? nameMatch[1].trim() : entry.trim());
+        if (window._familyRelationIdMap) delete window._familyRelationIdMap[entry];
         updateFamilyUI();
     };
 
@@ -151,6 +152,12 @@
             if (id) {
                 if (!window._sessionLinkedNames) window._sessionLinkedNames = new Set();
                 window._sessionLinkedNames.add(name.trim());
+                // [2026-07-07 감사 보고서 8번 항목] 검색 결과를 클릭한 이 순간에만 "정확히 어떤
+                // 사람인지(id)"를 확실히 알 수 있다. 예전에는 이 정보를 버리고 이름 텍스트만
+                // 저장해서, 서버가 매번 이름만으로 다시 찾다가 동명이인을 잘못 연결하는 위험이
+                // 있었다. 이제 이 id를 함께 기억해뒀다가 저장 시 서버로 보낸다.
+                if (!window._familyRelationIdMap) window._familyRelationIdMap = {};
+                window._familyRelationIdMap[entry] = id;
                 if (familyId !== null && familyId !== undefined && familyId !== 'null' && familyId !== '') hiddenFamilyId.value = familyId;
                 const myName = currentMemberData ? currentMemberData.name : '본인';
                 const symRel = (finalRel === '남편') ? '아내' : (finalRel === '아내') ? '남편' : (finalRel === '자녀') ? '부모' : (finalRel === '부모') ? '자녀' : '기타';
@@ -712,6 +719,7 @@
             if (sec) sec.classList.remove('hidden');
             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.add('hidden');
             window._sessionLinkedNames = new Set();
+            window._familyRelationIdMap = {};
             updateFamilyUI();
             if (recordDate) recordDate.value = new Date().toISOString().split('T')[0];
         } else {
@@ -734,9 +742,32 @@
 
             if (currentMemberData.family_id && hiddenFamilyId) hiddenFamilyId.value = currentMemberData.family_id;
             if (deleteMemberFullyBtn) deleteMemberFullyBtn.classList.remove('hidden');
-            window._sessionLinkedNames = new Set(); updateFamilyUI();
+            window._sessionLinkedNames = new Set();
+            window._familyRelationIdMap = {};
+            updateFamilyUI();
             if (currentMemberData.id) {
-                fetch(`/api/members/${currentMemberData.id}/history`).then(r => r.json()).then(d => { if (d.family) { d.family.forEach(f => window._sessionLinkedNames.add(f.name.trim())); updateFamilyUI(); } });
+                fetch(`/api/members/${currentMemberData.id}/history`).then(r => r.json()).then(d => {
+                    if (d.family) {
+                        d.family.forEach(f => window._sessionLinkedNames.add(f.name.trim()));
+                        // [2026-07-07 감사 보고서 8번 항목] 이 성도의 family_id로 이미 확립된
+                        // 진짜 가족 그룹(d.family, 이름이 아니라 family_id 기준이라 정확함)을
+                        // 가족관계 텍스트의 각 항목과 이름으로 매칭해 id를 미리 채워둔다.
+                        // 이렇게 하면 이 화면을 다시 열어 저장만 해도(가족 검색을 다시 안 해도)
+                        // 서버가 이름으로 재검색하지 않고 정확한 id로 매칭할 수 있다.
+                        const familyRelationTextEl = document.getElementById('familyRelationText');
+                        const existingEntries = (familyRelationTextEl && familyRelationTextEl.value)
+                            ? familyRelationTextEl.value.split(',').map(s => s.trim()).filter(s => s)
+                            : [];
+                        const coreNameOf = (n) => (n || '').trim().replace(/[DBS P]$/i, '').trim();
+                        existingEntries.forEach(entry => {
+                            const match = entry.match(/^(.+?)\(/);
+                            const entryCore = coreNameOf(match ? match[1] : entry);
+                            const found = d.family.find(f => coreNameOf(f.name) === entryCore);
+                            if (found) window._familyRelationIdMap[entry] = found.id;
+                        });
+                        updateFamilyUI();
+                    }
+                });
                 fetch(`/api/members/${currentMemberData.id}/records`).then(r => r.json()).then(recs => {
                     renderEditModalRecords(recs);
                     const hasOrgRecord = recs.some(rec => rec.status === 'CHURCH_IN' || rec.status === 'CHURCH_MOVE' || rec.status === 'PARISH_MOVE' || rec.status === 'DISTRICT');
@@ -983,6 +1014,9 @@
 
             data.crossUpdates = pendingCrossUpdates;
             data.pendingRecords = pendingRecords;
+            // [2026-07-07 감사 보고서 8번 항목] 가족 검색으로 특정 사람을 골랐을 때 확정된
+            // "이름(관계)" -> member_id 매핑. 서버가 이름 대신 이 id로 정확히 매칭하도록 함께 보낸다.
+            data.family_relation_ids = JSON.stringify(window._familyRelationIdMap || {});
 
             try {
                 const url = currentMemberData ? `/api/members/${currentMemberData.id}` : '/api/members';
