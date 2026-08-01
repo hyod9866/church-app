@@ -1110,52 +1110,62 @@ function bindEditorEvents() {
     if (churchSearchInput && churchSearchResults && clearSelectedChurch) {
         let allChurches = [];
         console.log('[DEBUG] 외부 교회 목록 조회 API 호출 시도...');
-        fetchChurches()
-            .then(data => { 
-                allChurches = data || []; 
-                console.log('[DEBUG] 외부 교회 목록 로드 완료. 가져온 교회 개수:', allChurches.length);
-            })
-            .catch(err => {
-                console.error('[DEBUG] 외부 교회 목록 로드 실패:', err);
-            });
+        // 초기 로드 시도 (실패해도 oninput에서 직접 fetch하므로 괜찮음)
+        fetchChurches().then(data => { allChurches = data || []; }).catch(() => {});
 
+        let churchSearchTimer = null;
         churchSearchInput.oninput = () => {
-            const val = churchSearchInput.value.trim().toLowerCase();
-            // window.__allChurchesCache(외부설교 선택 시 갱신된 전체 목록) 우선 사용
-            const churches = (window.__allChurchesCache && window.__allChurchesCache.length > 0)
-                ? window.__allChurchesCache
-                : allChurches;
-            console.log(`[DEBUG] 검색 입력어: "${val}", 사용 캐시 수: ${churches.length}`);
+            const val = churchSearchInput.value.trim();
             if (!val) {
                 churchSearchResults.innerHTML = '';
                 churchSearchResults.classList.add('hidden');
                 return;
             }
 
-            const filtered = churches.filter(c => c.name.toLowerCase().includes(val));
-            console.log(`[DEBUG] 필터링된 결과 수: ${filtered.length}개`);
-            if (filtered.length === 0) {
-                churchSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+            clearTimeout(churchSearchTimer);
+            churchSearchTimer = setTimeout(async () => {
+                // 캐시 또는 전역 캐시에 데이터가 있으면 사용, 없으면 API 직접 호출
+                let churches = (window.__allChurchesCache && window.__allChurchesCache.length > 0)
+                    ? window.__allChurchesCache
+                    : allChurches;
+
+                if (!churches || churches.length === 0) {
+                    try {
+                        const res = await fetch('/api/churches/all');
+                        churches = await res.json();
+                        window.__allChurchesCache = churches;
+                        allChurches = churches;
+                    } catch (e) {
+                        churches = [];
+                    }
+                }
+
+                const keyword = val.trim().toLowerCase();
+                const filtered = (churches || []).filter(c => c.name && c.name.toLowerCase().includes(keyword));
+
+                if (filtered.length === 0) {
+                    churchSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+                    churchSearchResults.classList.remove('hidden');
+                    return;
+                }
+
+                churchSearchResults.innerHTML = filtered.map(c => `
+                    <div class="church-search-item p-2 hover:bg-blue-50 cursor-pointer font-bold text-sm text-gray-700 border-b border-gray-100" data-name="${c.name}">
+                        ${c.name}
+                    </div>
+                `).join('');
                 churchSearchResults.classList.remove('hidden');
-                return;
-            }
 
-            churchSearchResults.innerHTML = filtered.map(c => `
-                <div class="church-search-item p-2 hover:bg-blue-50 cursor-pointer font-bold text-sm text-gray-700 border-b border-gray-100" data-name="${c.name}">
-                    ${c.name}
-                </div>
-            `).join('');
-            churchSearchResults.classList.remove('hidden');
-
-            document.querySelectorAll('.church-search-item').forEach(item => {
-                item.onclick = () => {
-                    selectedChurch = item.getAttribute('data-name');
-                    updateSelectedChurchUI();
-                    churchSearchInput.value = '';
-                    churchSearchResults.innerHTML = '';
-                    churchSearchResults.classList.add('hidden');
-                };
-            });
+                document.querySelectorAll('.church-search-item').forEach(item => {
+                    item.onclick = () => {
+                        selectedChurch = item.getAttribute('data-name');
+                        updateSelectedChurchUI();
+                        churchSearchInput.value = '';
+                        churchSearchResults.innerHTML = '';
+                        churchSearchResults.classList.add('hidden');
+                    };
+                });
+            }, 200);
         };
 
         clearSelectedChurch.onclick = () => {
