@@ -1109,14 +1109,18 @@ function bindEditorEvents() {
 
         churchSearchInput.oninput = () => {
             const val = churchSearchInput.value.trim().toLowerCase();
-            console.log(`[DEBUG] 검색 입력어: "${val}", 현재 로드된 전체 교회 캐시 수: ${allChurches.length}`);
+            // window.__allChurchesCache(외부설교 선택 시 갱신된 전체 목록) 우선 사용
+            const churches = (window.__allChurchesCache && window.__allChurchesCache.length > 0)
+                ? window.__allChurchesCache
+                : allChurches;
+            console.log(`[DEBUG] 검색 입력어: "${val}", 사용 캐시 수: ${churches.length}`);
             if (!val) {
                 churchSearchResults.innerHTML = '';
                 churchSearchResults.classList.add('hidden');
                 return;
             }
 
-            const filtered = allChurches.filter(c => c.name.toLowerCase().includes(val));
+            const filtered = churches.filter(c => c.name.toLowerCase().includes(val));
             console.log(`[DEBUG] 필터링된 결과 수: ${filtered.length}개`);
             if (filtered.length === 0) {
                 churchSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
@@ -1775,6 +1779,15 @@ async function refreshAttendanceList() {
     if (currentType === '외부설교') {
         searchSection.classList.remove('hidden');
         searchSection.style.display = 'block';
+        // 외부설교 선택 시 교회 목록 강제 재로드 (타이밍 문제 방지)
+        const churchInput = document.getElementById('churchSearchInput');
+        if (churchInput) {
+            console.log('[DEBUG] 외부설교 선택됨 → 교회 목록 강제 재로드...');
+            fetchChurches().then(data => {
+                window.__allChurchesCache = data || [];
+                console.log('[DEBUG] 교회 목록 재로드 완료. 개수:', window.__allChurchesCache.length);
+            }).catch(err => console.error('[DEBUG] 교회 목록 재로드 실패:', err));
+        }
     } else {
         if (searchSection) {
             searchSection.classList.add('hidden');
