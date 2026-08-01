@@ -505,6 +505,18 @@ function injectEditorElements() {
 // Helpers
 async function fetchChurches() { const res = await fetch('/api/churches/all'); return await res.json(); }
 
+// 페이지 로드 즉시 전체 교회 목록을 전역 캐시에 미리 로드 (타이밍 문제 근본 해결)
+window.__allChurchesCache = [];
+(async () => {
+    try {
+        const data = await fetchChurches();
+        window.__allChurchesCache = data || [];
+        console.log('[DEBUG][INIT] 교회 전역 캐시 사전 로드 완료. 개수:', window.__allChurchesCache.length);
+    } catch (e) {
+        console.error('[DEBUG][INIT] 교회 전역 캐시 로드 실패:', e);
+    }
+})();
+
 // Render sermon tags list inside meetingModal
 function renderSermonTagBadges() {
     const list = document.getElementById('sermonTagBadgesList');
