@@ -503,7 +503,7 @@ function injectEditorElements() {
 }
 
 // Helpers
-async function fetchChurches() { const res = await fetch('/api/churches'); return await res.json(); }
+async function fetchChurches() { const res = await fetch('/api/churches/all'); return await res.json(); }
 
 // Render sermon tags list inside meetingModal
 function renderSermonTagBadges() {
