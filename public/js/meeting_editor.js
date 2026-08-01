@@ -2593,6 +2593,61 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDat
     injectEditorElements();
     bindEditorEvents();
 
+    // 교회 검색은 _eventsBound 가드와 무관하게 매번 새로 바인딩 (캐시/타이밍 문제 완전 차단)
+    (function bindChurchSearch() {
+        const churchSearchInput = document.getElementById('churchSearchInput');
+        const churchSearchResults = document.getElementById('churchSearchResults');
+        const clearSelectedChurchBtn = document.getElementById('clearSelectedChurch');
+        if (!churchSearchInput || !churchSearchResults) return;
+
+        let churchSearchTimer = null;
+        // 기존 핸들러 제거 후 새로 등록
+        churchSearchInput.oninput = null;
+        churchSearchInput.oninput = () => {
+            const val = churchSearchInput.value.trim();
+            if (!val) {
+                churchSearchResults.innerHTML = '';
+                churchSearchResults.classList.add('hidden');
+                return;
+            }
+            clearTimeout(churchSearchTimer);
+            churchSearchTimer = setTimeout(async () => {
+                let churches = (window.__allChurchesCache && window.__allChurchesCache.length > 0)
+                    ? window.__allChurchesCache : [];
+                if (churches.length === 0) {
+                    try {
+                        const res = await fetch('/api/churches/all');
+                        churches = await res.json();
+                        window.__allChurchesCache = Array.isArray(churches) ? churches : [];
+                    } catch (e) { churches = []; }
+                }
+                const keyword = val.toLowerCase();
+                const filtered = churches.filter(c => c.name && c.name.toLowerCase().includes(keyword));
+                if (filtered.length === 0) {
+                    churchSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+                    churchSearchResults.classList.remove('hidden');
+                    return;
+                }
+                churchSearchResults.innerHTML = filtered.map(c =>
+                    `<div class="church-search-item p-2 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer font-bold text-sm text-gray-700 dark:text-slate-200 border-b border-gray-100 dark:border-slate-700" data-name="${c.name}">${c.name}</div>`
+                ).join('');
+                churchSearchResults.classList.remove('hidden');
+                churchSearchResults.querySelectorAll('.church-search-item').forEach(item => {
+                    item.onclick = () => {
+                        selectedChurch = item.dataset.name;
+                        updateSelectedChurchUI();
+                        churchSearchInput.value = '';
+                        churchSearchResults.innerHTML = '';
+                        churchSearchResults.classList.add('hidden');
+                    };
+                });
+            }, 200);
+        };
+        if (clearSelectedChurchBtn) {
+            clearSelectedChurchBtn.onclick = () => { selectedChurch = ''; updateSelectedChurchUI(); };
+        }
+    })();
+
     if (!id) {
         console.log("[DEBUG] openGlobalMeetingEditor - No id, opening empty modal");
         const date = defaultDate || new Date().toISOString().split('T')[0];
