@@ -123,6 +123,8 @@ function checkAuth(req, res, next) {
     url === '/api/login' || 
     url === '/api/login-biometric' || 
     url === '/api/run-migration-temp' || 
+    url.startsWith('/api/calendar/feed') ||
+    url.startsWith('/api/cron/daily-reminders') ||
     isStaticAsset
   ) {
     return next();
@@ -3534,6 +3536,237 @@ app.get('/api/sermon-stats', async (req, res) => {
         console.error('Sermon stats error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+// iCalendar (.ics) 날짜 변환 헬퍼 함수
+function formatICSDate(dateStr, timeStr, adjustToUTC = true) {
+  if (!dateStr) return '';
+  // dateStr: YYYY-MM-DD
+  const cleanDate = dateStr.replace(/-/g, '');
+  if (!timeStr) {
+    // 종일 일정 포맷 (VALUE=DATE)
+    return cleanDate;
+  }
+
+  // timeStr: HH:MM 또는 HH:MM:SS
+  const parts = timeStr.split(':');
+  const hh = parts[0].padStart(2, '0');
+  const mm = parts[1].padStart(2, '0');
+  const ss = (parts[2] || '00').padStart(2, '0');
+
+  if (!adjustToUTC) {
+    return `${cleanDate}T${hh}${mm}${ss}`;
+  }
+
+  // KST (UTC+9) -> UTC 변환
+  const dt = new Date(`${dateStr}T${hh}:${mm}:${ss}+09:00`);
+  if (isNaN(dt.getTime())) {
+    return `${cleanDate}T${hh}${mm}${ss}`; // 변환 에러 시 로컬 타임으로 폴백
+  }
+  
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
+  const h = String(dt.getUTCHours()).padStart(2, '0');
+  const min = String(dt.getUTCMinutes()).padStart(2, '0');
+  const sec = String(dt.getUTCSeconds()).padStart(2, '0');
+  return `${y}${m}${d}T${h}${min}${sec}Z`;
+}
+
+// 1. GET /api/calendar/feed — iCalendar (.ics) 피드 제공 API
+app.get('/api/calendar/feed', async (req, res) => {
+  try {
+    // 최근 6개월 ~ 향후 6개월의 모임 일정을 조회
+    const today = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(today.getMonth() - 6);
+    const sixMonthsLater = new Date();
+    sixMonthsLater.setMonth(today.getMonth() + 6);
+
+    const startLimit = sixMonthsAgo.toISOString().split('T')[0];
+    const endLimit = sixMonthsLater.toISOString().split('T')[0];
+
+    const { data: meetings, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .gte('date', startLimit)
+      .lte('date', endLimit)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+
+    let icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//ChurchApp//CalendarFeed//KO',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:교회 모임 및 상담 일정',
+      'X-WR-TIMEZONE:Asia/Seoul'
+    ];
+
+    (meetings || []).forEach(meeting => {
+      const isAllDay = !meeting.start_time;
+      const startICS = formatICSDate(meeting.date, meeting.start_time, !isAllDay);
+      
+      let endICS = '';
+      if (meeting.end_date || meeting.end_time) {
+        endICS = formatICSDate(meeting.end_date || meeting.date, meeting.end_time || meeting.start_time, !isAllDay);
+      } else {
+        if (isAllDay) {
+          // 종일 일정의 종료일은 다음 날이어야 표준 캘린더에서 당일 하루 종일로 정상 렌더링됨
+          const nextDay = new Date(meeting.date);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const y = nextDay.getFullYear();
+          const m = String(nextDay.getMonth() + 1).padStart(2, '0');
+          const d = String(nextDay.getDate()).padStart(2, '0');
+          endICS = `${y}${m}${d}`;
+        } else {
+          // 시간 일정이 있는데 종료 시간이 없으면 시작 시각 기준 1시간 뒤로 임시 설정
+          const startTimeParts = meeting.start_time.split(':');
+          const hh = parseInt(startTimeParts[0]);
+          const mm = parseInt(startTimeParts[1]);
+          const dt = new Date(`${meeting.date}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+09:00`);
+          dt.setHours(dt.getHours() + 1);
+          
+          const y = dt.getUTCFullYear();
+          const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(dt.getUTCDate()).padStart(2, '0');
+          const h = String(dt.getUTCHours()).padStart(2, '0');
+          const min = String(dt.getUTCMinutes()).padStart(2, '0');
+          const sec = String(dt.getUTCSeconds()).padStart(2, '0');
+          endICS = `${y}${m}${d}T${h}${min}${sec}Z`;
+        }
+      }
+
+      // 제목 가공 (상담/심방 카테고리 접두어 부여)
+      let summary = meeting.title || '모임';
+      if (meeting.type === '상담') summary = `[상담] ${summary}`;
+      if (meeting.type === '심방') summary = `[심방] ${summary}`;
+
+      // 메모 줄바꿈 문자 정제 (RFC 5545 이스케이프)
+      let description = (meeting.memo || '').trim()
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
+
+      if (meeting.sermon_title) {
+        description = `설교: ${meeting.sermon_title}\\n${description}`;
+      }
+
+      icsLines.push('BEGIN:VEVENT');
+      icsLines.push(`UID:meeting_${meeting.id}@church-app`);
+      icsLines.push(`DTSTAMP:${formatICSDate(new Date().toISOString().split('T')[0], '00:00:00', true)}`);
+      
+      if (isAllDay) {
+        icsLines.push(`DTSTART;VALUE=DATE:${startICS}`);
+        icsLines.push(`DTEND;VALUE=DATE:${endICS}`);
+      } else {
+        icsLines.push(`DTSTART:${startICS}`);
+        icsLines.push(`DTEND:${endICS}`);
+      }
+      
+      icsLines.push(`SUMMARY:${summary}`);
+      if (description) {
+        icsLines.push(`DESCRIPTION:${description}`);
+      }
+      icsLines.push('END:VEVENT');
+    });
+
+    icsLines.push('END:VCALENDAR');
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=meetings.ics');
+    res.send(icsLines.join('\r\n'));
+  } catch (err) {
+    console.error('ICS Feed Error:', err);
+    res.status(500).send('Error generating calendar feed');
+  }
+});
+
+// 2. GET /api/cron/daily-reminders — 일일 일정 아침 텔레그램 알림 API
+app.get('/api/cron/daily-reminders', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+
+  // 헤더 또는 쿼리 파라미터 보안 검증
+  const requestToken = authHeader ? authHeader.replace('Bearer ', '') : req.query.key;
+  if (!cronSecret || requestToken !== cronSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // 한국 시간(KST, UTC+9) 오늘 날짜 구하기 (YYYY-MM-DD)
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const todayKST = new Date(Date.now() + kstOffset).toISOString().split('T')[0];
+
+    // 오늘 날짜에 해당하는 모든 모임 조회
+    const { data: meetings, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('date', todayKST)
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!botToken || !chatId) {
+      console.warn('Telegram bot credentials are not configured in environment.');
+      return res.json({ success: true, message: 'Telegram credentials missing, skipped sending.' });
+    }
+
+    if (!meetings || meetings.length === 0) {
+      // 예정된 일정이 없는 날은 발송하지 않거나 스킵
+      return res.json({ success: true, message: 'No events scheduled for today.' });
+    }
+
+    // 텔레그램 메시지 조립
+    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = weekDays[new Date(todayKST).getDay()];
+    
+    let messageText = `🔔 *[서울중앙교회] 오늘의 일정 안내*\n\n`;
+    messageText += `📅 *날짜*: ${todayKST} (${dayOfWeek})\n\n`;
+    messageText += `✍️ *예정된 모임/상담 (총 ${meetings.length}건)*\n`;
+
+    meetings.forEach((m, idx) => {
+      const timeStr = m.start_time ? `🕒 ${m.start_time.slice(0, 5)}` : '📅 종일';
+      let typeLabel = m.type || '모임';
+      if (m.type === '상담') typeLabel = '상담';
+      if (m.type === '심방') typeLabel = '심방';
+      
+      messageText += `${idx + 1}. *[${typeLabel}]* ${m.title} (${timeStr})\n`;
+      if (m.sermon_title) {
+        messageText += `    └ 📖설교: ${m.sermon_title}\n`;
+      }
+    });
+
+    messageText += `\n오늘 하루도 힘내세요! 🙏`;
+
+    // Telegram API 호출
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const response = await fetch(telegramUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: messageText,
+        parse_mode: 'Markdown'
+      })
+    });
+
+    const resData = await response.json();
+    if (!resData.ok) {
+      throw new Error(`Telegram API Error: ${resData.description}`);
+    }
+
+    res.json({ success: true, message: 'Notification sent successfully.', count: meetings.length });
+  } catch (err) {
+    console.error('Daily Reminders Cron Error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
