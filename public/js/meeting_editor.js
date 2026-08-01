@@ -1097,10 +1097,19 @@ function bindEditorEvents() {
     const clearSelectedChurch = document.getElementById('clearSelectedChurch');
     if (churchSearchInput && churchSearchResults && clearSelectedChurch) {
         let allChurches = [];
-        fetchChurches().then(data => { allChurches = data; });
+        console.log('[DEBUG] 외부 교회 목록 조회 API 호출 시도...');
+        fetchChurches()
+            .then(data => { 
+                allChurches = data || []; 
+                console.log('[DEBUG] 외부 교회 목록 로드 완료. 가져온 교회 개수:', allChurches.length);
+            })
+            .catch(err => {
+                console.error('[DEBUG] 외부 교회 목록 로드 실패:', err);
+            });
 
         churchSearchInput.oninput = () => {
             const val = churchSearchInput.value.trim().toLowerCase();
+            console.log(`[DEBUG] 검색 입력어: "${val}", 현재 로드된 전체 교회 캐시 수: ${allChurches.length}`);
             if (!val) {
                 churchSearchResults.innerHTML = '';
                 churchSearchResults.classList.add('hidden');
@@ -1108,6 +1117,7 @@ function bindEditorEvents() {
             }
 
             const filtered = allChurches.filter(c => c.name.toLowerCase().includes(val));
+            console.log(`[DEBUG] 필터링된 결과 수: ${filtered.length}개`);
             if (filtered.length === 0) {
                 churchSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
                 churchSearchResults.classList.remove('hidden');
