@@ -1799,17 +1799,83 @@ async function refreshAttendanceList() {
     
     const searchSection = document.getElementById('churchSearchSection');
     if (currentType === '외부설교') {
-        searchSection.classList.remove('hidden');
-        searchSection.style.display = 'block';
-        // 외부설교 선택 시 교회 목록 강제 재로드 (타이밍 문제 방지)
-        const churchInput = document.getElementById('churchSearchInput');
-        if (churchInput) {
-            console.log('[DEBUG] 외부설교 선택됨 → 교회 목록 강제 재로드...');
-            fetchChurches().then(data => {
-                window.__allChurchesCache = data || [];
-                console.log('[DEBUG] 교회 목록 재로드 완료. 개수:', window.__allChurchesCache.length);
-            }).catch(err => console.error('[DEBUG] 교회 목록 재로드 실패:', err));
+        // 교회 검색 섹션을 완전히 새로 생성하여 교체 (이벤트 바인딩 문제 완전 차단)
+        const newSection = document.createElement('div');
+        newSection.id = 'churchSearchSection';
+        newSection.innerHTML = `
+            <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">외부 교회 검색</label>
+            <div class="relative">
+                <input type="text" id="churchSearchInput"
+                    class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-white dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30"
+                    placeholder="교회 이름 입력 (예: 파주)..." autocomplete="off">
+                <div id="churchSearchResults"
+                    class="absolute left-0 right-0 mt-1.5 max-h-40 overflow-y-auto bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 hidden no-scrollbar">
+                </div>
+            </div>
+            <div id="selectedChurchContainer"
+                class="mt-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-3 py-2 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center justify-between hidden">
+                <span>선택된 교회: <span id="selectedChurchName">없음</span></span>
+                <button type="button" id="clearSelectedChurch" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+            </div>
+        `;
+        if (searchSection) {
+            searchSection.replaceWith(newSection);
         }
+        newSection.style.display = 'block';
+
+        // 새로 만든 input/results에 직접 핸들러 연결
+        const inp = document.getElementById('churchSearchInput');
+        const res = document.getElementById('churchSearchResults');
+        const clrBtn = document.getElementById('clearSelectedChurch');
+
+        if (clrBtn) clrBtn.onclick = () => { selectedChurch = ''; updateSelectedChurchUI(); };
+
+        let timer = null;
+        inp.addEventListener('input', () => {
+            const val = inp.value.trim();
+            if (!val) { res.innerHTML = ''; res.classList.add('hidden'); return; }
+            clearTimeout(timer);
+            timer = setTimeout(async () => {
+                let churches = (window.__allChurchesCache && window.__allChurchesCache.length > 0)
+                    ? window.__allChurchesCache : [];
+                if (churches.length === 0) {
+                    try {
+                        const r = await fetch('/api/churches/all');
+                        churches = await r.json();
+                        window.__allChurchesCache = Array.isArray(churches) ? churches : [];
+                    } catch (e) { churches = []; }
+                }
+                const kw = val.toLowerCase();
+                const filtered = churches.filter(c => c.name && c.name.toLowerCase().includes(kw));
+                if (filtered.length === 0) {
+                    res.innerHTML = '<div class="p-2 text-xs text-gray-500 italic">검색 결과가 없습니다.</div>';
+                    res.classList.remove('hidden');
+                    return;
+                }
+                res.innerHTML = filtered.map(c =>
+                    `<div class="church-item p-2 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer font-bold text-sm text-gray-700 dark:text-slate-200 border-b border-gray-100 dark:border-slate-700" data-name="${c.name}">${c.name}</div>`
+                ).join('');
+                res.classList.remove('hidden');
+                res.querySelectorAll('.church-item').forEach(item => {
+                    item.onclick = () => {
+                        selectedChurch = item.dataset.name;
+                        updateSelectedChurchUI();
+                        inp.value = '';
+                        res.innerHTML = '';
+                        res.classList.add('hidden');
+                    };
+                });
+            }, 200);
+        });
+
+        // 외부 클릭 시 결과 닫기
+        document.addEventListener('click', function closeResults(e) {
+            if (!inp.contains(e.target) && !res.contains(e.target)) {
+                res.classList.add('hidden');
+                document.removeEventListener('click', closeResults);
+            }
+        });
+
     } else {
         if (searchSection) {
             searchSection.classList.add('hidden');
