@@ -2754,23 +2754,31 @@ function parseMemoField(memoText) {
   let lead_target = '';
   let counseling_method = '';
 
-  const leadMatch = text.match(/^\[lead:(.*?)\]\s*/s);
-  if (leadMatch) {
-    lead_target = leadMatch[1].trim();
-    text = text.slice(leadMatch[0].length);
+  // 1. [lead:...] 패턴 모두 추출 및 텍스트에서 제거
+  const leadMatches = [...text.matchAll(/\[lead:\s*(.*?)\]/g)];
+  if (leadMatches.length > 0) {
+    const targets = leadMatches.map(m => m[1].trim()).filter(Boolean);
+    lead_target = targets.join(' ');
+    text = text.replace(/\[lead:\s*.*?\]/g, '');
   }
 
-  const methodMatch = text.match(/^\[method:(.*?)\]\s*/s);
-  if (methodMatch) {
-    counseling_method = methodMatch[1].trim();
-    text = text.slice(methodMatch[0].length);
+  // 2. [method:...] 패턴 모두 추출 및 텍스트에서 제거
+  const methodMatches = [...text.matchAll(/\[method:\s*(.*?)\]/g)];
+  if (methodMatches.length > 0) {
+    counseling_method = methodMatches[methodMatches.length - 1][1].trim();
+    text = text.replace(/\[method:\s*.*?\]/g, '');
   }
+
+  // 3. 레거시 메타태그 ([대면상담], [전화상담], [성도], [전도대상]) 제거
+  text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
+
+  // 4. 남은 텍스트 정제
+  text = text.replace(/\s+/g, ' ').trim();
 
   return {
     lead_target,
-    // 기존 데이터에는 [method:...] 이 없으므로 대면을 기본값으로 둔다
     counseling_method: counseling_method || '대면',
-    remark_memo: text.trim()
+    remark_memo: text
   };
 }
 

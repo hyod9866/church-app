@@ -1183,16 +1183,27 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
             `;
         }
 
+        function cleanSystemTagsDisplay(rawText) {
+            if (!rawText) return '';
+            return rawText
+                .replace(/\[lead:\s*.*?\]/g, '')
+                .replace(/\[method:\s*.*?\]/g, '')
+                .replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
         let detailHTML = '';
         if (typeStr === '교회행사') {
-            if (m.memo && m.memo.trim()) {
+            const displayMemo = cleanSystemTagsDisplay(m.memo);
+            if (displayMemo) {
                 detailHTML = `
                     <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
                         <h4 class="text-xs font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             행사 메모 / 안내 사항
                         </h4>
-                        <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${m.memo}</p>
+                        <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${displayMemo}</p>
                     </div>
                 `;
             } else {
@@ -1203,6 +1214,7 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                 `;
             }
         } else {
+            const displayMemo = cleanSystemTagsDisplay(m.memo);
             detailHTML = `
                 <div class="mb-4 bg-white dark:bg-[#1e293b] p-4.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
                     <span class="font-bold text-lg dark:text-slate-200">총 참석</span>
@@ -1215,13 +1227,13 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                         ${m.sermon_tags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
                     </div>
                 ` : ''}
-                ${m.memo ? `
+                ${displayMemo ? `
                 <div class="mb-4">
                     <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         메모
                     </h4>
-                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${m.memo}</p>
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${displayMemo}</p>
                 </div>
                 ` : ''}
                 
