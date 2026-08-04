@@ -1,3 +1,76 @@
+function buildLeadChips(leadTarget, size) {
+    const raw = (leadTarget || '').trim();
+    if (!raw) return '';
+    const px = size === 'md' ? 'text-[10px] px-2' : 'text-[9px] px-1.5';
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    return tokens.map(tok => {
+        if (tok.startsWith('@')) {
+            const name = tok.slice(1).trim();
+            if (!name) return '';
+            if (name === '구원받음') {
+                return `<span class="${px} py-0.5 rounded border font-black bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-pink-900/50">🩷 ${name}</span>`;
+            }
+            const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<span class="${px} py-0.5 rounded border font-black cursor-pointer hover:underline bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 border-amber-200/80 dark:border-amber-900/50" onclick="event.stopPropagation(); if (typeof openMemberHistoryModalByName === 'function') openMemberHistoryModalByName('${safe}');">🤝 ${name}</span>`;
+        }
+        const name = tok.startsWith('#') ? tok.slice(1).trim() : tok.trim();
+        if (!name) return '';
+        return `<span class="${px} py-0.5 rounded border font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 border-slate-200 dark:border-slate-700/60">#${name}</span>`;
+    }).filter(Boolean).join(' ');
+}
+
+function formatMeetingMemoContent(rawMemo) {
+    if (!rawMemo) return '';
+    let text = rawMemo.trim();
+    let leadTarget = '';
+    let method = '';
+
+    const leadMatches = [...text.matchAll(/\[lead:\s*(.*?)\]/g)];
+    if (leadMatches.length > 0) {
+        leadTarget = leadMatches.map(m => m[1].trim()).filter(Boolean).join(' ');
+        text = text.replace(/\[lead:\s*.*?\]/g, '');
+    }
+
+    const methodMatches = [...text.matchAll(/\[method:\s*(.*?)\]/g)];
+    if (methodMatches.length > 0) {
+        method = methodMatches[methodMatches.length - 1][1].trim();
+        text = text.replace(/\[method:\s*.*?\]/g, '');
+    }
+
+    text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
+    text = text.replace(/\s+/g, ' ').trim();
+
+    let leadChipsHtml = '';
+    if (leadTarget) {
+        leadChipsHtml = buildLeadChips(leadTarget, 'md');
+    }
+
+    let methodChipHtml = '';
+    if (method && method !== '대면') {
+        methodChipHtml = `<span class="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${method}</span>`;
+    }
+
+    if (!leadChipsHtml && !methodChipHtml && !text) return '';
+
+    return `
+        <div class="mb-4">
+            <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                메모
+            </h4>
+            <div class="space-y-2">
+                ${(leadChipsHtml || methodChipHtml) ? `
+                    <div class="flex flex-wrap gap-1.5 items-center">
+                        ${methodChipHtml}
+                        ${leadChipsHtml}
+                    </div>
+                ` : ''}
+                ${text ? `<p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${text}</p>` : ''}
+            </div>
+        </div>
+    `;
+}
+
 function parseRecurringMetadata(m) {
     if (m.memo && m.memo.startsWith('__RECURRING__:')) {
         const lines = m.memo.split('\n');
@@ -1020,15 +1093,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                     ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
                 </div>
             ` : ''}
-            ${memo ? `
-            <div class="mb-4">
-                <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    메모
-                </h4>
-                <p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${memo}</p>
-            </div>
-            ` : ''}
+            ${formatMeetingMemoContent(memo)}
             
             <div class="mb-4">
                 <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
