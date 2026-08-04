@@ -71,6 +71,34 @@ function formatMeetingMemoContent(rawMemo) {
     `;
 }
 
+function formatTestimonySnapshot(rawSnapshot, memberStatus) {
+    if (!rawSnapshot) return '';
+    let text = rawSnapshot.trim().replace(/^\[상담\]/g, '').trim();
+
+    const tagMatches = text.match(/#\S+/g) || [];
+    const uniqueTags = Array.from(new Set(tagMatches));
+
+    let cleanContent = text.replace(/#\S+/g, '').trim();
+    cleanContent = cleanContent.replace(/\s+/g, ' ');
+
+    const isEv = memberStatus === 'evangelism';
+    const tagBgClass = isEv
+        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200/60 dark:border-orange-700/40'
+        : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-700/40';
+
+    let tagsHtml = '';
+    if (uniqueTags.length > 0) {
+        tagsHtml = `<div class="flex flex-wrap gap-1 mb-2">${uniqueTags.map(t =>
+            `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${tagBgClass}">${t}</span>`
+        ).join('')}</div>`;
+    }
+
+    return `
+        ${tagsHtml}
+        ${cleanContent ? `<p class="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-200 pl-3 border-l-2 border-indigo-500 dark:border-indigo-400 leading-relaxed">${cleanContent}</p>` : ''}
+    `;
+}
+
 function parseRecurringMetadata(m) {
     if (m.memo && m.memo.startsWith('__RECURRING__:')) {
         const lines = m.memo.split('\n');
@@ -1052,8 +1080,8 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <div class="space-y-2">
                     ${pWithTestimony.map(a => `
                         <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
-                            <div class="font-bold text-blue-800 dark:text-blue-300 text-base">${a.name}</div>
-                            <p class="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-200 mt-2 pl-3 border-l-2 border-blue-500 dark:border-blue-400">${a.testimony_snapshot}</p>
+                            <div class="font-bold text-blue-800 dark:text-blue-300 text-base mb-1">${a.name}</div>
+                            ${formatTestimonySnapshot(a.testimony_snapshot, a.member_status)}
                         </div>
                     `).join('')}
                 </div>

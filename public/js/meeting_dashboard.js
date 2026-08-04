@@ -1174,8 +1174,8 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                     <div class="space-y-2">
                         ${pWithTestimony.map(a => `
                             <div class="p-2.5 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
-                                <div class="font-bold text-blue-850 dark:text-blue-300 text-base">${a.members?.name || a.name || ''}</div>
-                                <p class="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-200 mt-2 pl-3 border-l-2 border-blue-500 dark:border-blue-400">${a.testimony_snapshot}</p>
+                                <div class="font-bold text-blue-850 dark:text-blue-300 text-base mb-1">${a.members?.name || a.name || ''}</div>
+                                ${typeof formatTestimonySnapshot === 'function' ? formatTestimonySnapshot(a.testimony_snapshot, a.member_status) : `<p class="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-200 mt-2 pl-3 border-l-2 border-blue-500 dark:border-blue-400">${a.testimony_snapshot}</p>`}
                             </div>
                         `).join('')}
                     </div>
