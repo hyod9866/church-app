@@ -2916,6 +2916,70 @@ app.get('/api/counseling', async (req, res) => {
   }
 });
 
+// 메모리 내 설정 캐시 (DB 생성 전 혹은 에러 발생 시 Fallback)
+const inMemorySettings = {
+  counseling_member_tags: ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'],
+  counseling_evangelism_tags: ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원']
+};
+
+// GET /api/settings/:key — 설정 조회
+app.get('/api/settings/:key', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  const { key } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+
+    if (error) {
+      console.warn(`[SETTINGS API] DB lookup failed for ${key}, fallback to memory:`, error.message);
+      return res.json({ value: inMemorySettings[key] || null });
+    }
+
+    if (data && data.value !== undefined && data.value !== null) {
+      return res.json({ value: data.value });
+    }
+
+    // DB에 없으면 인메모리 기본값
+    return res.json({ value: inMemorySettings[key] || null });
+  } catch (err) {
+    console.error(`[SETTINGS API] Error GET /api/settings/${key}:`, err);
+    return res.json({ value: inMemorySettings[key] || null });
+  }
+});
+
+// PUT /api/settings/:key — 설정 저장
+app.put('/api/settings/:key', express.json(), async (req, res) => {
+  const { key } = req.params;
+  const { value } = req.body;
+
+  if (value === undefined) {
+    return res.status(400).json({ error: 'value field is required' });
+  }
+
+  // 인메모리 캐시 갱신
+  inMemorySettings[key] = value;
+
+  try {
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key, value, updated_at: new Date().toISOString() });
+
+    if (error) {
+      console.warn(`[SETTINGS API] DB upsert failed for ${key}:`, error.message);
+      // DB 에러가 있더라도 메모리에는 저장했으므로 성공 응답(경고 포함) 반환
+      return res.json({ success: true, warning: 'DB 저장 실패, 세션 메모리에 저장됨', value });
+    }
+
+    return res.json({ success: true, value });
+  } catch (err) {
+    console.error(`[SETTINGS API] Error PUT /api/settings/${key}:`, err);
+    return res.json({ success: true, warning: err.message, value });
+  }
+});
+
 // GET /api/counseling/:memberId — 특정 성도의 상담 이력 전체 (날짜 역순)
 app.get('/api/counseling/:memberId', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

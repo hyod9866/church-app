@@ -1,5 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+    function getDynamicTagsSync(status) {
+        if (window.CounselingTagManager && window.CounselingTagManager.cache.memberTags) {
+            return status === 'evangelism' 
+                ? (window.CounselingTagManager.cache.evangelismTags || window.CounselingTagManager.defaultEvangelismTags)
+                : (window.CounselingTagManager.cache.memberTags || window.CounselingTagManager.defaultMemberTags);
+        }
+        const defaultMemberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
+        const defaultEvangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+        return status === 'evangelism' ? defaultEvangelismTags : defaultMemberTags;
+    }
+
+    // 미리 태그 로딩
+    if (window.CounselingTagManager) {
+        window.CounselingTagManager.getMemberTags();
+        window.CounselingTagManager.getEvangelismTags();
+    }
+
+    window.addEventListener('counselingTagsUpdated', () => {
+        const status = newCounselingMemberStatus || 'member';
+        if (typeof updatePresetTags === 'function') updatePresetTags(status);
+    });
 
     // 인도대상 / 모임 / 특징을 해시태그 칩으로 렌더링
     //  - @이름  → 인도대상 (클릭 시 해당 인물 이력 열림, 앰버 칩)
@@ -259,8 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const remarkTextPara = bodyArea ? bodyArea.querySelector('.counsel-content-text') : null;
             const currentRemark = remarkTextPara ? remarkTextPara.textContent.replace(/^📝\s*/, '').trim() : '';
 
-            const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
-            const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+            const memberTags = getDynamicTagsSync('member');
+            const evangelismTags = getDynamicTagsSync('evangelism');
 
             if (bodyArea) bodyArea.innerHTML = `
                 <div class="flex flex-col gap-2 w-full mt-2">
@@ -977,8 +997,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const currentCategory = card.dataset.category || '모름';
                             const currentBs = card.dataset.bs || '';
 
-                            const memberTags = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
-                            const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+                            const memberTags = getDynamicTagsSync('member');
+                            const evangelismTags = getDynamicTagsSync('evangelism');
 
                             bodyArea.innerHTML = `
                                 <div class="flex flex-col gap-2 w-full">
@@ -1397,10 +1417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGroup = document.getElementById('counselingTagsBtnGroup');
         if (!btnGroup) return;
 
-        const memberTags = ['전도상담', '구원확신/의심', '진로', '이성', '죄', '자녀', '부부관계', '가족', '성경질문', '이단', '직장생활', '결혼'];
-        const evangelismTags = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
-
-        const tags = (status === 'evangelism') ? evangelismTags : memberTags;
+        const tags = getDynamicTagsSync(status);
 
         btnGroup.innerHTML = tags.map(t => {
             const isSelected = selectedTags.has(t);
