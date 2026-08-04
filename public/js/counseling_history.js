@@ -734,8 +734,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? 'text-orange-600 dark:text-orange-400 italic font-black' 
                 : 'text-indigo-650 dark:text-indigo-400 font-black';
 
-            // @구원받음 태그 여부 확인 (세션 중 하나라도 해당 태그 있으면 하트 표시)
-            const hasGuWon = sessions.some(s => s.tags && s.tags.includes('@구원받음'));
+            // @구원받음 태그 여부 확인 - lead_target 필드에 '@구원받음' 형태로 저장됨
+            const hasGuWon = sessions.some(s => s.lead_target && s.lead_target.includes('@구원받음'));
             const guWonHeart = hasGuWon
                 ? `<span title="구원받음" class="text-pink-500 drop-shadow-sm animate-pulse" style="font-size:1.1rem;line-height:1;">🩷</span>`
                 : '';
@@ -2411,8 +2411,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
-            // @구원받음 태그 여부 (사람 단위로 1회만 카운트)
-            const personHasGuWon = sessions.some(s => s.tags && s.tags.includes('@구원받음'));
+            // @구원받음 태그 여부 (사람 단위로 1회만 카운트) - lead_target 필드 기준
+            const personHasGuWon = sessions.some(s => s.lead_target && s.lead_target.includes('@구원받음'));
             if (personHasGuWon) {
                 if (isMember) guWonMemberCount++;
                 else guWonEvCount++;
