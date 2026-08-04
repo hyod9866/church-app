@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tok.startsWith('@')) {
                 const name = tok.slice(1).trim();
                 if (!name) return '';
+                if (name === '구원받음') {
+                    // 구원받음은 핑크 하트로 특별 표시
+                    return `<span class="${px} py-0.5 rounded border font-black bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-pink-900/50">🩷 ${name}</span>`;
+                }
                 const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 return `<span class="${px} py-0.5 rounded border font-black cursor-pointer hover:underline bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 border-amber-200/80 dark:border-amber-900/50" onclick="event.stopPropagation(); openMemberHistoryModalByName('${safe}')">🤝 ${name}</span>`;
             }
@@ -2405,18 +2409,10 @@ document.addEventListener('DOMContentLoaded', () => {
         //    보여주는 범위(특정 연도 / 전체 연도별)는 filterYear로 renderTrend()에서 결정한다.
         trendMonthly = { member: {}, evangelism: {} };
         const yearSet = new Set();
-        let guWonMemberCount = 0;   // @구원받음 태그 보유 성도 수
-        let guWonEvCount = 0;        // @구원받음 태그 보유 전도대상 수
         (allStatus || []).forEach(member => {
             const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
-            // @구원받음 태그 여부 (사람 단위로 1회만 카운트) - lead_target 필드 기준
-            const personHasGuWon = sessions.some(s => s.lead_target && s.lead_target.includes('@구원받음'));
-            if (personHasGuWon) {
-                if (isMember) guWonMemberCount++;
-                else guWonEvCount++;
-            }
             sessions.forEach(s => {
                 if (!s.date) return;
                 const ym = s.date.substring(0, 7); // "YYYY-MM"
@@ -2426,23 +2422,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         trendYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b)); // 오름차순 (x축)
-
-        // 구원받음 카운트 표시 업데이트
-        const guWonTotal = guWonMemberCount + guWonEvCount;
-        const guWonEl = document.getElementById('guWonCountBadge');
-        if (guWonEl) {
-            if (guWonTotal > 0) {
-                guWonEl.innerHTML = `
-                    <span class="text-pink-500 mr-1" style="font-size:1rem;">🩷</span>
-                    <span class="font-black text-pink-600 dark:text-pink-400">${guWonTotal}명</span>
-                    <span class="text-slate-400 dark:text-slate-500 mx-1 text-[11px]">구원받음</span>
-                    <span class="text-[10px] text-slate-400">(성도 ${guWonMemberCount}명 · 전도대상 ${guWonEvCount}명)</span>
-                `;
-                guWonEl.classList.remove('hidden');
-            } else {
-                guWonEl.classList.add('hidden');
-            }
-        }
 
         renderTrend();
     }
