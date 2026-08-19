@@ -800,11 +800,22 @@ app.get('/api/users/default-profile', async (req, res) => {
   try {
     let { data, error } = await supabase
       .from('members')
-      .select('church, parish, district, managed_districts')
+      .select('church, parish, district, managed_districts, calendar_feed_token')
       .eq('name', '강효근')
       .single();
 
-    // managed_districts 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    // managed_districts / calendar_feed_token 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
+    let calendarMigrationNeeded = false;
+    if (error && /calendar_feed_token/i.test(error.message || '')) {
+      calendarMigrationNeeded = true;
+      const retry = await supabase
+        .from('members')
+        .select('church, parish, district, managed_districts')
+        .eq('name', '강효근')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error && /managed_districts/i.test(error.message || '')) {
       const retry = await supabase
         .from('members')
@@ -837,10 +848,48 @@ app.get('/api/users/default-profile', async (req, res) => {
       }
     }
 
-    res.json({ ...row, districts });
+    // 구글캘린더 연동용 비공개 토큰: 상담/심방 메모 등 민감정보가 포함된 피드이므로
+    // 최초 조회 시 자동 발급해 저장한다 (없으면 /api/calendar/feed가 인증 없이 열려버림).
+    let calendarFeedToken = row.calendar_feed_token || null;
+    if (!calendarFeedToken && !calendarMigrationNeeded) {
+      try {
+        calendarFeedToken = crypto.randomBytes(16).toString('hex');
+        await supabase.from('members').update({ calendar_feed_token: calendarFeedToken }).eq('name', '강효근');
+      } catch (tokenErr) {
+        console.warn('calendar_feed_token 자동 발급 실패:', tokenErr.message);
+        calendarFeedToken = null;
+      }
+    }
+
+    res.json({ ...row, districts, calendar_feed_token: calendarFeedToken, calendar_migration_needed: calendarMigrationNeeded });
   } catch (err) {
     console.error('Failed to get default profile:', err);
-    res.json({ church: '서울중앙교회', parish: '부곡교구', district: '581구역', districts: [] });
+    res.json({ church: '서울중앙교회', parish: '부곡교구', district: '581구역', districts: [], calendar_feed_token: null });
+  }
+});
+
+// 구글캘린더 연동 토큰 재발급 (기존 URL로의 접근을 즉시 차단하고 새 토큰을 발급)
+app.post('/api/users/regenerate-calendar-token', async (req, res) => {
+  try {
+    const newToken = crypto.randomBytes(16).toString('hex');
+    const { data, error } = await supabase
+      .from('members')
+      .update({ calendar_feed_token: newToken })
+      .eq('name', '강효근')
+      .select('calendar_feed_token')
+      .single();
+    if (error) {
+      if (/calendar_feed_token/i.test(error.message || '')) {
+        return res.status(400).json({
+          error: 'members 테이블에 calendar_feed_token 컬럼이 없습니다. Supabase SQL Editor에서 다음을 실행하세요: ALTER TABLE members ADD COLUMN IF NOT EXISTS calendar_feed_token text;'
+        });
+      }
+      throw error;
+    }
+    res.json({ calendar_feed_token: data.calendar_feed_token });
+  } catch (err) {
+    console.error('Failed to regenerate calendar token:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -3648,6 +3697,27 @@ function formatICSDate(dateStr, timeStr, adjustToUTC = true) {
 // 1. GET /api/calendar/feed — iCalendar (.ics) 피드 제공 API
 app.get('/api/calendar/feed', async (req, res) => {
   try {
+    // 보안: 이 피드에는 상담/심방 메모 등 민감한 개인정보가 포함되므로
+    // 관리자 설정에서 발급한 토큰이 일치할 때만 응답한다.
+    // (컬럼이 아직 없거나 토큰이 아직 발급되지 않은 과도기에는 열어두되 경고 로그만 남긴다.)
+    try {
+      const { data: adminRow, error: tokenErr } = await supabase
+        .from('members')
+        .select('calendar_feed_token')
+        .eq('name', '강효근')
+        .single();
+      const requiredToken = !tokenErr && adminRow ? adminRow.calendar_feed_token : null;
+      if (requiredToken) {
+        if (req.query.token !== requiredToken) {
+          return res.status(403).send('Forbidden: invalid or missing token. 관리자 설정 화면에서 올바른 캘린더 연동 URL을 다시 복사해주세요.');
+        }
+      } else {
+        console.warn('[calendar/feed] 경고: calendar_feed_token이 아직 발급되지 않아 이 피드가 토큰 없이 열려 있습니다. 관리자 설정 화면을 한 번 방문하면 자동 발급됩니다.');
+      }
+    } catch (guardErr) {
+      console.warn('[calendar/feed] 토큰 검증 중 오류(열어둔 채로 진행):', guardErr.message);
+    }
+
     // 최근 6개월 ~ 향후 6개월의 모임 일정을 조회
     const today = new Date();
     const sixMonthsAgo = new Date();

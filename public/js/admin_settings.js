@@ -11,6 +11,67 @@
     const statusEl = document.getElementById('adminSaveStatus');
     const currentPreview = document.getElementById('currentPreview');
     const migrationNotice = document.getElementById('migrationNotice');
+    const calendarFeedUrlInput = document.getElementById('calendarFeedUrl');
+    const copyCalendarUrlBtn = document.getElementById('copyCalendarUrl');
+    const calendarUrlStatus = document.getElementById('calendarUrlStatus');
+    const regenerateCalendarTokenBtn = document.getElementById('regenerateCalendarToken');
+    const calendarMigrationNotice = document.getElementById('calendarMigrationNotice');
+
+    function renderCalendarFeed(profile) {
+        if (!calendarFeedUrlInput) return;
+        if (!profile || profile.calendar_migration_needed) {
+            calendarFeedUrlInput.value = '';
+            calendarUrlStatus.textContent = '';
+            if (calendarMigrationNotice) calendarMigrationNotice.classList.remove('hidden');
+            return;
+        }
+        if (calendarMigrationNotice) calendarMigrationNotice.classList.add('hidden');
+        if (!profile.calendar_feed_token) {
+            calendarFeedUrlInput.value = '';
+            calendarUrlStatus.textContent = '토큰 발급에 실패했습니다. 새로고침해 주세요.';
+            calendarUrlStatus.className = 'text-[11px] text-red-500 mt-1';
+            return;
+        }
+        const url = `${window.location.origin}/api/calendar/feed?token=${profile.calendar_feed_token}`;
+        calendarFeedUrlInput.value = url;
+        calendarUrlStatus.textContent = '';
+    }
+
+    async function copyCalendarUrl() {
+        const url = calendarFeedUrlInput ? calendarFeedUrlInput.value : '';
+        if (!url) return;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                calendarFeedUrlInput.removeAttribute('readonly');
+                calendarFeedUrlInput.select();
+                document.execCommand('copy');
+                calendarFeedUrlInput.setAttribute('readonly', 'readonly');
+            }
+            calendarUrlStatus.textContent = '✓ 복사되었습니다.';
+            calendarUrlStatus.className = 'text-[11px] text-emerald-600 dark:text-emerald-400 mt-1';
+        } catch (e) {
+            console.error(e);
+            calendarUrlStatus.textContent = '복사에 실패했습니다. 직접 선택해서 복사해주세요.';
+            calendarUrlStatus.className = 'text-[11px] text-red-500 mt-1';
+        }
+    }
+
+    async function regenerateCalendarToken() {
+        if (!window.confirm('URL을 재발급하면 기존에 구글 캘린더에 연동된 링크는 더 이상 갱신되지 않습니다. 계속할까요?')) return;
+        try {
+            const res = await fetch('/api/users/regenerate-calendar-token', { method: 'POST' });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || `재발급 실패 (HTTP ${res.status})`);
+            renderCalendarFeed({ calendar_feed_token: body.calendar_feed_token });
+            calendarUrlStatus.textContent = '✓ 새 URL이 발급되었습니다. 구글 캘린더에 다시 등록해주세요.';
+            calendarUrlStatus.className = 'text-[11px] text-emerald-600 dark:text-emerald-400 mt-1';
+        } catch (e) {
+            console.error(e);
+            window.alert('재발급에 실패했습니다: ' + e.message);
+        }
+    }
 
     function parseDistricts(str) {
         return String(str || '')
@@ -76,6 +137,7 @@
             }
             renderChips();
             renderCurrent(profile);
+            renderCalendarFeed(profile);
         } catch (e) {
             console.error(e);
             renderCurrent(null);
@@ -123,6 +185,8 @@
 
     districtsInput.addEventListener('input', renderChips);
     saveBtn.addEventListener('click', save);
+    if (copyCalendarUrlBtn) copyCalendarUrlBtn.addEventListener('click', copyCalendarUrl);
+    if (regenerateCalendarTokenBtn) regenerateCalendarTokenBtn.addEventListener('click', regenerateCalendarToken);
 
     loadDatalists();
     load();

@@ -105,8 +105,54 @@
             <p>Supabase SQL Editor에서 아래 한 줄을 실행한 뒤 다시 저장해 주세요:</p>
             <pre class="mt-2 bg-white/70 dark:bg-slate-900/60 rounded-lg px-3 py-2 font-mono text-[11px] overflow-x-auto">ALTER TABLE members ADD COLUMN IF NOT EXISTS managed_districts text;</pre>
         </div>
+
+        <!-- 구글 캘린더 연동 -->
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/60 p-5 space-y-4">
+            <h2 class="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <span class="w-1.5 h-4 bg-rose-500 rounded-full"></span>
+                구글 캘린더 연동
+            </h2>
+            <p class="text-xs md:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                아래 URL을 구글 캘린더에 <b>"URL로 추가"</b> 하면, 일반 모임/설교·상담 일정·심방 일정이 모두 구글 캘린더로 한 방향(교회앱 → 구글) 자동 동기화됩니다.
+                <br>이 URL에는 상담·심방 메모 같은 민감한 개인정보가 포함되어 있으니 <b class="text-rose-600 dark:text-rose-400">본인 외에는 절대 공유하지 마세요.</b>
+            </p>
+
+            <div>
+                <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">연동 URL</label>
+                <div class="flex gap-2">
+                    <input type="text" id="calendarFeedUrl" readonly
+                        class="flex-1 min-w-0 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 shadow-sm outline-none dark:text-slate-100 truncate">
+                    <button id="copyCalendarUrl" type="button"
+                        class="shrink-0 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-3 py-2 rounded-xl font-black text-xs shadow-sm active:scale-[0.98] transition-all">복사</button>
+                </div>
+                <p id="calendarUrlStatus" class="text-[11px] text-slate-400 mt-1"></p>
+            </div>
+
+            <details class="text-xs md:text-sm text-slate-600 dark:text-slate-300">
+                <summary class="cursor-pointer font-bold text-slate-500 dark:text-slate-400">연동 방법 보기</summary>
+                <ol class="list-decimal pl-5 mt-2 space-y-1 leading-relaxed">
+                    <li>PC 브라우저로 <a href="https://calendar.google.com" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-400 underline">calendar.google.com</a> 접속 (모바일 앱에서는 URL 캘린더 추가가 안 됩니다)</li>
+                    <li>왼쪽 하단 <b>"다른 캘린더"</b> 옆 <b>+</b> 버튼 → <b>"URL로 추가"</b> 클릭</li>
+                    <li>위 연동 URL을 붙여넣고 <b>"캘린더 추가"</b> 클릭</li>
+                    <li>추가되면 스마트폰 구글 캘린더 앱에도 자동으로 동기화됩니다</li>
+                </ol>
+                <p class="mt-2 text-slate-400 italic">※ 구글 정책상 외부 URL 캘린더는 보통 8~24시간 주기로만 새로고침됩니다. 새 일정을 등록했는데 바로 안 보여도 정상이며, 구글 쪽 새로고침 주기라 저희 쪽에서 더 빠르게 만들 수는 없습니다.</p>
+            </details>
+
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-3">
+                <p class="text-[11px] text-slate-400">URL이 외부로 유출된 것 같으면 재발급하세요. 재발급하면 기존에 연동된 구글 캘린더는 더 이상 갱신되지 않습니다.</p>
+                <button id="regenerateCalendarToken" type="button"
+                    class="shrink-0 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 px-3 py-2 rounded-xl font-black text-xs transition-all">URL 재발급</button>
+            </div>
+
+            <div id="calendarMigrationNotice" class="hidden bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 text-xs md:text-sm leading-relaxed text-amber-900 dark:text-amber-300">
+                <p class="font-extrabold mb-1.5">⚠ DB 컬럼 추가 필요</p>
+                <p>Supabase SQL Editor에서 아래 한 줄을 실행한 뒤 이 화면을 새로고침해 주세요:</p>
+                <pre class="mt-2 bg-white/70 dark:bg-slate-900/60 rounded-lg px-3 py-2 font-mono text-[11px] overflow-x-auto">ALTER TABLE members ADD COLUMN IF NOT EXISTS calendar_feed_token text;</pre>
+            </div>
+        </div>
     </main>
 
-    <script src="/js/admin_settings.js?v=admin-districts-1"></script>
+    <script src="/js/admin_settings.js?v=admin-districts-2"></script>
 </body>
 </html>

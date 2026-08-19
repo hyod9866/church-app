@@ -26,8 +26,8 @@ async function main() {
   }
 
   console.log(`Found ${churches.length} churches.`);
-  const central = churches.filter(c => c.name.includes('중앙') || c.name.includes('서울'));
-  console.log('Churches containing "중앙" or "서울":');
+  const central = churches.filter(c => c.name.includes('평택'));
+  console.log('Churches containing "평택":');
   console.log(JSON.stringify(central, null, 2));
 }
 
