@@ -179,14 +179,32 @@ if ([string]::IsNullOrWhiteSpace($statusOutput)) {
 Write-Step "6/6  Vercel 프로덕션 배포"
 
 $vercelCmd = Get-Command vercel -ErrorAction SilentlyContinue
-if ($vercelCmd) {
-    $deployOutput = vercel --prod --yes 2>&1
-} else {
-    Write-WarnMsg "전역 vercel CLI를 찾지 못해 npx로 실행합니다 (최초 1회는 다운로드 때문에 조금 걸릴 수 있음)."
-    $deployOutput = npx vercel@latest --prod --yes 2>&1
+
+# vercel/npx는 자기 버전 배너 같은 평범한 안내문도 stderr로 출력하는데,
+# 2>&1로 합쳐서 캡처하면 PowerShell이 그 줄들을 전부 에러 레코드로 취급한다.
+# $ErrorActionPreference='Stop' 상태에서는 그 순간 스크립트가 곧장 멈춰버려서
+# 실제 배포가 시작도 되기 전에 "에러"로 잘못 종료되는 문제가 있었다.
+# 이 호출 구간만 잠깐 'Continue'로 풀어주고 끝나면 원래대로 되돌린다.
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    if ($vercelCmd) {
+        $deployOutput = vercel --prod --yes 2>&1
+    } else {
+        Write-WarnMsg "전역 vercel CLI를 찾지 못해 npx로 실행합니다 (최초 1회는 다운로드 때문에 조금 걸릴 수 있음)."
+        $deployOutput = npx vercel@latest --prod --yes 2>&1
+    }
+} finally {
+    $ErrorActionPreference = $prevEAP
 }
 
 $deployOutput | ForEach-Object { Write-Host "    $_" }
+
+$deployText = ($deployOutput | Out-String)
+if ($deployText -match 'Not authorized|not logged in|Error: No existing credentials found') {
+    Write-Host ""
+    Fail "Vercel 로그인이 풀려있습니다. 아래 두 줄을 실행해 다시 로그인한 뒤 이 스크립트를 다시 실행해주세요.`n      vercel logout`n      vercel login"
+}
 
 if ($LASTEXITCODE -ne 0) {
     Fail "Vercel 배포에 실패했습니다. 위 로그를 확인해주세요."

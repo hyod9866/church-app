@@ -1394,7 +1394,7 @@ app.put('/api/members/:id', async (req, res) => {
     //  "변경 전"과 "변경 후"를 비교하는 것이 아니라 새 값끼리 비교하는 꼴이 되어 오작동할 수 있음)
     const { data: oldMemberBeforeUpdate, error: getOldErr } = await supabase
       .from('members')
-      .select('church, parish, district, position, church_service')
+      .select('church, parish, district, position, church_service, family_relation')
       .eq('id', id)
       .single();
 
@@ -1502,9 +1502,7 @@ app.put('/api/members/:id', async (req, res) => {
     let familyRelationIds = {};
     try { familyRelationIds = b.family_relation_ids ? JSON.parse(b.family_relation_ids) : {}; } catch (e) { familyRelationIds = {}; }
 
-    syncFamilyLinks(id, b.name, b.bs, b.family_relation, fid, async (err, finalFid) => {
-      if (err) console.error('syncFamilyLinks error:', err);
-      
+    const finishMemberUpdate = async (finalFid) => {
       if (b.pendingRecords && Array.isArray(b.pendingRecords)) {
         const recordsToInsert = b.pendingRecords.map(rec => ({
           member_id: id,
@@ -1512,18 +1510,35 @@ app.put('/api/members/:id', async (req, res) => {
           status: rec.status,
           remark: rec.remark
         }));
-        
+
         if (recordsToInsert.length > 0) {
           const { error: recErr } = await supabase
             .from('member_records')
             .insert(recordsToInsert);
           if (recErr) console.error('Pending records insert error:', recErr);
         }
-        
+
         await syncMemberProfileFromRecords(id);
       }
       res.json({ status: 'success', family_id: finalFid });
-    }, familyRelationIds);
+    };
+
+    // [2026-08-23] 저장하려는 가족관계 텍스트가 저장 전 값과 완전히 동일하면
+    // (= 이번 저장에서 가족관계를 건드리지 않았다는 뜻) syncFamilyLinks의 무거운 작업
+    // (활성 성도 전체 스캔 + 가족 구성원 전원 재저장)을 건너뛴다.
+    // 이게 "가족이 이미 연결된 성도는 전화번호 하나만 고쳐도 매번 느리다"는 문제의
+    // 핵심 원인이었다 — 예전엔 가족관계가 조금도 안 바뀌어도 매번 이 전체 동기화가 다시 돌았다.
+    const familyRelationUnchanged = !getOldErr && oldMemberBeforeUpdate &&
+      (b.family_relation || '').trim() === (oldMemberBeforeUpdate.family_relation || '').trim();
+
+    if (familyRelationUnchanged) {
+      await finishMemberUpdate(fid);
+    } else {
+      syncFamilyLinks(id, b.name, b.bs, b.family_relation, fid, async (err, finalFid) => {
+        if (err) console.error('syncFamilyLinks error:', err);
+        await finishMemberUpdate(finalFid);
+      }, familyRelationIds);
+    }
   } catch (err) {
     console.error('Update member error:', err);
     res.status(500).json({ error: err.message });
