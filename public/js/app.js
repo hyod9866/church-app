@@ -683,33 +683,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (visSec) visSec.classList.remove('hidden');
                 if (visList) {
                     visList.innerHTML = visMemos.map(h => {
-                        const memoVal = h.memo ? h.memo.trim() : '';
+                        // meetings.memo에는 "[lead:...] [method:...]" 같은 내부용 태그가 섞여 저장되므로
+                        // formatMeetingMemoContent로 정제해서(칩으로 표시하거나 숨김) 사용자에게는 노출하지 않는다.
+                        const memoHtml = formatMeetingMemoContent(h.memo ? h.memo.trim() : '');
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
                         const isCounseling = h.type === '상담';
-                        
-                        let contentHTML = '';
-                        if (memoVal) {
-                            contentHTML += `
-                                <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
-                                    <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
-                                </div>
-                            `;
-                        }
+
+                        let contentHTML = memoHtml || '';
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
-                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
-                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="${isCounseling ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-100/50 dark:border-indigo-900/30' : 'bg-blue-50/60 dark:bg-blue-950/20 border-blue-100/50 dark:border-blue-900/30'} p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700 dark:text-indigo-400' : 'text-blue-700 dark:text-blue-400'} uppercase tracking-wider mb-1">${isCounseling ? '📝 상담 내용' : '🎙️ 심방 간증'}</span>
+                                    <p class="text-xs ${isCounseling ? 'text-indigo-900 dark:text-indigo-200' : 'text-blue-900 dark:text-blue-200'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
-                        if (!memoVal && !testimonyVal) {
-                            contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
+                        if (!memoHtml && !testimonyVal) {
+                            contentHTML = `<p class="text-slate-400 dark:text-slate-500 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
-                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
-                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
+                        const cardBg = isCounseling ? 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/30' : 'bg-teal-50 dark:bg-teal-950/20 border-teal-100 dark:border-teal-900/30';
+                        const textCol = isCounseling ? 'text-indigo-800 dark:text-indigo-300 border-indigo-200/30 dark:border-indigo-800/30' : 'text-teal-800 dark:text-teal-300 border-teal-200/30 dark:border-teal-800/30';
                         const titleText = isCounseling ? '상담 기록' : '심방 기록';
 
                         return `
@@ -722,9 +716,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     }).join('');
                 }
-            } 
+            }
             else {
-                if (visList) visList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">기록이 없습니다.</p>';
+                if (visList) visList.innerHTML = '<p class="text-slate-400 dark:text-slate-500 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>';
             }
 
             // Personal Records (수직 타임라인 디자인 적용)

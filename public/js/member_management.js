@@ -1,5 +1,77 @@
+// [2026-08-23] 상담/심방 메모 탭에서 meetings.memo에 내부적으로 저장되는
+// "[lead:...] [method:...]" 태그가 사용자 화면에 그대로 노출되던 문제 수정.
+// app.js에 이미 있던 동일 로직을 그대로 가져와서 이 화면에서도 동일하게 정제/표시한다.
+function buildLeadChips(leadTarget, size) {
+    const raw = (leadTarget || '').trim();
+    if (!raw) return '';
+    const px = size === 'md' ? 'text-[10px] px-2' : 'text-[9px] px-1.5';
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    return tokens.map(tok => {
+        if (tok.startsWith('@')) {
+            const name = tok.slice(1).trim();
+            if (!name) return '';
+            if (name === '구원받음') {
+                return `<span class="${px} py-0.5 rounded border font-black bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-pink-900/50">🩷 ${name}</span>`;
+            }
+            const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<span class="${px} py-0.5 rounded border font-black cursor-pointer hover:underline bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 border-amber-200/80 dark:border-amber-900/50" onclick="event.stopPropagation(); if (typeof openMemberHistoryModalByName === 'function') openMemberHistoryModalByName('${safe}');">🤝 ${name}</span>`;
+        }
+        const name = tok.startsWith('#') ? tok.slice(1).trim() : tok.trim();
+        if (!name) return '';
+        return `<span class="${px} py-0.5 rounded border font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 border-slate-200 dark:border-slate-700/60">#${name}</span>`;
+    }).filter(Boolean).join(' ');
+}
+
+function formatMeetingMemoContent(rawMemo) {
+    if (!rawMemo) return '';
+    let text = rawMemo.trim();
+    let leadTarget = '';
+    let method = '';
+
+    const leadMatches = [...text.matchAll(/\[lead:\s*(.*?)\]/g)];
+    if (leadMatches.length > 0) {
+        leadTarget = leadMatches.map(m => m[1].trim()).filter(Boolean).join(' ');
+        text = text.replace(/\[lead:\s*.*?\]/g, '');
+    }
+
+    const methodMatches = [...text.matchAll(/\[method:\s*(.*?)\]/g)];
+    if (methodMatches.length > 0) {
+        method = methodMatches[methodMatches.length - 1][1].trim();
+        text = text.replace(/\[method:\s*.*?\]/g, '');
+    }
+
+    text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
+    text = text.replace(/\s+/g, ' ').trim();
+
+    let leadChipsHtml = '';
+    if (leadTarget) {
+        leadChipsHtml = buildLeadChips(leadTarget, 'md');
+    }
+
+    let methodChipHtml = '';
+    if (method && method !== '대면') {
+        methodChipHtml = `<span class="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${method}</span>`;
+    }
+
+    if (!leadChipsHtml && !methodChipHtml && !text) return '';
+
+    return `
+        <div class="mb-2">
+            <div class="space-y-2">
+                ${(leadChipsHtml || methodChipHtml) ? `
+                    <div class="flex flex-wrap gap-1.5 items-center">
+                        ${methodChipHtml}
+                        ${leadChipsHtml}
+                    </div>
+                ` : ''}
+                ${text ? `<p class="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${text}</p>` : ''}
+            </div>
+        </div>
+    `;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    let allMembersData = []; 
+    let allMembersData = [];
     let filteredMembersData = []; 
     let attendanceRates = {};
     let currentSort = { column: 'district', direction: 'asc' };
@@ -498,37 +570,31 @@ document.addEventListener('DOMContentLoaded', () => {
             // Visitation Memos
             const visMemos = history.filter(h => h.type === '심방' || h.type === '상담');
             const visSec = document.getElementById('visitationHistorySection'), visList = document.getElementById('visitationMemoList');
-            if (visMemos.length) { 
-                if (visSec) visSec.classList.remove('hidden'); 
+            if (visMemos.length) {
+                if (visSec) visSec.classList.remove('hidden');
                 if (visList) {
                     visList.innerHTML = visMemos.map(h => {
-                        const memoVal = h.memo ? h.memo.trim() : '';
+                        // meetings.memo에는 "[lead:...] [method:...]" 같은 내부용 태그가 섞여 저장되므로
+                        // formatMeetingMemoContent로 정제해서(칩으로 표시하거나 숨김) 사용자에게는 노출하지 않는다.
+                        const memoHtml = formatMeetingMemoContent(h.memo ? h.memo.trim() : '');
                         const testimonyVal = h.testimony_snapshot ? h.testimony_snapshot.trim() : '';
                         const isCounseling = h.type === '상담';
-                        
-                        let contentHTML = '';
-                        if (memoVal) {
-                            contentHTML += `
-                                <div class="mb-2 bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">${isCounseling ? '💬 상담 내용' : '✍️ 메모'}</span>
-                                    <p class="text-xs text-slate-700 whitespace-pre-wrap font-bold leading-relaxed">${memoVal}</p>
-                                </div>
-                            `;
-                        }
+
+                        let contentHTML = memoHtml || '';
                         if (testimonyVal) {
                             contentHTML += `
-                                <div class="${isCounseling ? 'bg-indigo-50/50 border-indigo-100/30' : 'bg-blue-50/50 border-blue-100/30'} p-2.5 rounded-lg border">
-                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700' : 'text-blue-700'} uppercase tracking-wider mb-1">${isCounseling ? '📝 추가 메모' : '🎙️ 심방 간증'}</span>
-                                    <p class="text-xs ${isCounseling ? 'text-indigo-900' : 'text-blue-900'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
+                                <div class="${isCounseling ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-100/50 dark:border-indigo-900/30' : 'bg-blue-50/60 dark:bg-blue-950/20 border-blue-100/50 dark:border-blue-900/30'} p-2.5 rounded-lg border">
+                                    <span class="block text-[10px] font-black ${isCounseling ? 'text-indigo-700 dark:text-indigo-400' : 'text-blue-700 dark:text-blue-400'} uppercase tracking-wider mb-1">${isCounseling ? '📝 상담 내용' : '🎙️ 심방 간증'}</span>
+                                    <p class="text-xs ${isCounseling ? 'text-indigo-900 dark:text-indigo-200' : 'text-blue-900 dark:text-blue-200'} whitespace-pre-wrap font-bold leading-relaxed">${testimonyVal}</p>
                                 </div>
                             `;
                         }
-                        if (!memoVal && !testimonyVal) {
-                            contentHTML = `<p class="text-slate-400 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
+                        if (!memoHtml && !testimonyVal) {
+                            contentHTML = `<p class="text-slate-400 dark:text-slate-500 italic text-[11px] py-1">기록된 상세 내용이 없습니다.</p>`;
                         }
 
-                        const cardBg = isCounseling ? 'bg-indigo-50 border-indigo-100' : 'bg-teal-50 border-teal-100';
-                        const textCol = isCounseling ? 'text-indigo-800 border-indigo-200/30' : 'text-teal-800 border-teal-200/30';
+                        const cardBg = isCounseling ? 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/30' : 'bg-teal-50 dark:bg-teal-950/20 border-teal-100 dark:border-teal-900/30';
+                        const textCol = isCounseling ? 'text-indigo-800 dark:text-indigo-300 border-indigo-200/30 dark:border-indigo-800/30' : 'text-teal-800 dark:text-teal-300 border-teal-200/30 dark:border-teal-800/30';
                         const titleText = isCounseling ? '상담 기록' : '심방 기록';
 
                         return `
@@ -541,9 +607,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         `;
                     }).join('');
                 }
-            } 
+            }
             else {
-                if (visList) visList.innerHTML = '<p class="text-slate-400 italic text-xs text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">기록이 없습니다.</p>';
+                if (visList) visList.innerHTML = '<p class="text-slate-400 dark:text-slate-500 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>';
             }
 
             // Personal Records (수직 타임라인 디자인 적용)
