@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterGender = document.getElementById('filterGender');
     const filterCategory = document.getElementById('filterCategory');
     const filterStatus = document.getElementById('filterStatus');
+    const filterMemberStatus = document.getElementById('filterMemberStatus');
     const roleCheckboxes = document.querySelectorAll('.role-filter');
     const btnEditSortMode = document.getElementById('btnEditSortMode');
     const btnSaveSort = document.getElementById('btnSaveSort');
@@ -117,8 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadData() {
         try {
+            // [2026-08-23] member_status=all을 명시하지 않으면 서버가 기본값으로 '성도(member)'만
+            // 내려주기 때문에, 전도대상(비성도)으로 등록된 사람은 이 화면 어떤 필터를 걸어도
+            // 검색 결과에 절대 나오지 않는 문제가 있었다. 여기서는 일단 전부(성도+전도대상) 받아온
+            // 뒤, 화면의 filterMemberStatus 셀렉트(기본값 '성도만')로 클라이언트에서 걸러낸다.
             const [response, ratesResponse] = await Promise.all([
-                fetch('/api/members/search?status=all'),
+                fetch('/api/members/search?status=all&member_status=all'),
                 fetch('/api/members/attendance-rates')
             ]);
             allMembersData = await response.json();
@@ -156,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const churchName = getSelectedChurchName();
         const parishName = getSelectedParishName();
         const district = filterDistrict.value, gender = filterGender.value, category = filterCategory.value, statusVal = filterStatus.value;
+        const memberStatusVal = filterMemberStatus ? filterMemberStatus.value : 'member';
         const filterMaritalStatus = document.getElementById('filterMaritalStatus');
         const maritalVal = filterMaritalStatus ? filterMaritalStatus.value : '전체';
         const checkedRoles = Array.from(roleCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
@@ -180,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gender !== '전체' && m.bs !== gender) return false;
             if (category !== '전체' && m.category !== category) return false;
             if (statusVal !== 'all' && (m.status || 'active') !== statusVal) return false;
+            if (memberStatusVal !== 'all' && (m.member_status || 'member') !== memberStatusVal) return false;
             if (maritalVal !== '전체') {
                 if (maritalVal === '기혼' && m.marital_status !== '기혼') return false;
                 if (maritalVal === '미혼_미선택' && m.marital_status === '기혼') return false;
@@ -481,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<span class="cursor-pointer hover:underline hover:text-blue-600 font-semibold flex items-center gap-1" onclick="event.stopPropagation(); triggerMapModal('${m.address.replace(/'/g, "\\'")}')" title="${m.address}"><i class="fa-solid fa-map-location-dot text-rose-500 text-[10px]"></i> ${m.address}</span>` 
                 : '-';
 
-            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${rateHtml}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${addrHtml}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
+            return `<tr class="hover:bg-blue-50 border-b transition text-[13px] ${isEditSortMode ? 'bg-yellow-50' : ''}" data-id="${m.id}"><td class="p-2 text-center font-bold border-r ${isEditSortMode ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}">${indexCol}</td><td class="p-2 text-center border-r"><span class="px-2 py-0.5 rounded-full border font-bold text-[11px] ${getDC(m.district)}">${m.district || '-'}</span></td><td class="p-2 text-center font-bold text-gray-600 border-r">${getCI(m.category)}</td><td class="p-2 text-center font-black text-blue-800 border-r cursor-pointer hover:underline" onclick="openMemberHistoryModal(${m.id})">${m.name || ''}${m.member_status === 'evangelism' ? '<span class="ml-1 align-middle text-[9px] font-black text-orange-700 bg-orange-100 border border-orange-200 px-1 py-0.5 rounded">전도대상</span>' : ''}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${rateHtml}</td><td class="p-2 text-center border-r text-gray-700">${m.birth_year || '-'}</td><td class="p-2 text-center border-r text-gray-700 font-bold">${calculateAge(m.birth_year)}</td><td class="p-2 text-center border-r text-gray-700">${m.salvation_date || '-'}</td><td class="p-2 text-center border-r text-yellow-800 font-bold">${m.position || '-'}</td><td class="p-2 text-center border-r text-green-800 font-bold">${(!m.church_service || m.church_service === '없음') ? '-' : m.church_service}</td><td class="p-2 border-r font-medium">${fHtml}</td><td class="p-2 text-center border-r text-gray-700 font-medium">${m.phone || '-'}</td><td class="p-2 border-r text-gray-700 truncate min-w-[150px]" title="${m.address || ''}">${addrHtml}</td><td class="p-2 text-gray-700 truncate min-w-[200px]" title="${m.testimony || ''}">${m.testimony || '-'}</td></tr>`;
         }).join('');
     }
 
@@ -835,6 +842,9 @@ document.addEventListener('DOMContentLoaded', () => {
     filterGender.addEventListener('change', applyFilters);
     filterCategory.addEventListener('change', applyFilters);
     filterStatus.addEventListener('change', applyFilters);
+    if (filterMemberStatus) {
+        filterMemberStatus.addEventListener('change', applyFilters);
+    }
     const filterMaritalStatus = document.getElementById('filterMaritalStatus');
     if (filterMaritalStatus) {
         filterMaritalStatus.addEventListener('change', applyFilters);

@@ -556,6 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const sidebar = document.getElementById('sidebar'), memberList = document.getElementById('memberList'), searchInput = document.getElementById('memberSearch');
     const sidebarDistrictFilter = document.getElementById('sidebarDistrictFilter'), sidebarCategoryFilter = document.getElementById('sidebarCategoryFilter'), sidebarStatusFilter = document.getElementById('sidebarStatusFilter');
+    const sidebarMemberStatusFilter = document.getElementById('sidebarMemberStatusFilter');
     const memberHistoryModal = document.getElementById('memberHistoryModal'), memberAddModal = document.getElementById('memberAddModal'), memberAddForm = document.getElementById('memberAddForm');
     const historyTableBody = document.getElementById('historyTableBody'), recordTableBody = document.getElementById('recordTableBody');
 
@@ -587,10 +588,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const q = searchInput.value.trim(), dist = sidebarDistrictFilter.value, cat = sidebarCategoryFilter.value, st = sidebarStatusFilter.value;
         const sidebarMaritalFilter = document.getElementById('sidebarMaritalFilter');
         const marital = sidebarMaritalFilter ? sidebarMaritalFilter.value : '전체';
+        // [2026-08-23] member_status를 안 넘기면 서버가 기본적으로 '성도(member)'만 내려줘서
+        // 전도대상(비성도)으로 등록된 사람은 이 검색창에서 아무리 이름을 정확히 쳐도 절대 안 나왔다.
+        // sidebarMemberStatusFilter(기본값 '성도만')로 사용자가 명시적으로 범위를 넓힐 수 있게 한다.
+        const memberStatus = sidebarMemberStatusFilter ? sidebarMemberStatusFilter.value : 'member';
         try {
             const churchName = getSelectedChurchName();
             const parishName = getSelectedParishName();
-            const params = new URLSearchParams({ q, district: dist, category: cat, status: st });
+            const params = new URLSearchParams({ q, district: dist, category: cat, status: st, member_status: memberStatus });
             if (churchName && churchName !== '교회 없음' && churchName !== '전체') {
                 params.append('church', churchName);
             }
@@ -606,7 +611,8 @@ document.addEventListener('DOMContentLoaded', function() {
             memberList.innerHTML = members.map(m => {
                 const age = m.birth_year ? (2026 - parseInt(m.birth_year) + 1) : '-';
                 const ps = (m.position || '').split(',').filter(p=>p.trim()).map(p => `<span class="bg-yellow-100 dark:bg-yellow-950/25 text-yellow-800 dark:text-yellow-450 text-[9px] px-1 py-0.5 rounded border border-yellow-200 dark:border-yellow-900/35 font-black ml-0.5">${p}</span>`).join('');
-                return `<div class="p-3 border dark:border-slate-850/50 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800/50 cursor-pointer transition member-item shadow-sm bg-white dark:bg-[#131B2E] mb-2" data-id="${m.id}"><div class="flex justify-between items-start mb-1"><div><span class="font-bold text-blue-800 dark:text-blue-400 text-[16px]">${m.name}</span><span class="text-[11px] text-gray-400 dark:text-slate-500 ml-1">(${age}세)</span>${ps}</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded ${m.bs === 'B' ? 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400'}">${m.bs || '-'}</div></div><div class="text-[12px] text-gray-600 dark:text-slate-300 font-bold"><span class="${getDC(m.district)} px-1.5 py-0.5 rounded-full border dark:border-none text-[10px] mr-1">${m.district || ''}</span>${m.category || ''}</div>${m.family_relation ? `<div class="text-[11px] text-gray-400 dark:text-slate-500 mt-1 truncate">가족: ${m.family_relation}</div>` : ''}</div>`;
+                const evBadge = m.member_status === 'evangelism' ? `<span class="text-[9px] font-black text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700/40 px-1 py-0.5 rounded ml-0.5">전도대상</span>` : '';
+                return `<div class="p-3 border dark:border-slate-850/50 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800/50 cursor-pointer transition member-item shadow-sm bg-white dark:bg-[#131B2E] mb-2" data-id="${m.id}"><div class="flex justify-between items-start mb-1"><div><span class="font-bold text-blue-800 dark:text-blue-400 text-[16px]">${m.name}</span><span class="text-[11px] text-gray-400 dark:text-slate-500 ml-1">(${age}세)</span>${ps}${evBadge}</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded ${m.bs === 'B' ? 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400'}">${m.bs || '-'}</div></div><div class="text-[12px] text-gray-600 dark:text-slate-300 font-bold"><span class="${getDC(m.district)} px-1.5 py-0.5 rounded-full border dark:border-none text-[10px] mr-1">${m.district || ''}</span>${m.category || ''}</div>${m.family_relation ? `<div class="text-[11px] text-gray-400 dark:text-slate-500 mt-1 truncate">가족: ${m.family_relation}</div>` : ''}</div>`;
             }).join('');
             memberList.querySelectorAll('.member-item').forEach(item => item.addEventListener('click', () => openMemberHistoryModal(item.dataset.id)));
         } catch (e) { console.error(e); }
@@ -834,7 +840,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     searchInput.addEventListener('input', loadMemberList);
-    [sidebarDistrictFilter, sidebarCategoryFilter, sidebarStatusFilter, document.getElementById('sidebarMaritalFilter')].forEach(f => {
+    [sidebarDistrictFilter, sidebarCategoryFilter, sidebarStatusFilter, sidebarMemberStatusFilter, document.getElementById('sidebarMaritalFilter')].forEach(f => {
         if (f) f.addEventListener('change', loadMemberList);
     });
     // --- Header Church/Parish Selectors ---

@@ -754,3 +754,19 @@ html:not(.dark) #nodeAddressContainer {
     background-color: #0B0F19 !important;
     border-color: #334155 !important;
 }
+
+/* 모임 등록/수정 모달의 "설교 구분 태그" 선택 버튼 — updateSermonTagActiveState()가 선택 시
+   bg-blue-600/text-white/border-blue-600 유틸리티 클래스를 추가하지만, 태그 기본 마크업에
+   박혀있는 dark:text-slate-300 / dark:border-slate-700/60 같은 다크모드 전용 클래스는 지우지
+   않아서, 컴파운드 셀렉터(.dark .text-slate-300)의 우선순위가 일반 유틸리티(.text-white)보다
+   높아 선택 상태의 글자색이 실제로 반영되지 않던 문제. 선택된 태그만 배경/글자/테두리를
+   명확하게 강제해서 미선택 태그와 확실히 구분되게 한다 (2026-08-23). */
+.dark .sermon-tag.bg-blue-600 {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+.dark .sermon-tag.bg-blue-600:hover {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+}
