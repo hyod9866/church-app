@@ -798,3 +798,18 @@ html:not(.dark) #nodeAddressContainer {
 .dark #excelExportModal .border-slate-100 {
     border-color: #1e293b !important;
 }
+
+/* "성도 정보 수정" 모달 > 인적사항 탭 > "새 인적사항 기록 추가" 박스 — 라이트모드용
+   bg-blue-50/50 배경에 다크모드 규칙이 없어서, 카드 자체는 밝은 회색으로 붕 떠 보이고
+   주변(다크 네이비)과 안 어울리던 문제. #memberBasicInfo의 "봉사 내역 카드"와 동일한
+   색상 규칙을 재사용해 통일감 있게 맞춘다 (2026-08-27). */
+.dark #memberAddModal .bg-blue-50\/50 {
+    background-color: rgba(30, 58, 138, 0.25) !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+}
+.dark #memberAddModal .bg-blue-50\/50 .text-blue-700 {
+    color: #93c5fd !important;
+}
+.dark #memberAddModal .text-blue-805 {
+    color: #93c5fd !important;
+}
