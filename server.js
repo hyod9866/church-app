@@ -84,13 +84,57 @@ function verifyToken(token) {
   const dataStr = Buffer.from(parts[0], 'base64').toString('utf8');
   const expectedHmac = crypto.createHmac('sha256', COOKIE_SECRET).update(dataStr).digest('hex');
   if (parts[1] !== expectedHmac) return null;
-  
+
   try {
     const payload = JSON.parse(dataStr);
     if (payload.exp < Date.now()) return null; // 만료됨
     return payload;
   } catch (e) {
     return null;
+  }
+}
+
+// [2026-08-27] 로그인 아이디/비밀번호(+게스트 계정)를 설정 화면에서 바꿀 수 있게 하면서 도입.
+// 비밀번호는 절대 평문으로 저장하지 않고, scrypt 해시(salt:hash 형태의 hex 문자열)로만 저장한다.
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+function verifyPassword(password, stored) {
+  if (!stored || typeof stored !== 'string' || !stored.includes(':')) return false;
+  const [salt, hash] = stored.split(':');
+  try {
+    const hashBuf = Buffer.from(hash, 'hex');
+    const testBuf = crypto.scryptSync(String(password), salt, 64);
+    if (hashBuf.length !== testBuf.length) return false;
+    return crypto.timingSafeEqual(hashBuf, testBuf);
+  } catch (e) {
+    return false;
+  }
+}
+
+// 로그인 아이디/비밀번호(관리자 + 게스트)는 members 테이블의 '강효근' 행에 함께 저장한다
+// (managed_districts, calendar_feed_token과 동일한 기존 패턴). 컬럼이 아직 없는 DB(마이그레이션 전)
+// 에서는 migrationNeeded=true를 반환하고, 호출부는 기존 ADMIN_EMAIL/ADMIN_PASSWORD 환경변수와
+// 게스트 기본값(guest/guest)으로 안전하게 폴백한다 — 즉 컬럼을 추가하기 전에도 로그인은 계속 동작한다.
+async function fetchAdminCredentials() {
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .select('login_id, login_password_hash, guest_login_id, guest_password_hash, guest_enabled')
+      .eq('name', '강효근')
+      .single();
+    if (error) {
+      if (/login_id|login_password_hash|guest_login_id|guest_password_hash|guest_enabled/i.test(error.message || '')) {
+        return { migrationNeeded: true };
+      }
+      throw error;
+    }
+    return { ...(data || {}), migrationNeeded: false };
+  } catch (err) {
+    console.warn('fetchAdminCredentials failed:', err.message);
+    return { migrationNeeded: true };
   }
 }
 
@@ -152,6 +196,14 @@ function checkAuth(req, res, next) {
 
   if (user) {
     req.user = user;
+    // [2026-08-27] 게스트 계정은 조회(GET)만 허용 — 등록/수정/삭제(POST/PUT/PATCH/DELETE)는
+    // UI에서 버튼을 숨기더라도 API 자체에서 한 번 더 막아 데이터가 실수로/우회로 바뀌지 않게 한다.
+    // 로그아웃(/api/logout)만 예외로 허용해서 게스트도 로그아웃은 할 수 있게 한다.
+    if (user.role === 'guest' && req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+      if (url !== '/api/logout') {
+        return res.status(403).json({ error: '게스트 계정은 조회만 가능합니다. 등록·수정·삭제는 관리자 계정으로 로그인해 주세요.' });
+      }
+    }
     return next();
   }
 
@@ -475,13 +527,50 @@ function syncAllMembersProfile(callback) {
 }
 
 // Login & Logout APIs
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    const token = generateToken({ email });
-    res.setHeader('Set-Cookie', `auth_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
-    return res.json({ success: true });
+// [2026-08-27] 관리자 계정 + 게스트 계정(조회 전용) 2단계 로그인.
+// 두 계정 모두 members 테이블의 '강효근' 행에 저장된 아이디/비밀번호 해시를 우선 사용하고,
+// 아직 설정 화면에서 한 번도 저장한 적이 없거나(컬럼 자체가 없는 마이그레이션 전 포함) 값이
+// 비어있으면 각각 기존 기본값(관리자: ADMIN_EMAIL/ADMIN_PASSWORD 환경변수, 게스트: guest/guest)
+// 으로 안전하게 폴백한다 — 즉 설정에서 아무것도 안 바꿔도 로그인은 그대로 동작한다.
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: '아이디와 비밀번호를 입력해 주세요.' });
   }
+
+  const creds = await fetchAdminCredentials();
+
+  // 관리자 계정 확인
+  const adminId = (!creds.migrationNeeded && creds.login_id) ? creds.login_id : ADMIN_EMAIL;
+  let adminOk = false;
+  if (email === adminId) {
+    adminOk = (!creds.migrationNeeded && creds.login_password_hash)
+      ? verifyPassword(password, creds.login_password_hash)
+      : (password === ADMIN_PASSWORD);
+  }
+  if (adminOk) {
+    const token = generateToken({ email, role: 'admin' });
+    res.setHeader('Set-Cookie', `auth_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+    return res.json({ success: true, role: 'admin' });
+  }
+
+  // 게스트 계정 확인 (guest_enabled가 명시적으로 false가 아닌 이상 기본 활성화)
+  const guestEnabled = creds.migrationNeeded ? true : (creds.guest_enabled !== false);
+  if (guestEnabled) {
+    const guestId = (!creds.migrationNeeded && creds.guest_login_id) ? creds.guest_login_id : 'guest';
+    let guestOk = false;
+    if (email === guestId) {
+      guestOk = (!creds.migrationNeeded && creds.guest_password_hash)
+        ? verifyPassword(password, creds.guest_password_hash)
+        : (password === 'guest');
+    }
+    if (guestOk) {
+      const token = generateToken({ email, role: 'guest' });
+      res.setHeader('Set-Cookie', `auth_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+      return res.json({ success: true, role: 'guest' });
+    }
+  }
+
   res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
 });
 
@@ -493,8 +582,9 @@ app.post('/api/register-biometric', (req, res) => {
   if (email !== req.user.email) {
     return res.status(400).json({ error: '이메일 정보가 일치하지 않습니다.' });
   }
-  // 30일 유효한 생체인식 전용 서명 토큰 발급
-  const token = generateToken({ email, biometric: true }, 30 * 24 * 60 * 60 * 1000);
+  // 30일 유효한 생체인식 전용 서명 토큰 발급 (로그인 당시의 role을 그대로 이어받는다 — 게스트가
+  // 생체인식을 등록해도 계속 조회 전용으로 유지되도록)
+  const token = generateToken({ email, biometric: true, role: req.user.role || 'admin' }, 30 * 24 * 60 * 60 * 1000);
   return res.json({ success: true, token });
 });
 
@@ -505,9 +595,9 @@ app.post('/api/login-biometric', (req, res) => {
   }
   const payload = verifyToken(token);
   if (payload && payload.email === email && payload.biometric === true) {
-    const loginToken = generateToken({ email });
+    const loginToken = generateToken({ email, role: payload.role || 'admin' });
     res.setHeader('Set-Cookie', `auth_token=${loginToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
-    return res.json({ success: true });
+    return res.json({ success: true, role: payload.role || 'admin' });
   }
   res.status(401).json({ error: '생체인식 정보가 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.' });
 });
@@ -520,6 +610,102 @@ app.post('/api/logout', (req, res) => {
 app.get('/logout', (req, res) => {
   res.setHeader('Set-Cookie', 'auth_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
   res.redirect('/login.html');
+});
+
+// 현재 로그인 세션 정보 (관리자/게스트 여부 확인용 — 화면에서 조회 전용 배너 표시 등에 사용)
+app.get('/api/session', (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  res.json({ email: req.user.email, role: req.user.role || 'admin' });
+});
+
+// 로그인 아이디/비밀번호 설정 조회 (비밀번호 해시는 절대 응답에 포함하지 않는다)
+app.get('/api/users/login-settings', async (req, res) => {
+  try {
+    const creds = await fetchAdminCredentials();
+    if (creds.migrationNeeded) {
+      return res.json({ migration_needed: true, login_id: ADMIN_EMAIL, guest_login_id: 'guest', guest_enabled: true });
+    }
+    res.json({
+      migration_needed: false,
+      login_id: creds.login_id || ADMIN_EMAIL,
+      guest_login_id: creds.guest_login_id || 'guest',
+      guest_enabled: creds.guest_enabled !== false
+    });
+  } catch (err) {
+    console.error('Failed to get login settings:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 로그인 아이디/비밀번호 변경 (관리자 계정용 아이디/비밀번호는 본인 확인을 위해 current_password 필요,
+// 게스트 계정은 관리자만 이 API에 접근 가능하므로(게스트는 checkAuth에서 쓰기 자체가 막힘) 별도 확인 없이 변경)
+app.put('/api/users/login-settings', async (req, res) => {
+  try {
+    const { current_password, new_login_id, new_password, guest_login_id, new_guest_password, guest_enabled } = req.body || {};
+    const creds = await fetchAdminCredentials();
+    if (creds.migrationNeeded) {
+      return res.status(400).json({
+        error: 'members 테이블에 로그인 설정 컬럼이 없습니다. Supabase SQL Editor에서 다음을 실행하세요: ALTER TABLE members ADD COLUMN IF NOT EXISTS login_id text, ADD COLUMN IF NOT EXISTS login_password_hash text, ADD COLUMN IF NOT EXISTS guest_login_id text, ADD COLUMN IF NOT EXISTS guest_password_hash text, ADD COLUMN IF NOT EXISTS guest_enabled boolean;'
+      });
+    }
+
+    const patch = {};
+
+    // 관리자 아이디/비밀번호 변경 — 본인 확인을 위해 현재 비밀번호가 맞는지 먼저 검사
+    if ((new_login_id !== undefined && String(new_login_id).trim()) || (new_password !== undefined && new_password)) {
+      const currentOk = creds.login_password_hash
+        ? verifyPassword(current_password || '', creds.login_password_hash)
+        : (current_password === ADMIN_PASSWORD);
+      if (!currentOk) {
+        return res.status(401).json({ error: '현재 비밀번호가 올바르지 않습니다.' });
+      }
+      if (new_login_id !== undefined && String(new_login_id).trim()) {
+        patch.login_id = String(new_login_id).trim();
+      }
+      if (new_password !== undefined && new_password) {
+        if (String(new_password).length < 4) {
+          return res.status(400).json({ error: '새 비밀번호는 4자 이상이어야 합니다.' });
+        }
+        patch.login_password_hash = hashPassword(new_password);
+      }
+    }
+
+    // 게스트 계정 설정
+    if (guest_login_id !== undefined && String(guest_login_id).trim()) {
+      patch.guest_login_id = String(guest_login_id).trim();
+    }
+    if (new_guest_password !== undefined && new_guest_password) {
+      if (String(new_guest_password).length < 4) {
+        return res.status(400).json({ error: '게스트 비밀번호는 4자 이상이어야 합니다.' });
+      }
+      patch.guest_password_hash = hashPassword(new_guest_password);
+    }
+    if (guest_enabled !== undefined) {
+      patch.guest_enabled = !!guest_enabled;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: '변경할 항목이 없습니다.' });
+    }
+
+    const { data, error } = await supabase
+      .from('members')
+      .update(patch)
+      .eq('name', '강효근')
+      .select('login_id, guest_login_id, guest_enabled')
+      .single();
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      login_id: data.login_id || ADMIN_EMAIL,
+      guest_login_id: data.guest_login_id || 'guest',
+      guest_enabled: data.guest_enabled !== false
+    });
+  } catch (err) {
+    console.error('Failed to update login settings:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/run-migration-temp', async (req, res) => {

@@ -17,6 +17,19 @@
     const regenerateCalendarTokenBtn = document.getElementById('regenerateCalendarToken');
     const calendarMigrationNotice = document.getElementById('calendarMigrationNotice');
 
+    // [2026-08-27] 로그인 계정 관리 (관리자 아이디/비밀번호 + 게스트 조회 전용 계정)
+    const adminNewLoginId = document.getElementById('adminNewLoginId');
+    const adminNewPassword = document.getElementById('adminNewPassword');
+    const adminCurrentPassword = document.getElementById('adminCurrentPassword');
+    const adminCredStatus = document.getElementById('adminCredStatus');
+    const saveAdminCredBtn = document.getElementById('saveAdminCred');
+    const guestEnabledToggle = document.getElementById('guestEnabledToggle');
+    const guestLoginIdInput = document.getElementById('guestLoginId');
+    const guestNewPassword = document.getElementById('guestNewPassword');
+    const guestCredStatus = document.getElementById('guestCredStatus');
+    const saveGuestCredBtn = document.getElementById('saveGuestCred');
+    const loginSettingsMigrationNotice = document.getElementById('loginSettingsMigrationNotice');
+
     function renderCalendarFeed(profile) {
         if (!calendarFeedUrlInput) return;
         if (!profile || profile.calendar_migration_needed) {
@@ -183,6 +196,128 @@
         }
     }
 
+    // [2026-08-27] 로그인 계정 설정 로드/저장 — GET/PUT /api/users/login-settings
+    // 비밀번호 자체는 절대 서버에서 내려주지 않으므로(해시조차 응답 안 함), 화면에는 아이디/게스트 허용
+    // 여부만 채워두고 비밀번호 입력칸은 항상 빈 상태로 시작한다("바꾸고 싶을 때만 입력").
+    async function loadLoginSettings() {
+        try {
+            const res = await fetch('/api/users/login-settings');
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || `불러오기 실패 (HTTP ${res.status})`);
+
+            if (loginSettingsMigrationNotice) {
+                loginSettingsMigrationNotice.classList.toggle('hidden', !body.migration_needed);
+            }
+            if (adminNewLoginId) adminNewLoginId.placeholder = body.login_id ? `현재: ${body.login_id}` : '변경하지 않으려면 비워두세요';
+            if (guestLoginIdInput) guestLoginIdInput.value = body.guest_login_id || 'guest';
+            if (guestEnabledToggle) guestEnabledToggle.checked = body.guest_enabled !== false;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function saveAdminCred() {
+        const newLoginId = adminNewLoginId.value.trim();
+        const newPassword = adminNewPassword.value;
+        const currentPassword = adminCurrentPassword.value;
+
+        if (!newLoginId && !newPassword) {
+            adminCredStatus.textContent = '아이디 또는 비밀번호 중 하나 이상 입력해 주세요.';
+            adminCredStatus.className = 'text-xs font-bold text-red-500';
+            return;
+        }
+        if (!currentPassword) {
+            adminCredStatus.textContent = '본인 확인을 위해 현재 비밀번호를 입력해 주세요.';
+            adminCredStatus.className = 'text-xs font-bold text-red-500';
+            return;
+        }
+        if (newPassword && newPassword.length < 4) {
+            adminCredStatus.textContent = '새 비밀번호는 4자 이상이어야 합니다.';
+            adminCredStatus.className = 'text-xs font-bold text-red-500';
+            return;
+        }
+
+        adminCredStatus.textContent = '저장 중...';
+        adminCredStatus.className = 'text-xs font-bold text-slate-400';
+        loginSettingsMigrationNotice.classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/users/login-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_login_id: newLoginId || undefined,
+                    new_password: newPassword || undefined
+                })
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                if ((body.error || '').includes('컬럼')) loginSettingsMigrationNotice.classList.remove('hidden');
+                throw new Error(body.error || `저장 실패 (HTTP ${res.status})`);
+            }
+            adminCredStatus.textContent = '✓ 저장되었습니다. 다음 로그인부터 새 정보로 로그인해 주세요.';
+            adminCredStatus.className = 'text-xs font-bold text-emerald-600 dark:text-emerald-400';
+            adminNewLoginId.value = '';
+            adminNewPassword.value = '';
+            adminCurrentPassword.value = '';
+            await loadLoginSettings();
+        } catch (e) {
+            console.error(e);
+            adminCredStatus.textContent = '✗ ' + e.message;
+            adminCredStatus.className = 'text-xs font-bold text-red-500';
+        }
+    }
+
+    async function saveGuestCred() {
+        const guestLoginId = guestLoginIdInput.value.trim();
+        const newGuestPassword = guestNewPassword.value;
+        const guestEnabled = guestEnabledToggle.checked;
+
+        if (!guestLoginId) {
+            guestCredStatus.textContent = '게스트 아이디를 입력해 주세요.';
+            guestCredStatus.className = 'text-xs font-bold text-red-500';
+            return;
+        }
+        if (newGuestPassword && newGuestPassword.length < 4) {
+            guestCredStatus.textContent = '게스트 비밀번호는 4자 이상이어야 합니다.';
+            guestCredStatus.className = 'text-xs font-bold text-red-500';
+            return;
+        }
+
+        guestCredStatus.textContent = '저장 중...';
+        guestCredStatus.className = 'text-xs font-bold text-slate-400';
+        loginSettingsMigrationNotice.classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/users/login-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guest_login_id: guestLoginId,
+                    new_guest_password: newGuestPassword || undefined,
+                    guest_enabled: guestEnabled
+                })
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                if ((body.error || '').includes('컬럼')) loginSettingsMigrationNotice.classList.remove('hidden');
+                throw new Error(body.error || `저장 실패 (HTTP ${res.status})`);
+            }
+            guestCredStatus.textContent = '✓ 저장되었습니다.';
+            guestCredStatus.className = 'text-xs font-bold text-emerald-600 dark:text-emerald-400';
+            guestNewPassword.value = '';
+            await loadLoginSettings();
+        } catch (e) {
+            console.error(e);
+            guestCredStatus.textContent = '✗ ' + e.message;
+            guestCredStatus.className = 'text-xs font-bold text-red-500';
+        }
+    }
+
+    if (saveAdminCredBtn) saveAdminCredBtn.addEventListener('click', saveAdminCred);
+    if (saveGuestCredBtn) saveGuestCredBtn.addEventListener('click', saveGuestCred);
+
     districtsInput.addEventListener('input', renderChips);
     saveBtn.addEventListener('click', save);
     if (copyCalendarUrlBtn) copyCalendarUrlBtn.addEventListener('click', copyCalendarUrl);
@@ -190,4 +325,5 @@
 
     loadDatalists();
     load();
+    loadLoginSettings();
 })();
