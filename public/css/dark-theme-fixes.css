@@ -770,3 +770,31 @@ html:not(.dark) #nodeAddressContainer {
     background-color: #1d4ed8 !important;
     color: #ffffff !important;
 }
+
+/* "엑셀 저장 항목 선택" 모달(#excelExportModal) — 다른 모달(#memberAddModal, #familySearchModal
+   등)과 같은 memberAddForm 계열 마크업을 쓰면서도 이 모달만 다크모드 전용 규칙이 빠져 있어서,
+   카드/체크박스 항목 배경이 밝게 남아 헤더(초록 → 파랑으로 통일)와 어울리지 않고 가독성도
+   떨어지던 문제. 다른 모달과 동일한 색상 값으로 맞춘다 (2026-08-27). */
+.dark #excelExportModal .bg-white {
+    background-color: #131B2E !important;
+    border-color: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+.dark #excelExportModal .bg-white:hover {
+    background-color: #1c2740 !important;
+}
+.dark #excelExportModal .bg-slate-50,
+.dark #excelExportModal .bg-slate-50\/10 {
+    background-color: #0B0F19 !important;
+    border-color: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+.dark #excelExportModal .text-slate-700 {
+    color: #e2e8f0 !important;
+}
+.dark #excelExportModal .text-slate-400 {
+    color: #94a3b8 !important;
+}
+.dark #excelExportModal .border-slate-100 {
+    border-color: #1e293b !important;
+}

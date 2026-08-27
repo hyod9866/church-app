@@ -893,6 +893,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = {};
                 if (selectedCols.includes('name')) row['이름'] = m.name || '';
                 if (selectedCols.includes('bs')) row['성별'] = m.bs === 'B' ? '형제' : (m.bs === 'S' ? '자매' : m.bs || '');
+                if (selectedCols.includes('attendance_rate')) {
+                    const rateInfo = attendanceRates[m.id];
+                    row['출석률'] = (rateInfo && rateInfo.totalCount > 0)
+                        ? `${rateInfo.attendCount}/${rateInfo.totalCount} (${rateInfo.ratePercent}%)`
+                        : '-';
+                }
                 if (selectedCols.includes('birth_year')) row['생년'] = m.birth_year || '';
                 if (selectedCols.includes('salvation_date')) row['구원일'] = m.salvation_date || '';
                 if (selectedCols.includes('church')) row['소속 교회'] = m.church || '서울중앙교회';

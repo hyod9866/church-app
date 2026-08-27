@@ -1273,6 +1273,12 @@ app.post('/api/members', async (req, res) => {
       district: b.district || '구역정보없음',
       marital_status: maritalStatusVal
     };
+    // [2026-08-27] "성도 정보 수정" 모달에 성도/전도대상 구분 필드가 새로 생기면서 등록 폼에도
+    // 함께 전송된다. body에 실제로 포함된 경우에만 반영해서(생략 시 DB 기본값 'member' 유지),
+    // 이 값을 안 보내는 다른 호출부(엑셀 일괄 등록 등)가 있어도 조용히 덮어쓰지 않도록 한다.
+    if (b.member_status !== undefined && b.member_status !== '') {
+      insertData.member_status = b.member_status;
+    }
 
     const { data, error } = await supabase
       .from('members')
@@ -1388,6 +1394,14 @@ app.put('/api/members/:id', async (req, res) => {
       parish: b.parish,
       marital_status: maritalStatusVal
     };
+    // [2026-08-27] "성도 정보 수정" 모달에 성도/전도대상(member_status) 구분 필드가 새로 생겼다.
+    // 예전엔 이 화면이 이 값을 아예 안 보내서, 상담 등록 화면 말고는 전도대상 상태를 고칠 방법이
+    // 없었다(잘못 전도대상으로 저장된 성도를 되돌릴 수도 없었음). body에 실제로 포함된 경우에만
+    // 반영해서, 이 값을 보내지 않는 다른 PUT 호출부(엑셀 일괄 등록의 가족관계 갱신,
+    // "교제안나옴" 처리 등)가 기존 값을 조용히 지워버리지 않도록 한다.
+    if (b.member_status !== undefined && b.member_status !== '') {
+      updateData.member_status = b.member_status;
+    }
 
     // 소속 교회/교구/구역 + 직분/부서 변경 감지를 위해 "수정 전" 값을 먼저 조회
     // (반드시 update()보다 먼저 실행해야 함 — update 이후에 조회하면 이미 새 값으로 덮어써진 뒤라
