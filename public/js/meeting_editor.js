@@ -215,6 +215,9 @@ let currentMeetingData = null;
 let clickedInstanceDate = null;
 let editorSaveCallback = null;
 let editorDeleteCallback = null;
+// [2026-08-27] 구분="심방"일 때 "+ 성도 검색"으로 대상자를 고르면 모임 명칭에 "OOO 심방"으로
+// 자동 채워주기 위한 플래그. 사용자가 모임 명칭을 직접 수정하면 더 이상 자동으로 덮어쓰지 않는다.
+let titleManuallyEdited = false;
 
 // HTML Elements Injection
 function injectEditorElements() {
@@ -1292,7 +1295,23 @@ function bindEditorEvents() {
         }
         extraSearchModal.classList.add('hidden');
         extraSearchInput.value = '';
+
+        // [2026-08-27] 구분="심방"인 신규 등록에서 성도 검색으로 대상자를 고르면
+        // 모임 명칭에 "OOO 심방"을 자동으로 채운다. 수정 중이거나(기존 명칭 보존),
+        // 사용자가 이미 모임 명칭을 직접 고쳐둔 경우에는 자동으로 덮어쓰지 않는다.
+        const currentType = document.getElementById('meetingType')?.value || '';
+        const titleInput = document.getElementById('meetingTitle');
+        if (!currentMeetingId && currentType === '심방' && titleInput && !titleManuallyEdited) {
+            titleInput.value = `${name} 심방`;
+        }
     };
+
+    // 사용자가 모임 명칭을 직접 타이핑하면, 이후로는 성도 검색으로 자동 채우지 않는다
+    // (프로그램적으로 .value를 설정하는 경우엔 input 이벤트가 발생하지 않으므로 자동 채움과 충돌하지 않음)
+    const titleInputEl = document.getElementById('meetingTitle');
+    if (titleInputEl) {
+        titleInputEl.addEventListener('input', () => { titleManuallyEdited = true; });
+    }
 
     // Sermon preset tags click listener
     const tagsListContainer = document.getElementById('sermonTagsList');
@@ -1794,6 +1813,15 @@ async function refreshAttendanceList() {
             if (memoField) memoField.classList.remove('hidden');
         } else {
             if (memoField) memoField.classList.add('hidden');
+        }
+
+        // [2026-08-27] 구분="심방"이면, 아래 "추가 인원 > 성도 검색"으로 대상자를 고르면
+        // 모임 명칭이 자동으로 채워진다는 걸 placeholder로 안내 (신규 등록일 때만)
+        const titleInputForHint = document.getElementById('meetingTitle');
+        if (titleInputForHint) {
+            titleInputForHint.placeholder = (currentType === '심방' && !currentMeetingId)
+                ? '아래 "성도 검색"으로 자동 입력되거나 직접 입력하세요'
+                : '예: 581구역모임';
         }
     }
     
@@ -2777,6 +2805,7 @@ window.openGlobalMeetingEditor = async function(id, onSave, onDelete, defaultDat
 
 async function openMeetingModal(id, date, title = '', type = '', sermon = '', memo = '', church = '', end_date = '', startTime = '', endTime = '', rrule_type = 'none', rrule_end_date = '', sermon_bible = '', sermon_tags = '') {
     currentMeetingId = id; extraAttendees = [];
+    titleManuallyEdited = false; // 새로 모달을 열 때마다 "심방 성도 검색 → 명칭 자동 채움" 상태 초기화
     window.__meetingModalOwner = 'editor'; // 저장/삭제 이중 실행 방지: 이 모듈이 모달 소유
     resetCounselingPanel();
 

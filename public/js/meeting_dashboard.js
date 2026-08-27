@@ -482,15 +482,24 @@ async function fetchAttendanceCharts() {
             'ythChart': {}   // 청년모임
         };
         
+        // [2026-08-27] 구역모임이 없던 달에 교구전체모임이 있었으면, 그 교구전체모임 참석자를
+        // 구역별로 나눠 그 달의 구역모임 수치 대신 채우기 위한 보조 데이터.
+        // - hasRealDistrictMeeting: 실제 구역모임(또는 제목에 '구역'이 명시된 교구전체모임)이
+        //   이미 있었던 (구역, monthKey) 조합 — 이 조합은 보정 대상에서 제외한다.
+        // - genericParishMeetings: 제목에 '조'/'구역' 표시가 없어 지금까지는 어느 차트에도
+        //   집계되지 못하고 통째로 누락되던 일반 교구전체모임들 — 2차 패스에서 구역모임 보정에 사용한다.
+        const hasRealDistrictMeeting = {};
+        const genericParishMeetings = [];
+
         meetings.forEach(m => {
             const mDate = new Date(m.date);
             if (mDate.getMonth() === currentMonth && mDate.getFullYear() === currentYear) {
                 if(m.type.includes('심방')) visitations++;
                 if(m.type.includes('상담')) counselings++;
             }
-            
+
             const monthKey = `${mDate.getFullYear()}-${String(mDate.getMonth()+1).padStart(2, '0')}`;
-            
+
             let chartKey = null;
             let groupName = '전체';
             let useDistrictBreakdown = false; // 통합 모임: 구역별(581/582/583)로 쪼개 집계
@@ -504,6 +513,9 @@ async function fetchAttendanceCharts() {
                 } else if ((m.title || '').includes('구역')) {
                     chartKey = 'distChart';  // 전체구역모임 → 구역모임 차트에 구역별로 분배
                     useDistrictBreakdown = true;
+                } else {
+                    // 제목에 구역/조 표시가 없는 일반 교구전체모임 — 2차 패스에서 구역모임 보정용으로 사용
+                    genericParishMeetings.push({ m, monthKey });
                 }
             } else if (m.type.includes('전체조모임')) {
                 // 전체로 진행된 조모임 → 조모임 차트에 구역별로 분배
@@ -557,6 +569,10 @@ async function fetchAttendanceCharts() {
                         if (categories[chartKey][subGroupName][monthKey] !== null) {
                             categories[chartKey][subGroupName][monthKey].att += count;
                             categories[chartKey][subGroupName][monthKey].test += (distTestimonies[dist] || 0);
+                            if (chartKey === 'distChart') {
+                                if (!hasRealDistrictMeeting[subGroupName]) hasRealDistrictMeeting[subGroupName] = {};
+                                hasRealDistrictMeeting[subGroupName][monthKey] = true;
+                            }
                         }
                     });
                 } else {
@@ -570,15 +586,51 @@ async function fetchAttendanceCharts() {
                             }
                         });
                     }
-                    
+
                     if (categories[chartKey][groupName][monthKey] !== null) {
                         categories[chartKey][groupName][monthKey].att += (m.attendee_count || 0);
                         categories[chartKey][groupName][monthKey].test += (m.testimony_count || 0);
+                        if (chartKey === 'distChart') {
+                            if (!hasRealDistrictMeeting[groupName]) hasRealDistrictMeeting[groupName] = {};
+                            hasRealDistrictMeeting[groupName][monthKey] = true;
+                        }
                     }
                 }
             }
         });
-        
+
+        // [2026-08-27] 2차 패스: 제목에 구역/조 표시가 없던 일반 교구전체모임들을, 구역모임
+        // 기록이 없는 (구역, 달) 조합에 한해 그 교구전체모임에 참석한 구역별 인원으로 채운다.
+        // 실제 구역모임 기록이 이미 있는 달은 hasRealDistrictMeeting 덕분에 건드리지 않는다.
+        genericParishMeetings.forEach(({ m, monthKey }) => {
+            if (!monthKeys12.includes(monthKey)) return;
+            const distAttendees = m.district_attendees || {};
+            const distTestimonies = m.district_testimonies || {};
+
+            Object.keys(distAttendees).forEach(dist => {
+                if (dist === '미지정') return; // 소속 구역이 없는 인원은 특정 구역에 배분할 수 없음
+                const count = distAttendees[dist] || 0;
+                if (count === 0) return;
+
+                const normDist = dist.replace('구역', '').trim() || dist;
+                if (hasRealDistrictMeeting[normDist] && hasRealDistrictMeeting[normDist][monthKey]) return;
+
+                if (!categories['distChart'][normDist]) {
+                    categories['distChart'][normDist] = {};
+                    monthKeys12.forEach(mk => {
+                        categories['distChart'][normDist][mk] = (mk > currentMonthKey) ? null : { att: 0, test: 0 };
+                    });
+                }
+
+                const cell = categories['distChart'][normDist][monthKey];
+                if (cell !== null) {
+                    cell.att += count;
+                    cell.test += (distTestimonies[dist] || 0);
+                    cell.fallback = true; // 구역모임이 아니라 교구전체모임으로 대체 집계된 값임을 표시
+                }
+            });
+        });
+
         document.getElementById('kpiVisitations').textContent = visitations + '건';
         document.getElementById('kpiCounselings').textContent = counselings + '건';
         // [2026-07-06] 예전엔 '78%' 하드코딩(Placeholder)이었음 — 실제 데이터로 계산해 채운다.
@@ -923,7 +975,8 @@ async function fetchAttendanceCharts() {
                                     const raw = catData[group][mk];
                                     if(raw && raw.att > 0) {
                                         const rate = Math.round((raw.test / raw.att)*100);
-                                        return `${group}: ${raw.att}명 (간증 ${raw.test}명, ${rate}%)`;
+                                        const fallbackNote = raw.fallback ? ' [교구전체모임으로 대체 집계]' : '';
+                                        return `${group}: ${raw.att}명 (간증 ${raw.test}명, ${rate}%)${fallbackNote}`;
                                     }
                                     return `${group}: ${context.parsed.y}명`;
                                 }

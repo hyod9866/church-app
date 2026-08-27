@@ -389,14 +389,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const colorPalette = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0d9488'];
         const districtDatasets = districtIds.map((dist, idx) => {
             const data = new Array(12).fill(0);
+            const hasRealDistrictMeeting = new Array(12).fill(false);
+
+            // 1차: 실제 그 구역의 구역모임 기록만 집계 (예전과 동일한 로직)
             allMeetings.forEach(m => {
                 if (m.type.includes('구역모임') && m.type.includes(dist)) {
                     const month = new Date(m.date).getMonth();
+                    hasRealDistrictMeeting[month] = true;
                     let count = 0;
                     allMembers.forEach(mem => { if (mem.attendance[m.id]?.is_present) count++; });
                     data[month] += count;
                 }
             });
+
+            // [2026-08-27] 2차 보정: 그 달에 이 구역의 구역모임 기록이 아예 없는데 교구전체모임은
+            // 있었다면, 그 교구전체모임에 참석한 이 구역 소속 성도 수를 구역모임 수치 대신 채운다
+            // (구역모임이 교구전체모임으로 대체 진행된 달을 통계에서 누락시키지 않기 위함).
+            // 실제 구역모임 기록이 있는 달은 건드리지 않는다 — 대체가 아니라 보정이므로.
+            allMeetings.forEach(m => {
+                if (!m.type.includes('교구전체모임')) return;
+                const month = new Date(m.date).getMonth();
+                if (hasRealDistrictMeeting[month]) return;
+                let count = 0;
+                allMembers.forEach(mem => {
+                    const normMemberDist = (mem.district || '').replace(/[^0-9]/g, '');
+                    if (normMemberDist === dist && mem.attendance[m.id]?.is_present) count++;
+                });
+                data[month] += count;
+            });
+
             const color = colorPalette[idx % colorPalette.length];
             return { label: `${dist}구역`, data, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
         });
