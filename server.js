@@ -1013,12 +1013,19 @@ app.get('/api/members/attendance-rates', async (req, res) => {
   try {
     const today = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
+    // [2026-08-27] '상담'(counseling) 타입 meeting은 POST /api/counseling이 등록 편의상
+    // attendance row(is_present:1)를 함께 만들어 두는데, 이게 여기서 걸러지지 않으면
+    // "상담 받은 횟수"가 "출석한 횟수"로 잘못 합산되어 성도현황 표의 출석률이 부풀려진다.
+    // 클라이언트 쪽 member-profile.js의 renderAttendanceTab은 이미 '상담'을 제외하고 있으므로,
+    // 여기서도 동일하게 제외해서 성도현황 표 ↔ 성도 상세정보 출석 히스토리 수치를 일치시킨다.
+    // (상담과 출석은 다른 개념 — 상담 기록은 counseling_history 쪽에서 별도로 집계된다.)
     let { data: meetings, error: meetErr } = await supabase
       .from('meetings')
       .select('id, type, date, leader_church_snapshot, leader_parish_snapshot')
       .neq('type', '심방')
       .neq('type', '설교')
       .neq('type', '외부설교')
+      .neq('type', '상담')
       .lte('date', today);
 
     // leader_*_snapshot 컬럼이 아직 없는 DB(마이그레이션 전)에서도 동작하도록 재시도
@@ -1029,6 +1036,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
         .neq('type', '심방')
         .neq('type', '설교')
         .neq('type', '외부설교')
+        .neq('type', '상담')
         .lte('date', today);
       meetings = retry.data;
       meetErr = retry.error;
