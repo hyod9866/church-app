@@ -730,6 +730,15 @@
             await updateFormParishOptions(formParish, churchId, currentMemberData.parish);
             await updateFormDistrictOptions(formParish, formDistrict, currentMemberData.parish, currentMemberData.district);
 
+            // [2026-08-29] "구역 (기록으로 변경)" 필드는 <select>가 아니라 항상 잠겨있는
+            // <input readonly name="district">라서, 위 formDistrict(select[name="district"] 로만 찾음)는
+            // 이 화면에서는 항상 null이라 updateFormDistrictOptions가 값을 채우지 못하고 그냥 return되어
+            // 화면엔 플레이스홀더("인적사항 기록에서 변경하세요")만 보였음.
+            // 구역 변경은 여전히 하단 "인적사항 기록"에서만 가능해야 하므로(그래서 위 formChurch/formParish처럼
+            // disabled를 껐다 켰다 하는 로직에는 일부러 섞지 않음), 표시값만 실제 구역으로 별도로 채워준다.
+            const formDistrictDisplay = memberAddForm.querySelector('input[name="district"]');
+            if (formDistrictDisplay) formDistrictDisplay.value = currentMemberData.district || '';
+
             const ipts = memberAddForm.querySelectorAll('input, select, textarea');
             ipts.forEach(i => {
                 if (i.name === 'church' || i.name === 'parish' || i.name === 'district') return;
