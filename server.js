@@ -3653,6 +3653,381 @@ app.delete('/api/counseling/member/:memberId', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────
+// 심방 관리 전용 API (meetings + attendance 기반, /api/counseling과 동일한 패턴)
+// 2026-08-29 심방관리 화면 UI를 상담관리와 동일한 구조로 개편하면서 신설.
+// 심방은 성도의 집에 방문해 "설교"와 "상담"을 함께 하는 경우가 많아, testimony_snapshot에
+// [설교] ... [상담] ... 두 구간으로 나누어 저장하고 parseVisitationContent()로 다시 분리해 돌려준다.
+// 상담관리와 마찬가지로 meetings+attendance 방식을 그대로 쓰기 때문에 기존 출석 통계(달력, 출석
+// 현황, 모임 현황)에 영향을 주지 않는다.
+// ─────────────────────────────────────────────────────────
+
+function parseVisitationContent(rawText) {
+  let text = rawText || '';
+
+  // 1. 해시태그(#\S+) 추출 (중복 제거)
+  const tagRegex = /#\S+/g;
+  const tagsFound = text.match(tagRegex) || [];
+  const uniqueTags = Array.from(new Set(tagsFound));
+  text = text.replace(tagRegex, '');
+
+  // 2. [설교] ... / [상담] ... 구간 분리
+  let sermon_content = '';
+  let counseling_content = '';
+  const sermonMatch = text.match(/\[설교\]([\s\S]*?)(?=\[상담\]|$)/);
+  const counselingMatch = text.match(/\[상담\]([\s\S]*)$/);
+  if (sermonMatch) sermon_content = sermonMatch[1].trim();
+  if (counselingMatch) counseling_content = counselingMatch[1].trim();
+
+  // 마커가 전혀 없는 데이터(예: 메인화면 일정등록 등 다른 경로로 만들어진 심방 기록)는
+  // 전체 텍스트를 상담 내용 칸에 그대로 표시해 내용이 유실되지 않도록 한다.
+  if (!sermonMatch && !counselingMatch && text.trim()) {
+    counseling_content = text.trim();
+  }
+
+  return { tags: uniqueTags.join(' '), sermon_content, counseling_content };
+}
+
+// GET /api/visitation — 심방 이력이 있는 성도/전도대상 전체 목록
+app.get('/api/visitation', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  try {
+    const members = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
+        .eq('status', 'active')
+        .range(from, to)
+    );
+    const memberMap = {};
+    (members || []).forEach(m => { memberMap[m.id] = m; });
+
+    const visitationMeetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('id, title, date, memo, type')
+        .eq('type', '심방')
+        .range(from, to)
+    );
+    const visitationMeetingIds = (visitationMeetings || []).map(m => m.id);
+    const meetingMap = {};
+    (visitationMeetings || []).forEach(m => { meetingMap[m.id] = m; });
+
+    let attRows = [];
+    if (visitationMeetingIds.length > 0) {
+      attRows = await fetchAllRows((from, to) =>
+        supabase
+          .from('attendance')
+          .select('member_id, meeting_id, testimony_snapshot, is_present')
+          .in('meeting_id', visitationMeetingIds)
+          .range(from, to)
+      );
+    }
+
+    const memberVisitationMap = {};
+    attRows.forEach(a => {
+      const meet = meetingMap[a.meeting_id];
+      if (!meet) return;
+      if (!memberVisitationMap[a.member_id]) memberVisitationMap[a.member_id] = [];
+      const parsed = parseVisitationContent(a.testimony_snapshot);
+      const parsedMemo = parseMemoField(meet.memo);
+      memberVisitationMap[a.member_id].push({
+        date: meet.date,
+        sermon_content: parsed.sermon_content,
+        counseling_content: parsed.counseling_content,
+        tags: parsed.tags,
+        source: 'meeting',
+        session_id: `m_${a.meeting_id}`,
+        meeting_id: a.meeting_id,
+        is_present: a.is_present,
+        member_status: memberMap[a.member_id]?.member_status || 'member',
+        lead_target: parsedMemo.lead_target,
+        remark_memo: parsedMemo.remark_memo
+      });
+    });
+
+    const result = members
+      .filter(m => memberVisitationMap[m.id] && memberVisitationMap[m.id].length > 0)
+      .map(m => {
+        const sessions = (memberVisitationMap[m.id] || []).sort((a, b) => b.date.localeCompare(a.date));
+        const last = sessions[0];
+        return {
+          id: m.id,
+          name: m.name,
+          district: m.district,
+          category: m.category,
+          position: m.position,
+          family_relation: m.family_relation,
+          bs: m.bs,
+          church: m.church,
+          parish: m.parish,
+          salvation_date: m.salvation_date,
+          member_status: m.member_status || 'member',
+          visitation_count: sessions.length,
+          last_visitation_date: last ? last.date : null,
+          last_visitation_sermon: last ? last.sermon_content : null,
+          last_visitation_content: last ? last.counseling_content : null,
+          last_visitation_tags: last ? last.tags : null,
+          last_visitation_session_id: last ? last.session_id : null,
+          all_sessions: sessions
+        };
+      });
+
+    res.json(result);
+  } catch (err) {
+    console.error('GET /api/visitation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/visitation/:memberId — 특정 성도(또는 전도대상)의 심방 이력 전체 (날짜 역순)
+app.get('/api/visitation/:memberId', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  const { memberId } = req.params;
+  try {
+    const { data: memberData, error: memErr } = await supabase
+      .from('members')
+      .select('member_status')
+      .eq('id', memberId)
+      .maybeSingle();
+    if (memErr) throw memErr;
+    const memberStatus = memberData?.member_status || 'member';
+
+    const visitationMeetings = await fetchAllRows((from, to) =>
+      supabase
+        .from('meetings')
+        .select('id, title, date, memo')
+        .eq('type', '심방')
+        .range(from, to)
+    );
+    const meetingMap = {};
+    (visitationMeetings || []).forEach(m => { meetingMap[m.id] = m; });
+    const meetingIds = (visitationMeetings || []).map(m => m.id);
+
+    let sessions = [];
+    if (meetingIds.length > 0) {
+      const { data: attData, error: attErr } = await supabase
+        .from('attendance')
+        .select('meeting_id, testimony_snapshot, is_present')
+        .eq('member_id', memberId)
+        .in('meeting_id', meetingIds);
+      if (attErr) throw attErr;
+
+      (attData || []).forEach(a => {
+        const meet = meetingMap[a.meeting_id];
+        if (!meet) return;
+        const parsed = parseVisitationContent(a.testimony_snapshot);
+        const parsedMemo = parseMemoField(meet.memo);
+        const rawTitle = meet.title || '';
+        const visiteeName = rawTitle.replace(/\s*심방\s*$/, '').trim();
+
+        sessions.push({
+          date: meet.date,
+          sermon_content: parsed.sermon_content,
+          counseling_content: parsed.counseling_content,
+          tags: parsed.tags,
+          source: 'meeting',
+          session_id: `m_${a.meeting_id}`,
+          meeting_id: a.meeting_id,
+          name: visiteeName,
+          lead_target: parsedMemo.lead_target,
+          remark_memo: parsedMemo.remark_memo,
+          member_status: memberStatus
+        });
+      });
+    }
+
+    sessions.sort((a, b) => b.date.localeCompare(a.date));
+    res.json(sessions);
+  } catch (err) {
+    console.error('GET /api/visitation/:memberId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/visitation — 새 심방 등록 (meetings + attendance 방식으로 저장 → 달력에도 자동 표시)
+app.post('/api/visitation', async (req, res) => {
+  const { member_id, name, date, sermon_content, counseling_content, tags, remark_memo, lead_target, church, parish, district, category, bs, member_status } = req.body;
+  if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
+  if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
+  if (!(sermon_content && sermon_content.trim()) && !(counseling_content && counseling_content.trim())) {
+    return res.status(400).json({ error: '설교 내용 또는 상담 내용 중 하나는 입력해야 합니다.' });
+  }
+
+  try {
+    let finalMemberId = member_id;
+
+    // 1. 성도 조회 또는 신규 생성 (상담관리와 동일 패턴 — 전도대상도 members 테이블에
+    //    member_status='evangelism'으로 생성되어 심방 대상 등록이 가능함)
+    if (!finalMemberId) {
+      const { data: existing, error: findErr } = await supabase
+        .from('members').select('id').eq('name', name.trim()).eq('status', 'active');
+      if (findErr) throw findErr;
+
+      if (existing && existing.length > 0) {
+        finalMemberId = existing[0].id;
+      } else {
+        const insertData = {
+          name: name.trim(),
+          church: church ? church.trim() : '교회정보없음',
+          parish: parish ? parish.trim() : '교구정보없음',
+          district: district ? district.trim() : '구역정보없음',
+          category: category || '모름',
+          bs: bs || 'S',
+          status: 'active',
+          member_status: member_status || 'member'
+        };
+        const { data: newMem, error: insErr } = await supabase
+          .from('members').insert(insertData).select('id').single();
+        if (insErr) throw insErr;
+        finalMemberId = newMem.id;
+
+        if (church || parish || district) {
+          const remarkStr = `${church || '교회정보없음'} > ${parish || '교구정보없음'} > ${district || '구역정보없음'}`;
+          await supabase.from('member_records').insert({ member_id: finalMemberId, date, status: 'CHURCH_IN', remark: remarkStr });
+        }
+      }
+    } else {
+      const updateFields = {};
+      if (category) updateFields.category = category;
+      if (bs) updateFields.bs = bs;
+      if (Object.keys(updateFields).length > 0) {
+        await supabase.from('members').update(updateFields).eq('id', finalMemberId);
+      }
+    }
+
+    // 2. meetings에 심방 일정 생성
+    const meetingTitle = `${name} 심방`;
+    const finalLead = lead_target ? lead_target.trim() : '';
+    const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+
+    const { data: newMeeting, error: meetErr } = await supabase
+      .from('meetings')
+      .insert({ title: meetingTitle, date, type: '심방', memo: finalMemo })
+      .select('id').single();
+    if (meetErr) throw meetErr;
+
+    // 3. attendance에 해당 성도 testimony_snapshot으로 저장 (태그 + [설교]/[상담] 내용)
+    let fullContent = '';
+    if (tags && tags.trim()) fullContent = tags.trim() + '\n';
+    fullContent += `[설교] ${(sermon_content || '').trim()}\n[상담] ${(counseling_content || '').trim()}`;
+
+    const { error: attErr } = await supabase
+      .from('attendance')
+      .insert({
+        meeting_id: newMeeting.id,
+        member_id: finalMemberId,
+        is_present: 1,
+        testimony_snapshot: fullContent || null,
+        district_snapshot: district || null,
+        category_snapshot: category || null
+      });
+    if (attErr) throw attErr;
+
+    res.json({ success: true, member_id: finalMemberId, meeting_id: newMeeting.id });
+  } catch (err) {
+    console.error('POST /api/visitation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/visitation/:sessionId — 심방 세션 수정
+app.put('/api/visitation/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  const { date, sermon_content, counseling_content, tags, remark_memo, lead_target, member_status, member_id, category, bs } = req.body;
+
+  try {
+    let fullContent = '';
+    if (tags && tags.trim()) fullContent = tags.trim() + '\n';
+    fullContent += `[설교] ${(sermon_content || '').trim()}\n[상담] ${(counseling_content || '').trim()}`;
+
+    const memberId = member_id ? parseInt(member_id) : null;
+    if (memberId) {
+      const updateFields = {};
+      if (member_status) updateFields.member_status = member_status;
+      if (category) updateFields.category = category;
+      if (bs) updateFields.bs = bs;
+      if (Object.keys(updateFields).length > 0) {
+        await supabase.from('members').update(updateFields).eq('id', memberId);
+      }
+    }
+
+    if (sessionId.startsWith('m_')) {
+      const meetingId = sessionId.replace('m_', '');
+      const finalLead = lead_target ? lead_target.trim() : '';
+      const finalMemo = `[lead:${finalLead}] ${(remark_memo || '').trim()}`;
+      await supabase.from('meetings').update({ date, memo: finalMemo }).eq('id', meetingId);
+
+      if (memberId) {
+        const { data: existing } = await supabase.from('attendance')
+          .select('id').eq('meeting_id', meetingId).eq('member_id', memberId).maybeSingle();
+        if (existing) {
+          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).eq('id', existing.id);
+        }
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/visitation/:sessionId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/visitation/:sessionId — 개별 심방 기록 삭제
+app.delete('/api/visitation/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    if (sessionId.startsWith('m_')) {
+      const meetingId = sessionId.replace('m_', '');
+      const { error: attErr } = await supabase.from('attendance').delete().eq('meeting_id', meetingId);
+      if (attErr) throw attErr;
+      const { error: meetErr } = await supabase.from('meetings').delete().eq('id', meetingId);
+      if (meetErr) throw meetErr;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/visitation/:sessionId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/visitation/member/:memberId — 특정 성도의 모든 심방 이력 삭제
+app.delete('/api/visitation/member/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  try {
+    const meetings = await fetchAllRows((from, to) =>
+      supabase.from('meetings').select('id').eq('type', '심방').range(from, to)
+    );
+    const visitationMeetingIds = (meetings || []).map(m => m.id);
+
+    if (visitationMeetingIds.length > 0) {
+      const { data: attRows, error: attGetErr } = await supabase
+        .from('attendance')
+        .select('meeting_id')
+        .eq('member_id', memberId)
+        .in('meeting_id', visitationMeetingIds);
+      if (attGetErr) throw attGetErr;
+
+      const targetMeetingIds = (attRows || []).map(a => a.meeting_id);
+      if (targetMeetingIds.length > 0) {
+        const { error: attDelErr } = await supabase
+          .from('attendance').delete().eq('member_id', memberId).in('meeting_id', targetMeetingIds);
+        if (attDelErr) throw attDelErr;
+
+        const { error: meetDelErr } = await supabase
+          .from('meetings').delete().in('id', targetMeetingIds);
+        if (meetDelErr) throw meetDelErr;
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/visitation/member/:memberId error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/members/filter', async (req, res) => {
     const { q } = req.query;
     try {

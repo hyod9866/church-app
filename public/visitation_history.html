@@ -49,7 +49,7 @@
             border: 1px solid #1e293b !important;
             box-shadow: none !important;
         }
-        
+
         /* 심방 리스트 카드 다크모드 */
         .dark #visitationList > div {
             background-color: #131B2E !important;
@@ -107,7 +107,7 @@
             color: #2dd4bf !important;
             border-color: rgba(13, 148, 136, 0.1) !important;
         }
-        
+
         /* 상세 모달 다크모드 */
         .dark #memberHistoryModal .bg-white {
             background-color: #131B2E !important;
@@ -127,7 +127,7 @@
         .dark #memberBasicInfo .text-gray-400 {
             color: #64748b !important;
         }
-        
+
         /* 모달 탭 */
         .dark .member-tab-btn {
             color: #94a3b8 !important;
@@ -139,7 +139,7 @@
         .dark .border-slate-250, .dark .border-slate-200 {
             border-color: #1e293b !important;
         }
-        
+
         /* 모달 테이블 */
         .dark #memberHistoryModal table {
             background-color: #131B2E !important;
@@ -162,9 +162,9 @@
         .dark #memberHistoryModal tbody td.border-r {
             border-right-color: #1e293b !important;
         }
-        
-        /* 심방 기록 카드 */
-        .dark #visitationMemoList > div {
+
+        /* 심방/상담 기록 카드 */
+        .dark #visitationMemoList > div, .dark #counselingMemoList > div {
             background-color: #131B2E !important;
             border-color: #1e293b !important;
         }
@@ -179,7 +179,7 @@
             background-color: #0B0F19 !important;
             border-color: #1e293b !important;
         }
-        
+
         /* 상세 모달 다크모드 가독성 극대화 */
         .dark #memberHistoryModal .bg-white {
             background-color: #131B2E !important;
@@ -193,7 +193,7 @@
             background-color: #131B2E !important;
             border-color: #1e293b !important;
         }
-        
+
         .dark #memberBasicInfo h3 {
             color: #f8fafc !important;
         }
@@ -204,7 +204,7 @@
         .dark #memberBasicInfo .bg-slate-100\/70 {
             background-color: #1e293b !important;
         }
-        
+
         /* 모달 내 각각의 정보 카드 블록 (구원일, 연락처, 주소, 가족 등) */
         .dark #memberBasicInfo .bg-slate-50\/50 {
             background-color: #1e293b !important;
@@ -226,7 +226,7 @@
         .dark #memberBasicInfo .bg-slate-50\/50 .text-[9px].text-slate-400 {
             color: #94a3b8 !important;
         }
-        
+
         /* 봉사 내역 카드 */
         .dark #memberBasicInfo .bg-blue-50\/40 {
             background-color: rgba(30, 58, 138, 0.25) !important;
@@ -238,7 +238,7 @@
         .dark #memberBasicInfo .bg-blue-50\/40 .text-blue-900 {
             color: #60a5fa !important;
         }
-        
+
         /* 간증 및 메모 카드 */
         .dark #memberBasicInfo .bg-yellow-50\/30 {
             background-color: rgba(245, 158, 11, 0.1) !important;
@@ -250,7 +250,7 @@
         .dark #memberBasicInfo #testimonyViewMode {
             color: #cbd5e1 !important;
         }
-        
+
         /* 가족관계 뱃지 링크 */
         .dark #memberBasicInfo .bg-blue-50.text-blue-700 {
             background-color: #1e293b !important;
@@ -262,7 +262,7 @@
             color: #cbd5e1 !important;
             border-color: #334155 !important;
         }
-        
+
         /* 출석 탭 내 필터 카드 버튼 */
         .dark .att-filter-card {
             background-color: #1e293b !important;
@@ -298,7 +298,7 @@
             border-color: rgba(59, 130, 246, 0.4) !important;
             color: #60a5fa !important;
         }
-        
+
         /* 가족 관계 선택 모달 다크모드 가독성 */
         .dark #familyRelationSelectModal .bg-white {
             background-color: #131B2E !important;
@@ -361,6 +361,12 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
             outline: none !important;
         }
+
+        /* 심방 주제 태그 프리셋 관리 모달 스크롤바 */
+        #visitationTagListMember::-webkit-scrollbar,
+        #visitationTagListEvangelism::-webkit-scrollbar {
+            width: 4px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -416,7 +422,7 @@
         </div>
     </header>
 
-    <!-- Nav (Legacy title kept for visual but simplified) -->
+    <!-- Nav -->
     <nav class="bg-white border-b shadow-sm sticky top-[60px] z-40">
         <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -427,20 +433,21 @@
             </div>
         </div>
     </nav>
+
     <main class="max-w-5xl mx-auto px-4 py-6">
         <!-- Filters -->
         <div class="bg-white dark:bg-[#131B2E] p-4 rounded-xl shadow-sm mb-6 border border-gray-200 dark:border-slate-800 flex flex-wrap gap-4 items-end">
             <!-- 통합 검색창 -->
-            <div class="flex-[2] min-w-[260px]">
-                <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">통합 검색 (이름, 날짜, 키워드)</label>
+            <div class="flex-[2] min-w-[240px]">
+                <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">통합 검색 (이름, 날짜, 심방 키워드)</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </span>
-                    <input type="text" id="searchInput" class="w-full border border-gray-200 dark:border-slate-700/60 rounded-lg pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:ring-blue-500 focus:border-blue-500 focus:outline-none" placeholder="이름, 날짜(YYYY-MM-DD), 상담 키워드 검색...">
+                    <input type="text" id="searchInput" class="w-full border border-gray-200 dark:border-slate-700/60 rounded-lg pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:ring-blue-500 focus:border-blue-500 focus:outline-none" placeholder="이름, 날짜(YYYY-MM-DD), 심방 키워드 검색...">
                 </div>
             </div>
-            <div class="flex-1 min-w-[160px]">
+            <div class="flex-1 min-w-[140px]">
                 <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">구역 선택</label>
                 <select id="districtFilter" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:border-slate-700/60 dark:text-slate-200">
                     <option value="전체">전체 구역</option>
@@ -449,18 +456,23 @@
                     <option value="583">583구역</option>
                 </select>
             </div>
+            <!-- 정렬 옵션 -->
             <div class="flex-1 min-w-[160px]">
                 <label class="block text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase mb-1 ml-1">정렬</label>
                 <select id="sortOption" class="w-full border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:border-slate-700/60 dark:text-slate-200">
                     <option value="last_visitation" selected>최근 심방순 (가장 최근부터)</option>
                     <option value="oldest">오래된 심방순 (관리 필요 우선)</option>
                     <option value="name">이름순 (가나다)</option>
-                    <option value="visited_first">기록 있는 분 먼저</option>
-                    <option value="not_visited_first">기록 없는 분 먼저</option>
                     <option value="count">심방 횟수순</option>
                 </select>
             </div>
-
+            <!-- + 새 심방 등록 버튼 -->
+            <div class="shrink-0">
+                <button id="openNewVisitationBtn" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white px-4 py-2 rounded-lg text-sm font-black shadow-md flex items-center justify-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    새 심방 등록
+                </button>
+            </div>
         </div>
 
         <!-- List Container -->
@@ -472,7 +484,7 @@
         </div>
     </main>
 
-    <!-- Member History Modal (Copied from index.html / member_management.html, adjusted for read-only) -->
+    <!-- Member History Modal (심방 기록이 기본 탭으로 오도록 상담관리와 동일한 순서 배치) -->
     <div id="memberHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-2 md:p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh] border border-slate-100">
             <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-5 flex justify-between items-center shadow-md">
@@ -481,21 +493,39 @@
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            
+
             <div class="p-5 md:p-6 overflow-y-auto flex-1 bg-slate-50/50 no-scrollbar">
                 <!-- 프로필 헤로 영역 -->
                 <div id="memberBasicInfo" class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200"></div>
-                
+
                 <!-- HRM 탭 바 -->
                 <div class="flex border-b border-slate-200 mb-6 gap-2">
-                    <button type="button" class="member-tab-btn active px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 outline-none" data-tab="attendance">출석 히스토리</button>
-                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="visitation">심방 기록</button>
+                    <button type="button" class="member-tab-btn active px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 outline-none" data-tab="visitation">심방 기록</button>
                     <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="counseling">상담 기록</button>
+                    <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="attendance">출석 히스토리</button>
                     <button type="button" class="member-tab-btn px-4 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700 outline-none" data-tab="records">인적사항 기록</button>
                 </div>
 
                 <!-- 탭 콘텐츠 영역 -->
-                <div id="tabContent_attendance" class="member-tab-content">
+                <div id="tabContent_visitation" class="member-tab-content">
+                    <div id="visitationHistorySection" class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-teal-700 dark:text-teal-400 border-l-4 border-teal-500 pl-2.5 text-sm">심방 기록</h4>
+                        <div id="visitationMemoList" class="space-y-3">
+                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabContent_counseling" class="member-tab-content hidden">
+                    <div id="counselingHistorySection" class="mb-6">
+                        <h4 class="font-extrabold mb-3 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-500 pl-2.5 text-sm">개인 상담 기록</h4>
+                        <div id="counselingMemoList" class="space-y-3">
+                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tabContent_attendance" class="member-tab-content hidden">
                     <div class="mb-6">
                         <h4 class="font-extrabold mb-3 text-slate-850 border-l-4 border-emerald-600 pl-2.5 flex justify-between items-center text-sm">
                             <span>출석 히스토리</span>
@@ -516,24 +546,6 @@
                                 </thead>
                                 <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="tabContent_visitation" class="member-tab-content hidden">
-                    <div id="visitationHistorySection" class="mb-6">
-                        <h4 class="font-extrabold mb-3 text-teal-700 border-l-4 border-teal-500 pl-2.5 text-sm">심방 기록</h4>
-                        <div id="visitationMemoList" class="space-y-3">
-                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">기록이 없습니다.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="tabContent_counseling" class="member-tab-content hidden">
-                    <div id="counselingHistorySection" class="mb-6">
-                        <h4 class="font-extrabold mb-3 text-indigo-700 dark:text-indigo-400 border-l-4 border-indigo-500 pl-2.5 text-sm">개인 상담 기록</h4>
-                        <div id="counselingMemoList" class="space-y-3">
-                            <p class="text-slate-400 italic text-xs text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">기록이 없습니다.</p>
                         </div>
                     </div>
                 </div>
@@ -571,7 +583,7 @@
     <!-- 성도 정보 수정 모달: 다른 화면(메인/성도현황/상담관리)과 동일한 공용 모달(member-edit.js) -->
     <div id="memberAddModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[110] p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-5 flex justify-between items-center shadow-md">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-5 flex justify-between items-center shadow-md">
                 <h3 class="text-lg font-black tracking-tight">성도 정보 수정</h3>
                 <button id="closeAddMemberModal" class="text-white/80 hover:text-white transition-colors duration-150">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -634,13 +646,6 @@
                     <div>
                         <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">구원일</label>
                         <input type="date" name="salvation_date" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-medium outline-none transition duration-150">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider" title="상담 등록 없이도 여기서 바로 성도/전도대상 상태를 고칠 수 있습니다.">성도 구분</label>
-                        <select name="member_status" class="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-sm font-bold bg-white outline-none transition duration-150 cursor-pointer">
-                            <option value="member" selected>성도</option>
-                            <option value="evangelism">전도대상</option>
-                        </select>
                     </div>
                     <div class="col-span-2">
                         <label class="block text-sm font-bold text-slate-600 mb-1 uppercase tracking-wider">연락처</label>
@@ -777,13 +782,13 @@
                 </button>
                 <div class="flex gap-2.5 ml-auto">
                     <button type="button" id="cancelAddMember" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 active:scale-[0.98] transition shadow-sm">취소</button>
-                    <button type="submit" id="memberSubmitBtn" form="memberAddForm" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm active:scale-[0.98] transition shadow-sm">수정 완료</button>
+                    <button type="submit" id="memberSubmitBtn" form="memberAddForm" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold text-sm active:scale-[0.98] transition shadow-sm">수정 완료</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <!-- Settings Modal (Dynamic Theme Settings + 심방 태그 프리셋 관리) -->
     <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
         <!-- Backdrop -->
         <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -816,6 +821,16 @@
                         </button>
                     </div>
                 </div>
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <label class="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider block mb-2">심방 관리 설정</label>
+                    <button type="button" id="openVisitationTagManageBtn" class="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/40 text-xs font-bold text-slate-700 dark:text-slate-200 transition duration-150 cursor-pointer">
+                        <span class="flex items-center gap-2">
+                            <span class="text-base">🏷️</span>
+                            심방 태그 프리셋 관리
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+                    </button>
+                </div>
             </div>
             <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
                 <p class="text-[10px] font-bold text-slate-400 dark:text-slate-550">Pastoral Ministry Program v1.2.0</p>
@@ -823,54 +838,232 @@
         </div>
     </div>
 
-    <!-- Record Side Panel -->
-    <div id="recordSidePanel" class="fixed inset-0 z-[200] hidden">
-        <!-- Backdrop -->
-        <div id="recordPanelBackdrop" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0"></div>
-        
-        <!-- Panel -->
-        <div id="recordPanelContent" class="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-[#0B0F19] shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
-            <!-- Header -->
-            <div class="p-5 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-                <div>
-                    <h3 id="recordPanelTitle" class="text-lg font-black tracking-tight">기록 작성</h3>
-                    <p id="recordPanelSubtitle" class="text-xs text-slate-300 font-medium mt-0.5"></p>
-                </div>
-                <button id="closeRecordPanelBtn" class="text-slate-300 hover:text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <!-- Visitation Tag Manage Modal (심방 태그 프리셋 관리) -->
+    <div id="visitationTagManageModal" class="fixed inset-0 z-[350] flex items-center justify-center hidden p-4">
+        <div id="visitationTagManageModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="bg-white dark:bg-[#131B2E] w-full max-w-lg rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center bg-slate-50/50 dark:bg-[#0B0F19]/50">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm md:text-base flex items-center gap-2">
+                    <span class="text-lg">🏷️</span>
+                    심방 태그 프리셋 관리
+                </h3>
+                <button id="closeVisitationTagManageModal" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            
-            <!-- Body -->
-            <div class="flex-1 overflow-y-auto p-5 md:p-6 bg-slate-50/50 dark:bg-[#131B2E]/50">
-                <form id="recordForm" class="space-y-5">
-                    <input type="hidden" id="recordMemberId">
-                    <input type="hidden" id="recordType">
-                    
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">날짜</label>
-                        <input type="date" id="recordDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200" required>
-                    </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">메모 / 기록 내용</label>
-                        <textarea id="recordMemo" rows="8" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-y text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="기록할 내용을 입력하세요..."></textarea>
+            <div class="p-5 overflow-y-auto space-y-6 flex-1 text-xs">
+                <!-- 탭 이동 (성도 vs 전도대상) -->
+                <div class="flex border-b border-slate-200 dark:border-slate-800">
+                    <button type="button" id="visitationTagTabMemberBtn" class="flex-1 py-2 font-black border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 text-center transition-colors">
+                        성도 심방 태그
+                    </button>
+                    <button type="button" id="visitationTagTabEvangelismBtn" class="flex-1 py-2 font-black border-b-2 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-center transition-colors">
+                        전도대상 심방 태그
+                    </button>
+                </div>
+
+                <!-- 성도 태그 영역 -->
+                <div id="visitationTagSecMember" class="space-y-3">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
+                        성도 심방 등록 시 버튼으로 클릭할 수 있는 태그 목록입니다.
+                    </p>
+                    <div id="visitationTagListMember" class="flex flex-wrap gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 min-h-[60px] max-h-40 overflow-y-auto">
+                        <!-- JS 렌더링 -->
                     </div>
-                </form>
+                    <div class="flex gap-2 pt-1">
+                        <input type="text" id="newVisitationMemberTagInput" class="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="새 태그 이름 입력...">
+                        <button type="button" id="addVisitationMemberTagBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl transition duration-150 text-xs whitespace-nowrap">
+                            + 추가
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 전도대상 태그 영역 -->
+                <div id="visitationTagSecEvangelism" class="space-y-3 hidden">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
+                        전도대상 심방 등록 시 버튼으로 클릭할 수 있는 태그 목록입니다.
+                    </p>
+                    <div id="visitationTagListEvangelism" class="flex flex-wrap gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 min-h-[60px] max-h-40 overflow-y-auto">
+                        <!-- JS 렌더링 -->
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <input type="text" id="newVisitationEvangelismTagInput" class="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/20" placeholder="새 태그 이름 입력...">
+                        <button type="button" id="addVisitationEvangelismTagBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold px-3.5 py-2 rounded-xl transition duration-150 text-xs whitespace-nowrap">
+                            + 추가
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Footer -->
-            <div class="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-[#0B0F19] flex gap-3">
-                <button type="button" id="cancelRecordBtn" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">취소</button>
-                <button type="button" id="saveRecordBtn" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-md flex justify-center items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+
+            <div class="p-4 bg-slate-50 dark:bg-[#0B0F19]/80 border-t border-slate-100 dark:border-slate-800/60 flex justify-end gap-2 shrink-0">
+                <button type="button" id="cancelVisitationTagManageBtn" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+                    취소
+                </button>
+                <button type="button" id="saveVisitationTagManageBtn" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md transition">
                     저장하기
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- New Visitation Modal (새 심방 등록) -->
+    <div id="newVisitationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[150] p-4">
+        <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] border border-slate-100 dark:border-slate-800/80">
+            <div class="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-5 flex justify-between items-center shadow-md shrink-0">
+                <h3 class="text-lg font-black tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-house-chimney"></i>
+                    새 심방 기록 등록
+                </h3>
+                <button id="closeNewVisitationModal" class="text-blue-200 hover:text-white transition-colors duration-150">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
 
+            <div class="p-5 md:p-6 overflow-y-auto flex-1 no-scrollbar">
+                <form id="newVisitationForm" class="space-y-4">
+                    <input type="hidden" id="visitationMemberId" value="">
+
+                    <!-- 이름 입력 및 자동완성 -->
+                    <div class="relative">
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">심방 대상자 이름 *</label>
+                        <input type="text" id="visitationName" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200" placeholder="이름을 입력하세요..." required autocomplete="off">
+                        <div id="visitationNameSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
+                    </div>
+
+                    <!-- 신규 성도 여부 알림 뱃지 -->
+                    <div id="newVisitationMemberBadgeContainer" class="hidden">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-lg border border-amber-200/50 dark:border-amber-900/50">
+                            <i class="fa-solid fa-circle-info"></i>
+                            DB에 등록되지 않은 신규 성도입니다. 심방 저장 시 자동으로 등록됩니다.
+                        </span>
+                    </div>
+
+                    <!-- ★ 성도 구분 선택 -->
+                    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700/40 space-y-3">
+                        <span class="block text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-tag text-[9px]"></i> 성도 구분
+                            <span class="text-slate-400 dark:text-slate-500 font-medium normal-case">(자동입력 · 직접 변경 가능)</span>
+                        </span>
+
+                        <!-- 1층: 소속 단독 배치 -->
+                        <div>
+                            <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">소속</span>
+                            <div id="visitationCategoryBtnGroup" class="flex flex-wrap gap-1.5">
+                                <button type="button" data-val="봉사회" class="visitation-category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">봉사회</button>
+                                <button type="button" data-val="청년회" class="visitation-category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">청년회</button>
+                                <button type="button" data-val="어머니회" class="visitation-category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">어머니회</button>
+                                <button type="button" data-val="은장회" class="visitation-category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">은장회</button>
+                                <button type="button" data-val="모름" class="visitation-category-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">모름</button>
+                            </div>
+                            <input type="hidden" id="visitationCategory" value="">
+                        </div>
+
+                        <!-- 2층: 성별, 상태 배치 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 성별 -->
+                            <div>
+                                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
+                                <div id="visitationBsBtnGroup" class="flex gap-1.5">
+                                    <button type="button" data-val="B" class="visitation-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-300 transition-all">형제</button>
+                                    <button type="button" data-val="S" class="visitation-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-pink-400 hover:text-pink-600 dark:hover:border-pink-400 dark:hover:text-pink-300 transition-all">자매</button>
+                                </div>
+                                <input type="hidden" id="visitationBs" value="">
+                            </div>
+                            <!-- 상태 -->
+                            <div>
+                                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상태</span>
+                                <div id="visitationMemberStatusBtnGroup" class="flex gap-1.5">
+                                    <button type="button" data-val="member" class="visitation-member-status-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 transition-all active-member-status">성도</button>
+                                    <button type="button" data-val="evangelism" class="visitation-member-status-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-400 hover:text-orange-600 dark:hover:border-orange-400 dark:hover:text-orange-300 transition-all">전도대상</button>
+                                </div>
+                                <input type="hidden" id="visitationMemberStatus" value="member">
+                            </div>
+                        </div>
+
+                        <!-- 3층: 인도대상 / 모임 / 특징 배치 -->
+                        <div>
+                            <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">인도대상 / 모임 / 특징 <span class="font-normal text-slate-400 dark:text-slate-500">(@인도대상, #모임·특징 — 여러 개 가능)</span></span>
+                            <input type="text" id="visitationLeadTarget" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="예: @홍길동 #581구역 #신혼가정">
+                        </div>
+                    </div>
+
+                    <!-- 소속 (선택 사항) -->
+                    <div>
+                        <span class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2">소속 정보 (선택 사항)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <!-- 교회 자동완성 검색 -->
+                            <div class="relative">
+                                <input type="hidden" id="visitationChurchId" value="">
+                                <input type="text" id="visitationChurchInput" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="교회 검색..." autocomplete="off">
+                                <div id="visitationChurchSuggestions" class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#131B2E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto hidden"></div>
+                            </div>
+                            <div>
+                                <select id="visitationParish" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" disabled>
+                                    <option value="">교구 선택</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="visitationDistrict" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-2.5 py-2.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" disabled>
+                                    <option value="">구역 선택</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 심방 날짜 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">심방 날짜 *</label>
+                        <input type="date" id="visitationDate" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200" required>
+                    </div>
+
+                    <!-- ★ 심방 주제 해시태그 -->
+                    <div class="bg-blue-50/60 dark:bg-blue-950/20 rounded-xl p-3.5 border border-blue-100 dark:border-blue-900/30">
+                        <label class="block text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-hashtag text-[9px]"></i> 심방 주제 태그 (복수 선택 가능)
+                        </label>
+                        <div id="visitationTagsBtnGroup" class="flex flex-wrap gap-1.5 mb-2.5">
+                            <!-- JS 렌더링 (성도/전도대상 상태에 따라 동적으로 채워짐) -->
+                        </div>
+                        <!-- 직접 입력 태그 -->
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="visitationTagCustomInput" class="flex-1 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="직접 입력 (예: 안부, 건강 등)">
+                            <button type="button" id="addVisitationCustomTagBtn" class="px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-700 transition-all whitespace-nowrap">+ 추가</button>
+                        </div>
+                        <!-- 선택된 태그 미리보기 -->
+                        <div id="visitationSelectedTagsPreview" class="mt-2 min-h-[24px] flex flex-wrap gap-1.5"></div>
+                        <input type="hidden" id="visitationTagsValue" value="">
+                    </div>
+
+                    <!-- 설교 내용 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">설교 내용</label>
+                        <textarea id="visitationSermonContent" rows="4" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="심방 중 전한 설교(말씀)의 핵심 내용을 작성하세요..."></textarea>
+                    </div>
+
+                    <!-- 상담 내용 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">상담 내용</label>
+                        <textarea id="visitationCounselingContent" rows="4" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="심방 중 나눈 상담의 핵심 내용을 작성하세요..."></textarea>
+                    </div>
+
+                    <!-- 비고 / 메모 -->
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1.5">비고 / 기타 메모</label>
+                        <input type="text" id="visitationRemark" class="w-full border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="기타 특이사항이나 비고를 입력하세요...">
+                    </div>
+                </form>
+            </div>
+
+            <div class="p-5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-[#131B2E]/60 flex gap-3 shrink-0">
+                <button type="button" id="cancelNewVisitationBtn" class="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">취소</button>
+                <button type="button" id="saveNewVisitationBtn" class="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-md flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-check"></i>
+                    심방 저장하기
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal: Map Integration App Selector (member-profile.js 공용) -->
     <div id="mapModal" class="fixed inset-0 bg-[#0f172a]/65 hidden z-[110] flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
@@ -930,7 +1123,7 @@
     <script src="/js/mandatory_meeting.js?v=1"></script>
     <script src="/js/member-profile.js?v=2"></script>
     <script src="/js/member-edit.js?v=1"></script>
-    <script src="/js/visitation_history.js?v=shared-profile-1"></script>
+    <script src="/js/visitation_history.js?v=counsel-parity-1"></script>
     <script src="/js/guest-banner.js?v=1"></script>
 </body>
 </html>
