@@ -1071,12 +1071,15 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
         }
     }
 
-    // 간증 섹션
+    // 간증 섹션 — [2026-08-29] 상담 기록은 "간증"이 아니라 상담 내용 그 자체이므로, 상담 유형일 때는
+    // 제목을 "상담 내용"으로 바꿔 표시한다 (인원수 표기도 불필요 — 상담 대상자 1명의 내용이므로).
     let testimonyHtml = '';
+    const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
     if (pWithTestimony.length > 0) {
+        const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${pWithTestimony.length}명)`;
         testimonyHtml = `
             <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
-                <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
+                <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
                 <div class="space-y-2">
                     ${pWithTestimony.map(a => `
                         <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
@@ -1122,13 +1125,15 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 </div>
             ` : ''}
             ${formatMeetingMemoContent(memo)}
-            
+
+            ${isCounselingType ? '' : `
             <div class="mb-4">
                 <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
                 <div class="flex flex-wrap gap-1">
                     ${p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name}</span>`).join('')}
                 </div>
             </div>
+            `}
 
             ${absentHtml}
             ${testimonyHtml}

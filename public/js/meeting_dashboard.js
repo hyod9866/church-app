@@ -1219,11 +1219,15 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
         }
 
         // Testimony matching app.js
+        // [2026-08-29] 상담 기록은 "간증"이 아니라 상담 내용 그 자체이므로, 상담 유형일 때는
+        // 제목을 "상담 내용"으로 바꿔 표시한다 (인원수 표기도 불필요).
+        const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
         let testimonyHtml = '';
         if (pWithTestimony.length > 0) {
+            const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${pWithTestimony.length}명)`;
             testimonyHtml = `
                 <div class="mt-6 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800/80">
-                    <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">간증 (${pWithTestimony.length}명)</h4>
+                    <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
                     <div class="space-y-2">
                         ${pWithTestimony.map(a => `
                             <div class="p-2.5 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
@@ -1281,13 +1285,15 @@ async function showSingleMeetingDetail(m, groupName, monthLabel) {
                     </div>
                 ` : ''}
                 ${typeof formatMeetingMemoContent === 'function' ? formatMeetingMemoContent(m.memo) : (displayMemo ? `<div class="mb-4"><h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>메모</h4><p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${displayMemo}</p></div>` : '')}
-                
+
+                ${isCounselingType ? '' : `
                 <div class="mb-4">
                     <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
                     <div class="flex flex-wrap gap-1">
                         ${p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.members?.name || a.name || ''}</span>`).join('')}
                     </div>
                 </div>
+                `}
             `;
         }
 
