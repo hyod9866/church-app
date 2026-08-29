@@ -415,6 +415,16 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
             outline: none !important;
         }
+
+        /* [2026-08-29] 아이패드 등 iOS Safari는 주소창/툴바가 화면 일부를 가리는데, 100vh는
+           이 툴바가 사라졌을 때 기준(가장 큰 값)으로 계산된다. 그래서 body(h-screen, 100vh)
+           안에 꽉 채워 배치한 화면(예: "신규 일정 등록" 패널)의 맨 아래(저장 버튼 등)가
+           실제로 눈에 보이는 화면보다 아래로 밀려나고, body에는 overflow-hidden이 걸려있어
+           스크롤로도 닿을 수 없었다. dvh(동적 뷰포트 높이)는 실제로 보이는 영역 기준이라
+           이 문제가 해결된다. dvh를 모르는 구형 브라우저는 이 선언 자체가 무시되어 기존
+           100vh 그대로 동작하므로 별도 분기 없이 안전하게 폴백된다. */
+        body.h-screen { height: 100dvh !important; }
+        .modal-max-h-safe { max-height: 90dvh !important; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-[#0B0F19] h-screen flex flex-col overflow-hidden">
@@ -735,7 +745,7 @@
 
     <!-- Member Detail Modal -->
     <div id="memberHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] modal-max-h-safe overflow-hidden">
             <div class="p-5 bg-gradient-to-r from-slate-800 to-slate-900 text-white flex justify-between items-center shadow-md">
                 <h3 class="font-black text-lg">성도 상세 정보</h3>
                 <button id="closeHistoryModal" class="text-slate-400 hover:text-white transition-colors duration-150"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -814,7 +824,7 @@
 
     <!-- Member Add Modal -->
     <div id="memberAddModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[110] p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] modal-max-h-safe">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-5 flex justify-between items-center shadow-md">
                 <h3 class="text-lg font-black tracking-tight">성도 정보 수정</h3>
                 <button id="closeAddMemberModal" class="text-white/80 hover:text-white transition-colors duration-150">
@@ -1110,7 +1120,7 @@
     <!-- Counseling Tag Manage Modal (상담 태그 프리셋 관리) -->
     <div id="counselingTagManageModal" class="fixed inset-0 z-[350] flex items-center justify-center hidden p-4">
         <div id="counselingTagManageModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <div class="bg-white dark:bg-[#131B2E] w-full max-w-lg rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh]">
+        <div class="bg-white dark:bg-[#131B2E] w-full max-w-lg rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh] modal-max-h-safe">
             <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center bg-slate-50/50 dark:bg-[#0B0F19]/50">
                 <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm md:text-base flex items-center gap-2">
                     <span class="text-lg">🏷️</span>
