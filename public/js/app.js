@@ -610,7 +610,16 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('memberCount').textContent = `${members.length}명`;
             memberList.innerHTML = members.map(m => {
                 const age = m.birth_year ? (2026 - parseInt(m.birth_year) + 1) : '-';
-                const ps = (m.position || '').split(',').filter(p=>p.trim()).map(p => `<span class="bg-yellow-100 dark:bg-yellow-950/25 text-yellow-800 dark:text-yellow-450 text-[9px] px-1 py-0.5 rounded border border-yellow-200 dark:border-yellow-900/35 font-black ml-0.5">${p}</span>`).join('');
+                // [2026-08-29] 기존 dark:bg-yellow-950/25 + dark:text-yellow-450 조합은 다크모드에서
+                // "dark:text-yellow-450" 클래스가 유효하지 않은 색상(존재하지 않는 450 shade)이라 실제로는
+                // 아무 CSS도 생성되지 않고, dark-theme-fixes.css의 커스텀 오버라이드 훅(.text-yellow-450)도
+                // "dark:" 접두사가 붙은 클래스명과는 문자열이 달라 매칭되지 않아 무시됨.
+                // 결과적으로 라이트모드용 text-yellow-800(어두운 갈색)이 그대로 남고, 배경은 거의 안 보이는
+                // 짙은 반투명 배경이라 "배경도 어둡고 글자도 어두운" 저대비 조합이 되어 잘 안 보였음.
+                // → 다른 뱃지(전도대상 등)와 동일하게, 훅에 의존하지 않는 표준 Tailwind dark: 클래스만으로
+                // 구성해 라이트/다크 모두에서 확실한 대비를 보장. 색상도 direction 표시용 파랑(구역)/분홍·파랑(성별)/
+                // 주황(전도대상)과 겹치지 않는 인디고 계열로 분리해 한눈에 구분되게 함.
+                const ps = (m.position || '').split(',').filter(p=>p.trim()).map(p => `<span class="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 text-[9px] px-1 py-0.5 rounded border border-indigo-200 dark:border-indigo-700/40 font-black ml-0.5">${p}</span>`).join('');
                 const evBadge = m.member_status === 'evangelism' ? `<span class="text-[9px] font-black text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700/40 px-1 py-0.5 rounded ml-0.5">전도대상</span>` : '';
                 return `<div class="p-3 border dark:border-slate-850/50 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800/50 cursor-pointer transition member-item shadow-sm bg-white dark:bg-[#131B2E] mb-2" data-id="${m.id}"><div class="flex justify-between items-start mb-1"><div><span class="font-bold text-blue-800 dark:text-blue-400 text-[16px]">${m.name}</span><span class="text-[11px] text-gray-400 dark:text-slate-500 ml-1">(${age}세)</span>${ps}${evBadge}</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded ${m.bs === 'B' ? 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400'}">${m.bs || '-'}</div></div><div class="text-[12px] text-gray-600 dark:text-slate-300 font-bold"><span class="${getDC(m.district)} px-1.5 py-0.5 rounded-full border dark:border-none text-[10px] mr-1">${m.district || ''}</span>${m.category || ''}</div>${m.family_relation ? `<div class="text-[11px] text-gray-400 dark:text-slate-500 mt-1 truncate">가족: ${m.family_relation}</div>` : ''}</div>`;
             }).join('');
