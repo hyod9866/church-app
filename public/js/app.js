@@ -206,7 +206,13 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         aspectRatio: 1.35, // Adjust slightly to maintain vertical grid aesthetic
         dayMaxEvents: true,
-        eventOrder: ['-allDay', 'order', 'start_time', 'title'],
+        // [2026-09-01] 기존엔 'order'(일정 종류별 우선순위: 조모임/구역모임 등=1, 상담=2, 구원기념일=3)가
+        // 'start_time'보다 먼저 비교돼서, 예를 들어 "14:00 민공기 개인상담"(order=2)이 "19:30 교구청년모임"
+        // (order=1)보다 실제로는 더 이른 시간인데도 항상 뒤로 밀려 표시됐다(같은 날 안에서 시간순이 아니라
+        // 종류별로 먼저 묶인 뒤에야 시간순이었음). 시간이 있는 일정끼리는 무조건 실제 시각(start_time) 순으로
+        // 먼저 정렬되도록 순서를 바꾸고, 시간이 같거나 둘 다 종일 일정일 때만 기존 종류별 우선순위(order)로
+        // 순서를 가른다.
+        eventOrder: ['-allDay', 'start_time', 'order', 'title'],
         selectable: true,
         selectMirror: true,
         selectLongPressDelay: 1000,
