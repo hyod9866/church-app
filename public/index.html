@@ -669,20 +669,34 @@
             </div>
             <input type="hidden" id="modalCounselingCategory" value="">
         </div>
-        <div class="flex gap-6">
-            <div class="flex-1">
-                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">성별</span>
-                <div class="flex gap-1.5" id="modalBsBtns">
-                    <button type="button" data-val="B" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">형제</button>
-                    <button type="button" data-val="S" class="modal-bs-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">자매</button>
+        <!-- [2026-09-01] meeting_editor.js가 다른 화면(상담관리 등)에 자동으로 주입하는 상담 패널에는
+             "성도/전도대상" 상태 열이 있는데, 메인화면(index.html)은 이 모달이 이미 정적으로 존재해서
+             자동 주입이 건너뛰어져 예전 2열(성별/상담방식) 구조 그대로 남아 있었다. 그런데 자동완성으로
+             전도대상(예: 민공기님)을 선택하면 공용 로직이 존재하지 않는 #modalCounselingMemberStatus에
+             값을 넣으려다 "Cannot set properties of null" 오류로 등록 자체가 막혔다. 다른 화면과 동일한
+             3열 구조(성별/상태/상담 방식)로 맞춰서 오류를 없애고, 성도/전도대상 표시 기능도 정상 동작하게 함. -->
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5" id="modalBsLabel">성별(형제/자매)</span>
+                <div class="flex gap-1" id="modalBsBtns">
+                    <button type="button" data-val="B" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">형제</button>
+                    <button type="button" data-val="S" class="modal-bs-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">자매</button>
                 </div>
                 <input type="hidden" id="modalCounselingBs" value="">
             </div>
-            <div class="flex-1">
+            <div>
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상태</span>
+                <div class="flex gap-1" id="modalMemberStatusBtns">
+                    <button type="button" data-val="member" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 transition-all text-center">성도</button>
+                    <button type="button" data-val="evangelism" class="modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전도대상</button>
+                </div>
+                <input type="hidden" id="modalCounselingMemberStatus" value="member">
+            </div>
+            <div>
                 <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">상담 방식</span>
-                <div class="flex gap-1.5" id="modalCounselMethodBtns">
-                    <button type="button" data-val="대면" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all">대면</button>
-                    <button type="button" data-val="전화" class="modal-method-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all">전화</button>
+                <div class="flex gap-1" id="modalCounselMethodBtns">
+                    <button type="button" data-val="대면" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-indigo-500 bg-indigo-600 text-white transition-all text-center">대면</button>
+                    <button type="button" data-val="전화" class="modal-method-btn flex-1 py-1 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all text-center">전화</button>
                 </div>
                 <input type="hidden" id="modalCounselingMethod" value="대면">
             </div>
@@ -1243,7 +1257,7 @@
     <script src="/js/mandatory_meeting.js?v=1"></script>
     <script src="/js/member-profile.js?v=2"></script>
     <script src="/js/member-edit.js?v=district-display-fix-1"></script>
-    <script src="/js/meeting_editor.js?v=visit-autofill-1"></script>
+    <script src="/js/meeting_editor.js?v=counsel-status-fix-1"></script>
     <script src="/js/app.js?v=position-badge-fix-1"></script>
     <script src="/js/guest-banner.js?v=1"></script>
 </body>

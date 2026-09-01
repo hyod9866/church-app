@@ -812,11 +812,21 @@ function bindEditorEvents() {
             }
             if (item.dataset.memberStatus) {
                 const val = item.dataset.memberStatus;
-                document.getElementById('modalCounselingMemberStatus').value = val;
+                // [2026-09-01] 이 간단 등록 패널(#counselingPanel, 메인화면 "신규 일정 등록"에서
+                // 구분=개인상담일 때)에는 성도/전도대상을 표시하는 #modalCounselingMemberStatus
+                // 히든 필드와 .modal-status-btn 버튼이 애초에 이 화면에 존재하지 않는다(상담관리
+                // 화면의 더 완전한 등록 모달에만 있음). 그런데도 여기서 무조건 값을 채우려다 보니
+                // 민공기님처럼 전도대상으로 등록된 분을 자동완성에서 선택할 때마다
+                // "Cannot set properties of null" 오류로 등록 자체가 막혔었다.
+                // 이 화면엔 원래 그 UI가 없으므로, 있으면 채우고 없으면 조용히 건너뛰도록 방어한다.
+                // (선택한 분은 이미 DB에 있는 기존 성도/전도대상이라 member_id로 저장되고, 서버가
+                // 기존 기록의 성도/전도대상 상태를 그대로 사용하므로 저장 자체엔 문제가 없다.)
+                const memberStatusInput = document.getElementById('modalCounselingMemberStatus');
+                if (memberStatusInput) memberStatusInput.value = val;
                 document.querySelectorAll('.modal-status-btn').forEach(b => {
                     const isActive = b.dataset.val === val;
                     b.className = `modal-status-btn flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all text-center ${
-                        isActive 
+                        isActive
                             ? (val === 'member' ? 'bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-400 ring-2 ring-offset-1 ring-emerald-400' : 'bg-orange-50 border-orange-400 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/60 dark:text-orange-400 ring-2 ring-offset-1 ring-orange-400')
                             : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-350'
                     }`;
@@ -829,7 +839,7 @@ function bindEditorEvents() {
                     if (bVal === 'B') b.textContent = isEv ? '남자' : '형제';
                     if (bVal === 'S') b.textContent = isEv ? '여자' : '자매';
                 });
-                updateModalPresetTags(val);
+                if (typeof updateModalPresetTags === 'function') updateModalPresetTags(val);
             }
         });
         document.addEventListener('click', (e) => {
