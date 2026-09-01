@@ -3352,7 +3352,7 @@ app.get('/api/counseling/:memberId', async (req, res) => {
 
 // POST /api/counseling — 새 상담 등록 (meetings + attendance 방식으로 저장 → 달력 자동 표시)
 app.post('/api/counseling', async (req, res) => {
-  const { member_id, name, date, content, tags, remark_memo, lead_target, counseling_method, church, parish, district, category, bs, member_status, is_salvation_checked, is_assign_checked } = req.body;
+  const { member_id, name, date, start_time, end_time, content, tags, remark_memo, lead_target, counseling_method, church, parish, district, category, bs, member_status, is_salvation_checked, is_assign_checked } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수 항목입니다.' });
   if (!date) return res.status(400).json({ error: '날짜는 필수 항목입니다.' });
 
@@ -3446,9 +3446,12 @@ app.post('/api/counseling', async (req, res) => {
     const finalMethod = counseling_method === '전화' ? '전화' : '대면';
     const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
 
+    // [2026-09-01] 개인상담도 시간을 입력했으면 meetings.start_time/end_time에 그대로 저장해
+    // 달력에 "10:30 민공기 개인상담"처럼 시간이 표시되도록 한다(그동안은 이 값을 아예 받지 않아
+    // 항상 종일 일정으로 저장됐음).
     const { data: newMeeting, error: meetErr } = await supabase
       .from('meetings')
-      .insert({ title: meetingTitle, date, type: '상담', memo: finalMemo })
+      .insert({ title: meetingTitle, date, start_time: start_time || null, end_time: end_time || null, type: '상담', memo: finalMemo })
       .select('id').single();
     if (meetErr) throw meetErr;
 
@@ -3479,7 +3482,7 @@ app.post('/api/counseling', async (req, res) => {
 // PUT /api/counseling/:sessionId — 상담 세션 수정
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id, is_salvation_checked, is_assign_checked, church, parish, district } = req.body;
+  const { date, start_time, end_time, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id, is_salvation_checked, is_assign_checked, church, parish, district } = req.body;
 
   try {
     let fullContent = '';
@@ -3520,7 +3523,8 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       // meetings + attendance 방식
       const meetingId = sessionId.replace('m_', '');
 
-      const meetUpdate = { date };
+      // [2026-09-01] 수정 시에도 시간 값을 함께 갱신 (등록 때와 동일한 이유)
+      const meetUpdate = { date, start_time: start_time || null, end_time: end_time || null };
       const finalLead = lead_target ? lead_target.trim() : '';
       const finalMethod = counseling_method === '전화' ? '전화' : '대면';
       const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;

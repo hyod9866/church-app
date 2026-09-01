@@ -2179,6 +2179,12 @@ async function handleSaveCounseling() {
     const name = (document.getElementById('modalCounselingName')?.value || '').trim();
     const memberId = document.getElementById('modalCounselingMemberId')?.value || '';
     const date = document.getElementById('meetingDate')?.value || '';
+    // [2026-09-01] 개인상담도 다른 일정처럼 시작/종료 시간 입력란(#meetingStartTime/#meetingEndTime)이
+    // 화면에 그대로 노출되어 있고 실제로 입력도 가능한데, 이 함수가 여태 그 값을 읽어서
+    // 서버로 보내지 않았다. 그래서 시간을 넣고 저장해도 meetings 테이블엔 start_time이 비어
+    // 종일 일정으로 취급되고, 달력에도 "10:30" 같은 시간이 표시되지 않았다(제목만 표시됨).
+    const startTime = document.getElementById('meetingStartTime')?.value || '';
+    const endTime = document.getElementById('meetingEndTime')?.value || '';
     const content = (document.getElementById('modalCounselingContent')?.value || '').trim();
     const remark = (document.getElementById('modalCounselingRemark')?.value || '').trim();
     const tags = (document.getElementById('modalCounselingTags')?.value || '').trim();
@@ -2228,6 +2234,8 @@ async function handleSaveCounseling() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date,
+                    start_time: startTime || null,
+                    end_time: endTime || null,
                     content: fullContent,
                     tags,
                     remark_memo: editRemark,
@@ -2253,6 +2261,8 @@ async function handleSaveCounseling() {
                 body: JSON.stringify({
                     member_id: ( (isSalvationChecked || isAssignChecked || memberStatus === 'member') && memberId ) ? parseInt(memberId) : null,
                     name: finalName, date, content,
+                    start_time: startTime || null,
+                    end_time: endTime || null,
                     tags: tags || null,
                     remark_memo: `[${method}상담][${statusLabel}]${remark ? ' ' + remark : ''}`,
                     category: category || null,
