@@ -327,12 +327,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             rruleObj.bymonthday = [dateObj.getDate()];
                         }
 
+                        eventObj.rrule = rruleObj;
+
+                        // [2026-09-15] exdate(제외 날짜)는 FullCalendar rrule 플러그인이
+                        // 이벤트 객체의 최상위 속성으로 기대한다 (rrule 객체 안에 넣으면 안 됨).
+                        // rrule 안에 넣으면 내부 RRule 라이브러리가 "Invalid options: exdate"
+                        // 예외를 던지는데, 이 예외가 이벤트 소스 전체를 fetch하는 try/catch
+                        // 안에서 발생하기 때문에 콘솔에 아무 에러도 안 남긴 채 달력의 모든
+                        // 일정(이 모임과 무관한 것들까지 전부)이 조용히 사라지는 버그가 있었다.
                         if (m.exdates) {
                             const exDateList = m.exdates.split(',').map(d => d.trim()).filter(d => d);
-                            rruleObj.exdate = exDateList.map(d => isAllDay ? d : `${d}T${m.start_time}:00`);
+                            eventObj.exdate = exDateList.map(d => isAllDay ? d : `${d}T${m.start_time}:00`);
                         }
-
-                        eventObj.rrule = rruleObj;
 
                         if (isAllDay) {
                             eventObj.duration = { days: 1 };
