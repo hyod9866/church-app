@@ -2232,25 +2232,42 @@ app.get('/api/meetings', async (req, res) => {
     // [2026-07-07 페이지네이션] 모임(meetings) 자체도 필터 없이 조회하므로 1000건을 넘으면
     // 조용히 잘려나간다 (감사 보고서 6번 항목). date만으로는 동률이 흔하므로 id를 타이브레이커로
     // 추가해 페이지 경계에서도 정렬이 안정적으로 유지되도록 한다.
-    const meetings = await fetchAllRows((from, to) =>
-      supabase
-        .from('meetings')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('id', { ascending: false })
-        .range(from, to)
-    );
-
-    // ⚠ 페이지네이션 없이 조회하면 PostgREST 기본 1000행 제한에 걸려 참석 데이터가 잘려나가고,
-    // 그 결과 일부 모임의 참석 인원이 실제와 다르게(대개 0명으로) 표시되는 버그가 있었다.
-    // fetchAllRows로 전체 페이지를 끝까지 가져와 집계한다.
-    const presentAttendance = await fetchAllRows((from, to) =>
-      supabase
-        .from('attendance')
-        .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
-        .eq('is_present', 1)
-        .range(from, to)
-    );
+    // [2026-09-22 성능개선] meetings / attendance / members(구원기념일용) 세 조회는 서로
+    // 의존성이 없는데도 기존엔 하나씩 순서대로 await 해서 세 번의 왕복 지연이 그대로 더해졌다
+    // (Vercel↔Supabase 리전이 멀리 떨어져 있을 때 이 직렬 대기가 응답 지연의 대부분을 차지했다).
+    // Promise.all로 동시에 요청해 전체 응답 시간을 "가장 느린 조회 하나"에 가깝게 줄인다.
+    // 가져오는 시점만 병렬로 바뀔 뿐, 계산 결과·순서는 기존과 완전히 동일하다.
+    const [meetings, presentAttendance, members] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('meetings')
+          .select('*')
+          .order('date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      ),
+      // ⚠ 페이지네이션 없이 조회하면 PostgREST 기본 1000행 제한에 걸려 참석 데이터가 잘려나가고,
+      // 그 결과 일부 모임의 참석 인원이 실제와 다르게(대개 0명으로) 표시되는 버그가 있었다.
+      // fetchAllRows로 전체 페이지를 끝까지 가져와 집계한다.
+      fetchAllRows((from, to) =>
+        supabase
+          .from('attendance')
+          .select('meeting_id, testimony_snapshot, district_snapshot, member_id, is_present, members(district)')
+          .eq('is_present', 1)
+          .range(from, to)
+      ),
+      // [2026-07-07 페이지네이션] 구원기념일 대상자 조회도 전체 성도 수에 비례해 1000명을
+      // 넘을 수 있으므로 fetchAllRows로 전체 페이지 조회.
+      fetchAllRows((from, to) =>
+        supabase
+          .from('members')
+          .select('id, name, salvation_date, bs, position')
+          .not('salvation_date', 'is', null)
+          .neq('salvation_date', '')
+          .neq('status', 'inactive')
+          .range(from, to)
+      )
+    ]);
 
     const countMap = {};
     const testimonyCountMap = {};
@@ -2322,18 +2339,6 @@ app.get('/api/meetings', async (req, res) => {
         district_testimonies: districtTestimonyCountMap[m.id] || {}
       };
     });
-
-    // [2026-07-07 페이지네이션] 구원기념일 대상자 조회도 전체 성도 수에 비례해 1000명을
-    // 넘을 수 있으므로 fetchAllRows로 전체 페이지 조회.
-    const members = await fetchAllRows((from, to) =>
-      supabase
-        .from('members')
-        .select('id, name, salvation_date, bs, position')
-        .not('salvation_date', 'is', null)
-        .neq('salvation_date', '')
-        .neq('status', 'inactive')
-        .range(from, to)
-    );
 
     const anniversaries = [];
     const years = [2024, 2025, 2026, 2027, 2028];

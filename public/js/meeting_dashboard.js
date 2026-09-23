@@ -513,6 +513,10 @@ async function fetchAttendanceCharts() {
                 } else if ((m.title || '').includes('구역')) {
                     chartKey = 'distChart';  // 전체구역모임 → 구역모임 차트에 구역별로 분배
                     useDistrictBreakdown = true;
+                } else if ((m.title || '').includes('기도모임')) {
+                    // [2026-09-15] 기도모임은 구역모임이 없던 달의 대체 집계 대상에서 제외한다
+                    // (전도사님 요청 — 기도모임 참석 인원을 구역모임 통계에 넣지 않기로 함).
+                    // chartKey를 지정하지 않으므로 이 모임은 구역모임/조모임 차트 어디에도 집계되지 않는다.
                 } else {
                     // 제목에 구역/조 표시가 없는 일반 교구전체모임 — 2차 패스에서 구역모임 보정용으로 사용
                     genericParishMeetings.push({ m, monthKey });
