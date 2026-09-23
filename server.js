@@ -3063,28 +3063,44 @@ function parseMemoField(memoText) {
 app.get('/api/counseling', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
+    // [2026-09-23 성능개선] 아래 members / counselingMeetings / cRecords 세 조회는 서로
+    // 의존성이 없는데 기존엔 하나씩 순서대로 await 했다. attendance(3번)만 counselingMeetings의
+    // id 목록이 있어야 조회할 수 있으므로, 그 셋을 먼저 동시에 요청한 뒤 attendance를 이어서
+    // 요청하는 2단계로 바꿔 왕복 횟수를 4번→사실상 2번으로 줄인다. 결과·순서는 기존과 동일.
+    //
     // 1. members 전체 조회
     // [2026-07-07 페이지네이션] 성도 1000명을 넘으면 조용히 잘려나가 "상담 이력이 있는 성도"
     // 목록에서 뒤쪽 성도가 통째로 누락될 수 있으므로 fetchAllRows 사용.
-    const members = await fetchAllRows((from, to) =>
-      supabase
-        .from('members')
-        .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
-        .eq('status', 'active')
-        .range(from, to)
-    );
+    //
+    // 2. meetings(type='상담') 조회 — 상담 건수가 누적되어 1000건을 넘어도 누락되지 않도록 페이지네이션
+    //
+    // 4. member_records COUNSELING 조회 (기존 레거시 데이터) — 역시 1000건 초과 대비 페이지네이션
+    const [members, counselingMeetings, cRecords] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('members')
+          .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
+          .eq('status', 'active')
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('meetings')
+          .select('id, title, date, memo, type')
+          .eq('type', '상담')
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('member_records')
+          .select('member_id, date, remark, id')
+          .eq('status', 'COUNSELING')
+          .range(from, to)
+      )
+    ]);
 
     const memberMap = {};
     (members || []).forEach(m => { memberMap[m.id] = m; });
-
-    // 2. meetings(type='상담') 조회 — 상담 건수가 누적되어 1000건을 넘어도 누락되지 않도록 페이지네이션
-    const counselingMeetings = await fetchAllRows((from, to) =>
-      supabase
-        .from('meetings')
-        .select('id, title, date, memo, type')
-        .eq('type', '상담')
-        .range(from, to)
-    );
 
     const counselingMeetingIds = (counselingMeetings || []).map(m => m.id);
     const meetingMap = {};
@@ -3092,6 +3108,7 @@ app.get('/api/counseling', async (req, res) => {
 
     // 3. 해당 meetings의 attendance 조회 (모든 성도 포함 - is_present 무관)
     // 상담 건수가 늘어나 1000행을 넘어도 누락되지 않도록 페이지네이션 조회
+    // (counselingMeetingIds가 있어야 조회 가능하므로 위 3개 조회가 끝난 뒤 진행)
     let attRows = [];
     if (counselingMeetingIds.length > 0) {
       attRows = await fetchAllRows((from, to) =>
@@ -3102,15 +3119,6 @@ app.get('/api/counseling', async (req, res) => {
           .range(from, to)
       );
     }
-
-    // 4. member_records COUNSELING 조회 (기존 레거시 데이터) — 역시 1000건 초과 대비 페이지네이션
-    const cRecords = await fetchAllRows((from, to) =>
-      supabase
-        .from('member_records')
-        .select('member_id, date, remark, id')
-        .eq('status', 'COUNSELING')
-        .range(from, to)
-    );
 
     // 5. memberId별로 상담 세션 수집
     const memberCounselingMap = {}; // memberId → [{ date, content, source, session_id }]
@@ -3701,23 +3709,28 @@ function parseVisitationContent(rawText) {
 app.get('/api/visitation', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
-    const members = await fetchAllRows((from, to) =>
-      supabase
-        .from('members')
-        .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
-        .eq('status', 'active')
-        .range(from, to)
-    );
+    // [2026-09-23 성능개선] members와 visitationMeetings는 서로 의존성이 없으므로
+    // (/api/counseling과 동일하게) 동시에 요청한다. attendance는 visitationMeetingIds가
+    // 있어야 조회할 수 있어 그 다음 단계로 남겨둔다. 결과·순서는 기존과 동일.
+    const [members, visitationMeetings] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('members')
+          .select('id, name, district, category, position, family_relation, bs, church, parish, salvation_date, member_status')
+          .eq('status', 'active')
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('meetings')
+          .select('id, title, date, memo, type')
+          .eq('type', '심방')
+          .range(from, to)
+      )
+    ]);
     const memberMap = {};
     (members || []).forEach(m => { memberMap[m.id] = m; });
 
-    const visitationMeetings = await fetchAllRows((from, to) =>
-      supabase
-        .from('meetings')
-        .select('id, title, date, memo, type')
-        .eq('type', '심방')
-        .range(from, to)
-    );
     const visitationMeetingIds = (visitationMeetings || []).map(m => m.id);
     const meetingMap = {};
     (visitationMeetings || []).forEach(m => { meetingMap[m.id] = m; });
