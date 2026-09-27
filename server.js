@@ -173,6 +173,7 @@ function checkAuth(req, res, next) {
     url === '/api/login-biometric' || 
     url.startsWith('/api/calendar/feed') ||
     url.startsWith('/api/cron/daily-reminders') ||
+    url.startsWith('/api/cron/sync-church-staff') ||
     isStaticAsset
   ) {
     return next();
@@ -1733,6 +1734,271 @@ app.get('/api/churches/all', async (req, res) => {
       res.json(data || []);
   } catch (err) {
       res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// [2026-09-27] 교회현황 "전도인 현황" — 교회별 담임목사·부목사·전도사 자동 연동
+// 출처: 로그인 없이 볼 수 있는 공개 페이지 church.jbch.org/guide/organization.php?chId=<교회번호>
+// (robots.txt 전체 허용 확인). 교회번호는 churches.jbch_ch_id
+// (migrations/2026-09-27_church_staff.sql 에서 235곳 연결).
+//
+// 동작:
+//  - 교회현황에서 교회를 열었을 때 한 번도 안 가져왔거나 6일이 지났으면 그 자리에서 가져온다.
+//  - "지금 업데이트" 버튼(관리자)으로 즉시 다시 가져올 수 있다.
+//  - 매일 새벽 크론이 6일 넘게 안 가져온 교회부터 최대 60곳씩 다시 가져온다 → 모든 교회가 주 1회 갱신.
+//  - 이전 명단과 비교해 부임/이임/직분 변경을 church_staff_changes에 남긴다(인사이동 추적).
+// 안전장치:
+//  - 페이지 구조가 바뀌어 목회자 영역을 못 찾거나, 기존엔 명단이 있었는데 0명으로 읽히면
+//    기존 명단을 지우지 않고 staff_sync_error에 사유만 기록한다(잘못된 빈 명단으로 덮어쓰기 방지).
+// ============================================================
+const JBCH_STAFF_STALE_DAYS = 6;
+const JBCH_STAFF_CRON_BATCH = 60;
+const jbchOrganizationUrl = (chId) => `https://church.jbch.org/guide/organization.php?chId=${encodeURIComponent(chId)}`;
+
+function decodeHtmlEntities(s) {
+  return String(s || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
+}
+function htmlToText(s) {
+  return decodeHtmlEntities(String(s || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+// organization.php HTML → [{ role, jbch_person_id, name, title, duties, photo_url, sort_order }]
+// 목회자 영역(id="preacher")을 못 찾으면 null (= 구조 변경/오류, 기존 데이터 유지)
+function parseJbchOrganization(html) {
+  // 원본 HTML은 속성에 작은따옴표/큰따옴표/따옴표 없음이 섞여 있어 모두 허용한다.
+  const start = html.search(/id=["']?preacher["'\s>]/i);
+  if (start < 0) return null;
+  let end = html.length;
+  const rest = html.slice(start + 1);
+  for (const marker of [/id=["']?duty["'\s>]/i, /id=["']?staff["'\s>]/i]) {
+    const i = rest.search(marker);
+    if (i >= 0 && start + 1 + i < end) end = start + 1 + i;
+  }
+  const section = html.slice(start, end);
+  const staff = [];
+  // 역할 제목: <h5 class="... subtitle">담임목사</h5> / 부목사 / 전도사 ...
+  const roleParts = section.split(/<h5[^>]*\bsubtitle\b[^>]*>/i).slice(1);
+  roleParts.forEach(part => {
+    const roleEnd = part.indexOf('</h5>');
+    if (roleEnd < 0) return;
+    const role = htmlToText(part.slice(0, roleEnd));
+    if (!role) return;
+    const cards = part.slice(roleEnd).split(/<div[^>]*class=["'][^"']*\bpost-org\b[^"']*["'][^>]*>/i).slice(1);
+    cards.forEach(card => {
+      const nameMatch = card.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i);
+      if (!nameMatch) return;
+      const full = htmlToText(nameMatch[1]);
+      if (!full) return;
+      const tm = full.match(/^(.*?)\s*(담임목사|목사|전도사|선교사|강도사)$/);
+      const name = (tm && tm[1].trim()) ? tm[1].trim() : full;
+      const title = tm ? tm[2] : null;
+      const idMatch = card.match(/name=["']?ids["']?\s+value=["']?(\d+)/i);
+      const imgMatch = card.match(/<img[^>]*src=["']([^"']+)["']/i);
+      const duties = [...card.matchAll(/<div[^>]*class=["'][^"']*\blabel\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)]
+        .map(m => htmlToText(m[1]))
+        .filter(Boolean);
+      staff.push({
+        role,
+        jbch_person_id: idMatch ? parseInt(idMatch[1], 10) : null,
+        name,
+        title,
+        duties: duties.join(', '),
+        photo_url: imgMatch ? decodeHtmlEntities(imgMatch[1]) : null,
+        sort_order: staff.length
+      });
+    });
+  });
+  return staff;
+}
+
+const staffKey = (s) => (s.jbch_person_id ? `id:${s.jbch_person_id}` : `nm:${s.name}`);
+
+// 교회 한 곳의 명단을 다시 가져와 저장. 반환: { ok, count, changes, error }
+async function syncChurchStaff(church) {
+  const nowIso = new Date().toISOString();
+  const recordError = async (msg) => {
+    await supabase.from('churches').update({ staff_sync_error: msg, staff_synced_at: nowIso }).eq('id', church.id);
+    return { ok: false, error: msg };
+  };
+  if (!church.jbch_ch_id) return { ok: false, error: '교회 안내 사이트 교회번호(jbch_ch_id)가 연결되지 않았습니다.' };
+
+  let html;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch(jbchOrganizationUrl(church.jbch_ch_id), {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (church-app staff sync; weekly)' }
+    });
+    clearTimeout(timer);
+    if (!r.ok) return await recordError(`교회 안내 페이지 응답 오류 (HTTP ${r.status})`);
+    html = await r.text();
+  } catch (e) {
+    return await recordError(`교회 안내 페이지를 불러오지 못했습니다: ${e.name === 'AbortError' ? '시간 초과' : e.message}`);
+  }
+
+  const parsed = parseJbchOrganization(html);
+  if (parsed === null) return await recordError('교회 안내 페이지에서 목회자 영역을 찾지 못했습니다 (페이지 구조 변경 가능성).');
+
+  const { data: oldRows, error: oldErr } = await supabase
+    .from('church_staff').select('jbch_person_id, role, name, title').eq('church_id', church.id);
+  if (oldErr) throw oldErr;
+  const old = oldRows || [];
+
+  if (parsed.length === 0 && old.length > 0) {
+    return await recordError('목회자가 0명으로 읽혔습니다. 기존 명단을 유지합니다 (확인 필요).');
+  }
+
+  // 변경 내역 계산 (처음 가져올 때는 기록하지 않음 — 전원이 '부임'으로 찍히는 것 방지)
+  const changes = [];
+  if (church.staff_synced_at && old.length > 0) {
+    const oldMap = new Map(old.map(s => [staffKey(s), s]));
+    const newMap = new Map(parsed.map(s => [staffKey(s), s]));
+    parsed.forEach(s => {
+      const o = oldMap.get(staffKey(s));
+      if (!o) changes.push({ change_type: 'added', jbch_person_id: s.jbch_person_id, name: s.name, title: s.title, old_role: null, new_role: s.role });
+      else if (o.role !== s.role) changes.push({ change_type: 'role_changed', jbch_person_id: s.jbch_person_id, name: s.name, title: s.title, old_role: o.role, new_role: s.role });
+    });
+    old.forEach(o => {
+      if (!newMap.has(staffKey(o))) changes.push({ change_type: 'removed', jbch_person_id: o.jbch_person_id, name: o.name, title: o.title, old_role: o.role, new_role: null });
+    });
+  }
+
+  // 새 명단을 먼저 넣고 → 옛 행 삭제 (중간에 실패해도 명단이 통째로 비는 순간이 없도록)
+  const { data: inserted, error: insErr } = await supabase
+    .from('church_staff')
+    .insert(parsed.map(s => ({ ...s, church_id: church.id, updated_at: nowIso })))
+    .select('id');
+  if (insErr) throw insErr;
+  const keepIds = (inserted || []).map(r => r.id);
+  let del = supabase.from('church_staff').delete().eq('church_id', church.id);
+  if (keepIds.length > 0) del = del.not('id', 'in', `(${keepIds.join(',')})`);
+  const { error: delErr } = await del;
+  if (delErr) throw delErr;
+
+  if (changes.length > 0) {
+    const { error: chErr } = await supabase
+      .from('church_staff_changes')
+      .insert(changes.map(c => ({ ...c, church_id: church.id, detected_at: nowIso })));
+    if (chErr) console.error('church_staff_changes insert error:', chErr);
+  }
+
+  await supabase.from('churches').update({ staff_synced_at: nowIso, staff_sync_error: null }).eq('id', church.id);
+  return { ok: true, count: parsed.length, changes: changes.length };
+}
+
+async function loadChurchStaffPayload(churchId) {
+  const [{ data: church, error: chErr }, { data: staff, error: stErr }, { data: changes, error: cgErr }] = await Promise.all([
+    supabase.from('churches').select('id, name, jbch_ch_id, staff_synced_at, staff_sync_error').eq('id', churchId).single(),
+    supabase.from('church_staff').select('role, name, title, duties, photo_url, jbch_person_id, sort_order').eq('church_id', churchId).order('sort_order', { ascending: true }),
+    supabase.from('church_staff_changes').select('change_type, name, title, old_role, new_role, detected_at')
+      .eq('church_id', churchId)
+      .gte('detected_at', new Date(Date.now() - 180 * 86400000).toISOString())
+      .order('detected_at', { ascending: false })
+      .limit(30)
+  ]);
+  if (chErr) throw chErr;
+  if (stErr) throw stErr;
+  if (cgErr) throw cgErr;
+  return {
+    church_id: church.id,
+    church_name: church.name,
+    jbch_ch_id: church.jbch_ch_id,
+    source_url: church.jbch_ch_id ? jbchOrganizationUrl(church.jbch_ch_id) : null,
+    synced_at: church.staff_synced_at,
+    sync_error: church.staff_sync_error,
+    staff: staff || [],
+    changes: changes || []
+  };
+}
+
+// 교회 한 곳의 전도인 현황 조회 (한 번도 안 가져왔으면 이 자리에서 가져옴)
+app.get('/api/churches/:id/staff', async (req, res) => {
+  try {
+    const churchId = parseInt(req.params.id, 10);
+    if (!churchId) return res.status(400).json({ error: '잘못된 교회 id' });
+    const { data: church, error } = await supabase
+      .from('churches').select('id, jbch_ch_id, staff_synced_at').eq('id', churchId).single();
+    if (error) throw error;
+    // 한 번도 안 가져왔거나 6일 넘게 지났으면 이 자리에서 새로 가져온다(약 0.3초, 교회당 주 1회 정도).
+    // 크론(CRON_SECRET)이 설정되지 않은 환경에서도 화면을 여는 것만으로 최신 상태가 유지되게 하기 위함.
+    const stale = !church.staff_synced_at ||
+      (Date.now() - new Date(church.staff_synced_at).getTime()) > JBCH_STAFF_STALE_DAYS * 86400000;
+    if (church.jbch_ch_id && stale) {
+      try { await syncChurchStaff(church); } catch (e) { console.error('inline staff sync failed:', e.message); }
+    }
+    res.json(await loadChurchStaffPayload(churchId));
+  } catch (err) {
+    console.error('GET /api/churches/:id/staff error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// "지금 업데이트" — 관리자만 (게스트는 checkAuth에서 POST 차단)
+app.post('/api/churches/:id/staff/sync', async (req, res) => {
+  try {
+    const churchId = parseInt(req.params.id, 10);
+    if (!churchId) return res.status(400).json({ error: '잘못된 교회 id' });
+    const { data: church, error } = await supabase
+      .from('churches').select('id, jbch_ch_id, staff_synced_at').eq('id', churchId).single();
+    if (error) throw error;
+    const result = await syncChurchStaff(church);
+    res.json({ result, ...(await loadChurchStaffPayload(churchId)) });
+  } catch (err) {
+    console.error('POST /api/churches/:id/staff/sync error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// [2026-09-27] GET /api/cron/sync-church-staff — 전도인 현황 정기 갱신 (vercel.json crons, 매일 새벽)
+// 6일 넘게 안 가져온 교회부터 최대 JBCH_STAFF_CRON_BATCH곳씩 → 235곳 모두 약 주 1회 갱신.
+// 상대 사이트 부담을 줄이려고 동시에 3곳씩만 가져온다.
+app.get('/api/cron/sync-church-staff', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+  const requestToken = authHeader ? authHeader.replace('Bearer ', '') : req.query.key;
+  if (!cronSecret || requestToken !== cronSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const staleBefore = new Date(Date.now() - JBCH_STAFF_STALE_DAYS * 86400000).toISOString();
+    const { data: targets, error } = await supabase
+      .from('churches')
+      .select('id, name, jbch_ch_id, staff_synced_at')
+      .not('jbch_ch_id', 'is', null)
+      .or(`staff_synced_at.is.null,staff_synced_at.lt."${staleBefore}"`)
+      .order('staff_synced_at', { ascending: true, nullsFirst: true })
+      .limit(JBCH_STAFF_CRON_BATCH);
+    if (error) throw error;
+
+    const summary = { targets: (targets || []).length, ok: 0, failed: 0, changes: 0, errors: [] };
+    const queue = [...(targets || [])];
+    const worker = async () => {
+      while (queue.length > 0) {
+        const ch = queue.shift();
+        try {
+          const r = await syncChurchStaff(ch);
+          if (r.ok) { summary.ok++; summary.changes += r.changes || 0; }
+          else { summary.failed++; summary.errors.push(`${ch.name}: ${r.error}`); }
+        } catch (e) {
+          summary.failed++; summary.errors.push(`${ch.name}: ${e.message}`);
+        }
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    console.log('[cron sync-church-staff]', JSON.stringify(summary));
+    res.json(summary);
+  } catch (err) {
+    console.error('cron sync-church-staff error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

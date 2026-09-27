@@ -367,6 +367,125 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Select Node Actions ---
+    // ============================================================
+    // [2026-09-27] 전도인 현황 (교회 안내 공개 페이지 → 서버가 주 1회 자동 갱신)
+    // ============================================================
+    const churchStaffPanel = document.getElementById('churchStaffPanel');
+    const churchStaffBody = document.getElementById('churchStaffBody');
+    const churchStaffCount = document.getElementById('churchStaffCount');
+    const churchStaffSyncedAt = document.getElementById('churchStaffSyncedAt');
+    const churchStaffSyncBtn = document.getElementById('churchStaffSyncBtn');
+    const churchStaffNotice = document.getElementById('churchStaffNotice');
+    const churchStaffChanges = document.getElementById('churchStaffChanges');
+    const churchStaffSource = document.getElementById('churchStaffSource');
+    let churchStaffReqSeq = 0;
+    let isGuestUser = false;
+    fetch('/api/session').then(r => r.ok ? r.json() : null).then(s => { isGuestUser = !!(s && s.role === 'guest'); }).catch(() => {});
+
+    const escStaff = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const fmtStaffDate = (iso) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    function hideChurchStaff() {
+        churchStaffReqSeq++;
+        churchStaffPanel.classList.add('hidden');
+    }
+
+    function renderChurchStaff(data) {
+        const staff = data.staff || [];
+        churchStaffCount.textContent = staff.length ? `${staff.length}명` : '';
+        churchStaffSyncedAt.textContent = data.synced_at ? `${fmtStaffDate(data.synced_at)} 기준` : '';
+        churchStaffSyncBtn.classList.toggle('hidden', isGuestUser || !data.jbch_ch_id);
+
+        if (data.source_url) {
+            churchStaffSource.href = data.source_url;
+            churchStaffSource.classList.remove('hidden');
+            churchStaffSource.classList.add('inline-flex');
+        } else {
+            churchStaffSource.classList.add('hidden');
+            churchStaffSource.classList.remove('inline-flex');
+        }
+
+        let notice = '';
+        if (!data.jbch_ch_id) notice = '이 교회는 교회 안내 사이트와 아직 연결되지 않았습니다.';
+        else if (data.sync_error) notice = `최근 업데이트 실패: ${data.sync_error}${staff.length ? ' (아래는 마지막으로 가져온 명단입니다)' : ''}`;
+        churchStaffNotice.textContent = notice;
+        churchStaffNotice.className = notice
+            ? 'mb-3 text-[11px] font-semibold rounded-lg px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30'
+            : 'hidden';
+
+        const changes = data.changes || [];
+        if (changes.length) {
+            const label = (c) => c.change_type === 'added' ? `부임 · ${escStaff(c.new_role)}`
+                : c.change_type === 'removed' ? `이임 · ${escStaff(c.old_role)}`
+                : `${escStaff(c.old_role)} → ${escStaff(c.new_role)}`;
+            const color = (c) => c.change_type === 'added' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30'
+                : c.change_type === 'removed' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30'
+                : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30';
+            churchStaffChanges.innerHTML = `
+                <div class="text-[11px] font-black text-slate-500 dark:text-slate-400 mb-1.5">최근 인사이동 (6개월)</div>
+                <div class="flex flex-wrap gap-1.5">
+                    ${changes.map(c => `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md border ${color(c)}">${fmtStaffDate(c.detected_at)} ${escStaff(c.name)} ${escStaff(c.title || '')} · ${label(c)}</span>`).join('')}
+                </div>`;
+            churchStaffChanges.classList.remove('hidden');
+        } else {
+            churchStaffChanges.classList.add('hidden');
+            churchStaffChanges.innerHTML = '';
+        }
+
+        if (!staff.length) {
+            churchStaffBody.innerHTML = `<div class="text-xs text-slate-400 italic py-2">표시할 전도인 정보가 없습니다.</div>`;
+            return;
+        }
+        const roles = [];
+        staff.forEach(s => { if (!roles.includes(s.role)) roles.push(s.role); });
+        churchStaffBody.innerHTML = roles.map(role => {
+            const list = staff.filter(s => s.role === role);
+            return `
+                <div>
+                    <div class="text-[11px] font-black text-blue-600 dark:text-blue-400 mb-1.5">${escStaff(role)} <span class="text-slate-400 font-bold">${list.length}</span></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        ${list.map(s => `
+                            <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 min-w-0">
+                                <div class="w-9 h-9 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-xs font-black text-slate-500">
+                                    ${s.photo_url ? `<img src="${escStaff(s.photo_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.remove()">` : ''}
+                                    <span>${escStaff((s.name || '').slice(0, 1))}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-[13px] font-black text-slate-800 dark:text-slate-100 truncate">${escStaff(s.name)} <span class="text-[11px] font-bold text-slate-400">${escStaff(s.title || '')}</span></div>
+                                    ${s.duties && s.duties !== role ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug break-keep">${escStaff(s.duties)}</div>` : ''}
+                                </div>
+                            </div>`).join('')}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    async function loadChurchStaff(churchId, { forceSync = false } = {}) {
+        const seq = ++churchStaffReqSeq;
+        churchStaffPanel.classList.remove('hidden');
+        churchStaffBody.innerHTML = `<div class="text-xs text-slate-400 italic py-2"><i class="fa-solid fa-spinner animate-spin mr-1.5"></i>${forceSync ? '교회 안내 사이트에서 최신 명단을 가져오는 중...' : '전도인 현황을 불러오는 중...'}</div>`;
+        try {
+            const res = forceSync
+                ? await fetch(`/api/churches/${churchId}/staff/sync`, { method: 'POST' })
+                : await fetch(`/api/churches/${churchId}/staff`);
+            const data = await res.json();
+            if (seq !== churchStaffReqSeq) return; // 그 사이 다른 교회를 눌렀으면 무시
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            renderChurchStaff(data);
+        } catch (e) {
+            if (seq !== churchStaffReqSeq) return;
+            churchStaffBody.innerHTML = `<div class="text-xs text-rose-500 py-2">전도인 현황을 불러오지 못했습니다: ${escStaff(e.message)}</div>`;
+        }
+    }
+
+    churchStaffSyncBtn.addEventListener('click', () => {
+        if (selectedNode && selectedNode.type === 'church') loadChurchStaff(selectedNode.id, { forceSync: true });
+    });
+
     async function selectNode(type, id, name, parentId, shouldPushHistory = true) {
         selectedNode = { type, id, name, parentId };
         
@@ -414,8 +533,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tabSermonBtn.classList.remove('hidden');
             
             renderSermonTimeline(name, churchSermons);
+
+            // [2026-09-27] 전도인 현황 (응답을 기다리지 않고 하위 교구 목록과 동시에 불러옴)
+            loadChurchStaff(id);
         } else if (type === 'parish') {
             nodeAddressContainer.classList.add('hidden');
+            hideChurchStaff();
             const ch = churches.find(c => c.id === parentId);
             nodeParentHierarchy.textContent = `${ch ? ch.name : ''} >`;
             metricSubOrgCard.classList.remove('hidden');
@@ -429,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab('org');
         } else {
             nodeAddressContainer.classList.add('hidden');
+            hideChurchStaff();
             const p = parishes.find(pa => pa.id === parentId);
             const ch = p ? churches.find(c => c.id === p.church_id) : null;
             nodeParentHierarchy.textContent = `${ch ? ch.name : ''} > ${p ? p.name : ''} >`;
