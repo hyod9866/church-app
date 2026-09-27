@@ -7,7 +7,7 @@ import * as csv from 'fast-csv';
 import iconv from 'iconv-lite';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import pg from 'pg';
+// (pg 직접 연결은 더 이상 사용하지 않음 — 2026-09-27 임시 마이그레이션 엔드포인트 제거)
 
 // Load environment variables
 dotenv.config();
@@ -166,7 +166,6 @@ function checkAuth(req, res, next) {
     url === '/login.html' || 
     url === '/api/login' || 
     url === '/api/login-biometric' || 
-    url === '/api/run-migration-temp' || 
     url.startsWith('/api/calendar/feed') ||
     url.startsWith('/api/cron/daily-reminders') ||
     isStaticAsset
@@ -381,6 +380,7 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
       const { data: maxFidRow, error: maxErr } = await supabase
         .from('members')
         .select('family_id')
+        .not('family_id', 'is', null) // [2026-09-27] NULL 제외: NULL이 정렬 맨 앞에 와서 최댓값이 0으로 계산되던 버그 (새 family_id가 1로 충돌)
         .order('family_id', { ascending: false })
         .limit(1);
       if (maxErr) throw maxErr;
@@ -708,196 +708,9 @@ app.put('/api/users/login-settings', async (req, res) => {
   }
 });
 
-app.get('/api/run-migration-temp', async (req, res) => {
-  const { Client } = pg;
-  
-  const clientDirect = new Client({
-    host: '2406:da12:557:f802:f78e:4591:9fd3:4ad7',
-    port: 5432,
-    user: 'postgres',
-    password: 'qhrdmaemfrh1!',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
-
-  const clientPooler = new Client({
-    host: 'aws-0-ap-northeast-2.pooler.supabase.com',
-    port: 6543,
-    user: 'postgres.castdxotoypktiusslpk',
-    password: 'qhrdmaemfrh1!',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
-
-  let logs = [];
-  let success = false;
-
-  try {
-    logs.push("Trying Direct IPv6 connection to db.castdxotoypktiusslpk.supabase.co:5432...");
-    await clientDirect.connect();
-    logs.push("Successfully connected via Direct IPv6 connection!");
-    
-    const checkRes = await clientDirect.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='parishes' AND column_name='parish_no'
-    `);
-    
-    if (checkRes.rows.length === 0) {
-      logs.push("parish_no does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
-      logs.push("Column parish_no added successfully.");
-    } else {
-      logs.push("Column parish_no already exists.");
-    }
-
-    const checkChRes = await clientDirect.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='churches' AND column_name='address'
-    `);
-    if (checkChRes.rows.length === 0) {
-      logs.push("churches address does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE churches ADD COLUMN address TEXT;");
-      logs.push("Column address added to churches successfully.");
-    } else {
-      logs.push("Column address in churches already exists.");
-    }
-
-    const checkMeetRes = await clientDirect.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='meetings' AND column_name='start_time'
-    `);
-    if (checkMeetRes.rows.length === 0) {
-      logs.push("meetings start_time does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE meetings ADD COLUMN start_time TEXT;");
-      logs.push("Column start_time added to meetings successfully.");
-    } else {
-      logs.push("Column start_time in meetings already exists.");
-    }
-
-    const checkMeetEndRes = await clientDirect.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='meetings' AND column_name='end_time'
-    `);
-    if (checkMeetEndRes.rows.length === 0) {
-      logs.push("meetings end_time does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE meetings ADD COLUMN end_time TEXT;");
-      logs.push("Column end_time added to meetings successfully.");
-    } else {
-      logs.push("Column end_time in meetings already exists.");
-    }
-
-    const checkMemStatusRes = await clientDirect.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name='members' AND column_name='member_status'
-    `);
-    if (checkMemStatusRes.rows.length === 0) {
-      logs.push("members member_status does not exist. Adding column...");
-      await clientDirect.query("ALTER TABLE members ADD COLUMN member_status VARCHAR(50) DEFAULT 'member';");
-      logs.push("Column member_status added to members successfully.");
-    } else {
-      logs.push("Column member_status in members already exists.");
-    }
-
-    logs.push("Reloading schema cache...");
-    await clientDirect.query("NOTIFY pgrst, 'reload schema';");
-    logs.push("Schema cache reloaded successfully!");
-    
-    await clientDirect.end();
-    success = true;
-  } catch (directErr) {
-    logs.push(`Direct connection failed: ${directErr.message}`);
-    logs.push("Trying Pooler IPv4 connection to aws-0-ap-northeast-2.pooler.supabase.com:6543...");
-    try {
-      await clientPooler.connect();
-      logs.push("Successfully connected via Pooler IPv4 connection!");
-      
-      const checkRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='parishes' AND column_name='parish_no'
-      `);
-      
-      if (checkRes.rows.length === 0) {
-        logs.push("parish_no does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE parishes ADD COLUMN parish_no INTEGER;");
-        logs.push("Column parish_no added successfully.");
-      } else {
-        logs.push("Column parish_no already exists.");
-      }
-
-      const checkChRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='churches' AND column_name='address'
-      `);
-      if (checkChRes.rows.length === 0) {
-        logs.push("churches address does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE churches ADD COLUMN address TEXT;");
-        logs.push("Column address added to churches successfully.");
-      } else {
-        logs.push("Column address in churches already exists.");
-      }
-
-      const checkMeetRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='meetings' AND column_name='start_time'
-      `);
-      if (checkMeetRes.rows.length === 0) {
-        logs.push("meetings start_time does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE meetings ADD COLUMN start_time TEXT;");
-        logs.push("Column start_time added to meetings successfully.");
-      } else {
-        logs.push("Column start_time in meetings already exists.");
-      }
-
-      const checkMeetEndRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='meetings' AND column_name='end_time'
-      `);
-      if (checkMeetEndRes.rows.length === 0) {
-        logs.push("meetings end_time does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE meetings ADD COLUMN end_time TEXT;");
-        logs.push("Column end_time added to meetings successfully.");
-      } else {
-        logs.push("Column end_time in meetings already exists.");
-      }
-
-      const checkMemStatusPoolerRes = await clientPooler.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name='members' AND column_name='member_status'
-      `);
-      if (checkMemStatusPoolerRes.rows.length === 0) {
-        logs.push("members member_status does not exist. Adding column...");
-        await clientPooler.query("ALTER TABLE members ADD COLUMN member_status VARCHAR(50) DEFAULT 'member';");
-        logs.push("Column member_status added to members successfully.");
-      } else {
-        logs.push("Column member_status in members already exists.");
-      }
-
-      logs.push("Reloading schema cache...");
-      await clientPooler.query("NOTIFY pgrst, 'reload schema';");
-      logs.push("Schema cache reloaded successfully!");
-
-      await clientPooler.end();
-      success = true;
-    } catch (poolerErr) {
-      logs.push(`Pooler connection failed: ${poolerErr.message}`);
-    }
-  }
-
-  res.json({
-    success,
-    logs
-  });
-});
+// [2026-09-27] /api/run-migration-temp 제거: parish_no / churches.address 컬럼을 추가하던 일회성
+// 마이그레이션 엔드포인트였는데, 로그인 없이 누구나 호출 가능(checkAuth 예외 목록)했고 DB 관리자
+// 비밀번호가 코드에 그대로 적혀 있었다. 컬럼은 이미 추가되어 있어 더 이상 필요 없다.
 
 app.get('/api/members/search', async (req, res) => {
   try {
@@ -1432,6 +1245,7 @@ app.post('/api/members', async (req, res) => {
         const { data: maxRow, error: maxErr } = await supabase
           .from('members')
           .select('family_id')
+          .not('family_id', 'is', null) // [2026-09-27] NULL 제외: NULL이 정렬 맨 앞에 와서 최댓값이 0으로 계산되던 버그 (새 family_id가 1로 충돌)
           .order('family_id', { ascending: false })
           .limit(1);
         if (maxErr) throw maxErr;
@@ -1554,6 +1368,7 @@ app.put('/api/members/:id', async (req, res) => {
         const { data: maxRow, error: maxErr } = await supabase
           .from('members')
           .select('family_id')
+          .not('family_id', 'is', null) // [2026-09-27] NULL 제외: NULL이 정렬 맨 앞에 와서 최댓값이 0으로 계산되던 버그 (새 family_id가 1로 충돌)
           .order('family_id', { ascending: false })
           .limit(1);
         if (maxErr) throw maxErr;

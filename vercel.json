@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "regions": [
+    "icn1"
+  ],
   "buildCommand": "npm run build:css",
   "builds": [
     {
