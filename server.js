@@ -32,6 +32,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // 이 헬퍼는 .range()로 페이지를 나눠 끝까지 가져와 그런 누락을 방지한다.
 // buildQuery(from, to)는 매 페이지마다 새 쿼리 객체를 만들어 .range(from, to)를 적용해 반환해야 한다.
 // 사용법: await fetchAllRows((from, to) => supabase.from('attendance').select('...').eq('is_present', 1).range(from, to))
+// [2026-09-27] 익명 상담: 상담 관리에서 '익명'으로 상담을 등록하면 상담 기록을 붙이기 위해 members에
+// 이름이 '익명'인 행이 하나씩 생긴다(POST /api/counseling). 이 행은 성도가 아니므로 성도 목록·검색·
+// 출석률·통계·교회 목록 조회에서는 제외한다. 상담 관리(GET /api/counseling)에서는 계속 보인다.
+const ANONYMOUS_COUNSELING_NAME = '익명';
+
 async function fetchAllRows(buildQuery) {
   const pageSize = 1000;
   let allRows = [];
@@ -725,7 +730,7 @@ app.get('/api/members/search', async (req, res) => {
     // fetchAllRows는 매 페이지마다 새 쿼리 객체가 필요하므로, 필터 적용 로직을 함수로 감싸서
     // 매 호출마다 동일한 필터를 재적용한 뒤 .range(from, to)를 붙인다.
     const buildQuery = (from, to) => {
-      let query = supabase.from('members').select('*');
+      let query = supabase.from('members').select('*').neq('name', ANONYMOUS_COUNSELING_NAME);  // 익명 상담 기록용 행 제외(성도 아님)
 
       if (st === 'inactive') {
         query = query.eq('status', 'inactive');
@@ -1053,6 +1058,7 @@ app.get('/api/members/attendance-rates', async (req, res) => {
       supabase
         .from('members')
         .select('id, name, category, bs, district, position, church, parish, member_status')
+        .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
         .range(from, to)
     );
 
@@ -1227,6 +1233,7 @@ app.get('/api/members/family-search', async (req, res) => {
       .from('members')
       .select('id, name, district, bs, family_id')
       .ilike('name', `%${q}%`)
+      .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
       .eq('status', 'active')
       .limit(10);
       
@@ -1692,7 +1699,8 @@ app.get('/api/churches', async (req, res) => {
           .from('members')
           .select('church')
           .not('church', 'is', null)
-          .not('church', 'eq', '');
+          .not('church', 'eq', '')
+          .neq('name', ANONYMOUS_COUNSELING_NAME);  // 익명 상담 기록용 행 제외(성도 아님)
       
       if (memErr) throw memErr;
       
@@ -2080,6 +2088,7 @@ app.get('/api/meetings', async (req, res) => {
           .not('salvation_date', 'is', null)
           .neq('salvation_date', '')
           .neq('status', 'inactive')
+          .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
           .range(from, to)
       )
     ]);
@@ -2597,6 +2606,7 @@ app.get('/api/visitation/status', async (req, res) => {
                 .from('members')
                 .select('id, name, district, category, position, family_relation, church, parish, member_status')
                 .eq('status', 'active')
+                .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
                 .range(from, to)
         );
 
@@ -3876,6 +3886,7 @@ app.get('/api/members/filter', async (req, res) => {
                 .select('*')
                 .ilike('name', `%${q}%`)
                 .eq('status', 'active')
+                .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
                 .range(from, to)
         );
         res.json(data || []);
@@ -3911,6 +3922,7 @@ app.get('/api/dashboard/attendance', async (req, res) => {
                 .from('members')
                 .select('id, name, category, bs, district, birth_year, position, church_service, family_relation')
                 .eq('status', 'active')
+                .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
                 .range(from, to)
         );
 
