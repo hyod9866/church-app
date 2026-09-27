@@ -442,25 +442,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const roles = [];
         staff.forEach(s => { if (!roles.includes(s.role)) roles.push(s.role); });
-        churchStaffBody.innerHTML = roles.map(role => {
+        // 인원이 많은 직분(예: 서울중앙교회 부목사 21명)은 접어두고, 담임목사와 소수 직분만 펼쳐서 화면이 길어지지 않게 한다.
+        const avatar = (s) => `
+            <div class="relative w-9 h-9 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-xs font-black text-slate-500">
+                <span>${escStaff((s.name || '').slice(0, 1))}</span>
+                ${s.photo_url ? `<img src="${escStaff(s.photo_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">` : ''}
+            </div>`;
+        const card = (s, role) => `
+            <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 min-w-0">
+                ${avatar(s)}
+                <div class="min-w-0">
+                    <div class="text-[13px] font-black text-slate-800 dark:text-slate-100 truncate">${escStaff(s.name)} <span class="text-[11px] font-bold text-slate-400">${escStaff(s.title || '')}</span></div>
+                    ${s.duties && s.duties !== role ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug break-keep">${escStaff(s.duties)}</div>` : ''}
+                </div>
+            </div>`;
+        churchStaffBody.innerHTML = roles.map((role, idx) => {
             const list = staff.filter(s => s.role === role);
+            const open = idx === 0 || list.length <= 6;
             return `
-                <div>
-                    <div class="text-[11px] font-black text-blue-600 dark:text-blue-400 mb-1.5">${escStaff(role)} <span class="text-slate-400 font-bold">${list.length}</span></div>
+                <details class="group" ${open ? 'open' : ''}>
+                    <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-1.5 text-[11px] font-black text-blue-600 dark:text-blue-400 mb-1.5">
+                        <i class="fa-solid fa-chevron-right text-[9px] transition-transform group-open:rotate-90"></i>
+                        ${escStaff(role)} <span class="text-slate-400 font-bold">${list.length}명</span>
+                        ${open ? '' : `<span class="text-slate-400 font-semibold group-open:hidden">· ${list.slice(0, 3).map(s => escStaff(s.name)).join(', ')}${list.length > 3 ? ' 외' : ''}</span>`}
+                    </summary>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        ${list.map(s => `
-                            <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 min-w-0">
-                                <div class="w-9 h-9 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-xs font-black text-slate-500">
-                                    ${s.photo_url ? `<img src="${escStaff(s.photo_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.remove()">` : ''}
-                                    <span>${escStaff((s.name || '').slice(0, 1))}</span>
-                                </div>
-                                <div class="min-w-0">
-                                    <div class="text-[13px] font-black text-slate-800 dark:text-slate-100 truncate">${escStaff(s.name)} <span class="text-[11px] font-bold text-slate-400">${escStaff(s.title || '')}</span></div>
-                                    ${s.duties && s.duties !== role ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug break-keep">${escStaff(s.duties)}</div>` : ''}
-                                </div>
-                            </div>`).join('')}
+                        ${list.map(s => card(s, role)).join('')}
                     </div>
-                </div>`;
+                </details>`;
         }).join('');
     }
 
