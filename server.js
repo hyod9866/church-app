@@ -2002,6 +2002,254 @@ app.get('/api/cron/sync-church-staff', async (req, res) => {
   }
 });
 
+// ============================================================
+// [2026-09-27] 성도 분포 지도 — 주소 → 좌표 변환(카카오) + 조회 API
+// 원본: 전도사님이 주신 "성도분포도_만들기_v1.0.html"(엑셀 업로드 + 브라우저 변환 방식)을
+// 프로그램 안으로 옮긴 것. 달라진 점:
+//  - 카카오 REST 키는 브라우저가 아니라 서버 환경변수(KAKAO_REST_API_KEY)에만 둔다.
+//  - 좌표는 서버가 한 번 변환해 members.geo_* 에 저장하고, 주소가 바뀐 성도만 다시 변환한다.
+//    (geo_address = 좌표를 만들 때 쓴 주소. members.address와 다르면 "변환 대기"로 본다.)
+//  - 시·군이 없는 주소(예: "푸르지오라포레 108동")는 기본 지역(설정 geo_default_regions,
+//    기본값 경기 의왕시 → 수원시 → 화성시)을 앞에 붙여 차례로 찾는다. 그 지역 결과만 인정한다.
+// ============================================================
+const GEO_DEFAULT_REGIONS = ['경기 의왕시', '경기 수원시', '경기 화성시'];
+const GEO_BATCH_ADDRESSES = 25;
+const GEO_PROVINCES = '서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주';
+const GEO_RE_PROV = `(?:[가-힣]+(?:특별자치도|특별자치시|특별시|광역시|도)|${GEO_PROVINCES})`;
+
+// 주소 맨 앞의 광역/시·군을 찾는다. 예: "경기 의왕시 안골로 10" → { city:'경기 의왕시', must:'의왕시' }
+function geoCityOf(a) {
+  const s = String(a || '').trim();
+  const m = new RegExp(`^(${GEO_RE_PROV})?\\s*([가-힣]{2,10}(?:시|군))(?![가-힣])`).exec(s);
+  if (m && m[2]) return { city: [m[1], m[2]].filter(Boolean).join(' '), must: m[2] };
+  const p = new RegExp(`^(${GEO_RE_PROV})(?![가-힣])`).exec(s);
+  if (p) return { city: p[1], must: p[1].slice(0, 2) };
+  return { city: '', must: '' };
+}
+
+// 주소에서 도로명+번호 / 지번(동+번호) / 아파트·건물명 / 동을 뽑는다.
+// 우리 DB 주소는 "안골로10 고천파크루체이편한세상 108동 902호", "중앙샛길36-1 프라임그린빌103-301"처럼
+// 띄어쓰기·시군이 제각각이라, 도로명/지번을 먼저 찾고 그 뒤에 붙은 부분에서만 동·호수를 떼어낸다
+// (먼저 떼면 "골우물길19-5"의 번지 19-5가 호수로 오인돼 지워진다).
+function geoParseAddr(a) {
+  let s = String(a || '').replace(/\s+/g, ' ').trim();
+  let dong = null, apt = null;
+  for (const m of (s.match(/\(([^)]*)\)/g) || [])) {
+    for (const t of m.slice(1, -1).split(',').map(x => x.trim()).filter(Boolean)) {
+      if (dong === null && /(동|읍|면|리|가)$/.test(t)) dong = t;
+      else if (apt === null) apt = t;
+    }
+  }
+  s = s.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim().split(',')[0].trim();
+  const stripUnit = (t) => String(t || '')
+    .replace(/\s*\d+\s*동\s*\d+\s*호?\s*$/, '')   // 103동 1303호
+    .replace(/\s*\d+\s*-\s*\d+\s*호?\s*$/, '')     // 103-301
+    .replace(/\s*\d+\s*호\s*$/, '')                   // 1109호
+    .replace(/\s*\d+\s*동\s*$/, '')                   // 101동
+    .replace(/^[\s,]+|[\s,]+$/g, '')
+    .trim();
+  const NOT_UNIT = '(?![\\d-]*\\s*(?:동|호)(?:[\\s\\d]|$))';
+  const road = new RegExp('([가-힣A-Za-z0-9]+(?:로|길))\\s*(\\d+(?:-\\d+)?)' + NOT_UNIT).exec(s);
+  const jibun = road ? null : new RegExp('([가-힣]+(?:동|읍|면|리|가))\\s+(\\d+(?:-\\d+)?)' + NOT_UNIT).exec(s);
+  const base = road || jibun;
+  let rest = base ? s.slice(base.index + base[0].length) : s;
+  rest = stripUnit(rest);
+  if (apt === null && rest && /[가-힣]{2,}/.test(rest)) apt = rest;
+  const lead = base ? s.slice(0, base.index + base[0].length).trim() : '';
+  const head = base ? [lead, apt && !s.includes('(') ? apt : ''].filter(Boolean).join(' ') : stripUnit(s);
+  if (dong === null) {
+    const d = /([가-힣]+(?:동|읍|면))(?![가-힣])/.exec(base ? lead : head);
+    if (d) dong = d[1];
+  }
+  return {
+    head,
+    road: road ? `${road[1]} ${road[2]}` : null,
+    jibun: jibun ? `${jibun[1]} ${jibun[2]}` : null,
+    apt,
+    dong
+  };
+}
+
+async function kakaoLocal(path, query) {
+  const url = `https://dapi.kakao.com/v2/local/search/${path}.json?size=5&query=${encodeURIComponent(query)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch(url, { headers: { Authorization: `KakaoAK ${process.env.KAKAO_REST_API_KEY}` }, signal: ctrl.signal });
+    if (r.status === 401 || r.status === 403) {
+      const t = await r.text();
+      const e = new Error(`카카오 키 인증 실패 (${r.status}): ${t.slice(0, 150)}`);
+      e.kakaoAuth = true;
+      throw e;
+    }
+    if (!r.ok) return [];
+    return (await r.json()).documents || [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 결과 주소에 must(시·군)가 들어 있는 것만 인정 — 다른 도시의 같은 이름 아파트/동을 막는다.
+function kakaoPickDoc(docs, must) {
+  const ok = docs.filter(d => !must
+    || (d.address_name || '').includes(must)
+    || ((d.road_address || {}).address_name || '').includes(must));
+  for (const d of ok) if (d.road_address && d.road_address.x) {
+    return { lat: +d.road_address.y, lon: +d.road_address.x, dong: d.road_address.region_3depth_name || '',
+             matched: d.road_address.address_name || d.address_name || '' };
+  }
+  for (const d of ok) if (d.x) {
+    const dm = /([가-힣0-9]+(?:동|읍|면|가))(?=\s|$)/.exec(d.address_name || '');
+    return { lat: +d.y, lon: +d.x,
+             dong: (d.address && d.address.region_3depth_name) || d.region_3depth_name || (dm ? dm[1] : ''),
+             matched: [d.place_name, d.road_address_name || d.address_name].filter(Boolean).join(' · ') };
+  }
+  return null;
+}
+
+// 주소 하나 → { lat, lon, precision: exact|near|approx, dong, apt, matched, region } 또는 null
+async function geocodeMemberAddress(address, regions) {
+  const { city, must } = geoCityOf(address);
+  const p = geoParseAddr(address);
+  const tries = city ? [{ prefix: city + ' ', must, region: null }]
+    : regions.map(r => ({ prefix: r + ' ', must: geoCityOf(r).must || r, region: r }));
+  const body = (t) => (city ? t.replace(city, '').trim() : t);
+  for (const t of tries) {
+    const q = (x) => (t.prefix + body(x)).replace(/\s+/g, ' ').trim();
+    const steps = [];
+    if (p.road) steps.push(['address', q(p.road), 'exact']);
+    if (p.jibun) steps.push(['address', q(p.jibun), 'exact']);
+    steps.push(['address', q(p.head), 'exact']);
+    if (p.apt) steps.push(['keyword', q(p.apt), 'near']);
+    steps.push(['keyword', q(p.head), 'near']);
+    if (p.road) steps.push(['address', q(p.road.replace(/\s[\d-]+$/, '')), 'near']);
+    if (p.dong) steps.push(['address', q(p.dong), 'approx']);
+    const seen = new Set();
+    for (const [kind, query, precision] of steps) {
+      if (!query || query === t.prefix.trim() || seen.has(kind + query)) continue;
+      seen.add(kind + query);
+      const hit = kakaoPickDoc(await kakaoLocal(kind, query), t.must);
+      await new Promise(r => setTimeout(r, 40));
+      if (hit) return { ...hit, precision, apt: p.apt || '', dong: hit.dong || p.dong || '', region: t.region };
+    }
+  }
+  return null;
+}
+
+async function loadGeoRegions() {
+  try {
+    const { data } = await supabase.from('settings').select('value').eq('key', 'geo_default_regions').maybeSingle();
+    const v = data && data.value;
+    const list = (Array.isArray(v) ? v : String(v || '').split(','))
+      .map(s => String(s).trim()).filter(Boolean);
+    if (list.length) return list;
+  } catch (e) { /* 설정이 없으면 기본값 */ }
+  return GEO_DEFAULT_REGIONS;
+}
+
+const DIST_MEMBER_COLS = 'id, name, bs, district, category, position, church_service, birth_year, address, geo_lat, geo_lon, geo_precision, geo_address, geo_dong, geo_apt, geo_matched, geo_region, geo_updated_at';
+const needsGeocode = (m) => {
+  const addr = (m.address || '').trim();
+  return !!addr && (m.geo_address || '') !== addr;
+};
+
+async function fetchDistributionMembers() {
+  return await fetchAllRows((from, to) =>
+    supabase.from('members').select(DIST_MEMBER_COLS)
+      .eq('status', 'active')
+      .eq('member_status', 'member')
+      .neq('name', ANONYMOUS_COUNSELING_NAME)
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
+}
+
+// 성도 분포 지도용 데이터 (좌표는 현재 주소와 일치할 때만 내려준다 — 주소가 바뀌었으면 '변환 대기')
+app.get('/api/distribution', async (req, res) => {
+  try {
+    const [members, regions] = await Promise.all([fetchDistributionMembers(), loadGeoRegions()]);
+    let pending = 0;
+    const out = members.map(m => {
+      const addr = (m.address || '').trim();
+      const fresh = addr && (m.geo_address || '') === addr;
+      if (addr && !fresh) pending++;
+      return {
+        id: m.id, name: m.name, bs: m.bs, district: m.district, category: m.category,
+        position: m.position, church_service: m.church_service, birth_year: m.birth_year, address: addr,
+        lat: fresh && m.geo_precision !== 'fail' ? m.geo_lat : null,
+        lon: fresh && m.geo_precision !== 'fail' ? m.geo_lon : null,
+        precision: fresh ? m.geo_precision : (addr ? 'pending' : 'noaddr'),
+        dong: fresh ? m.geo_dong : null, apt: fresh ? m.geo_apt : null,
+        matched: fresh ? m.geo_matched : null, region: fresh ? m.geo_region : null
+      };
+    });
+    res.json({ key_configured: !!process.env.KAKAO_REST_API_KEY, regions, pending, members: out });
+  } catch (err) {
+    console.error('GET /api/distribution error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 주소 → 좌표 변환 (관리자). 한 번에 주소 GEO_BATCH_ADDRESSES건씩 처리하고 남은 건수를 돌려준다.
+// body: { retryFailed?: boolean, redo?: 'region' } — 실패(또는 기본 지역 추정) 주소를 변환 대기로 되돌린 뒤 다시 시도
+app.post('/api/distribution/geocode', async (req, res) => {
+  try {
+    if (!process.env.KAKAO_REST_API_KEY) {
+      return res.status(400).json({ error: '카카오 REST API 키가 설정되지 않았습니다 (Vercel 환경변수 KAKAO_REST_API_KEY).' });
+    }
+    // "못 찾은 주소 다시 찾기": 실패 표시를 지워 변환 대기로 되돌린 뒤 평소처럼 처리한다
+    // (실패 건을 매번 다시 고르면 프론트의 반복 호출이 끝나지 않으므로 이 방식으로 한 번만 되돌림).
+    if (req.body && (req.body.retryFailed || req.body.redo === 'region')) {
+      const { error: rErr } = await supabase.from('members')
+        .update({ geo_address: null }).eq('geo_precision', 'fail');
+      if (rErr) throw rErr;
+    }
+    // 기본 지역 목록을 바꾼 뒤: 기본 지역으로 추정했던 주소들도 새 순서로 다시 찾는다.
+    if (req.body && req.body.redo === 'region') {
+      const { error: gErr } = await supabase.from('members')
+        .update({ geo_address: null }).not('geo_region', 'is', null);
+      if (gErr) throw gErr;
+    }
+    const [members, regions] = await Promise.all([fetchDistributionMembers(), loadGeoRegions()]);
+    const todo = members.filter(m => needsGeocode(m));
+    const byAddr = new Map();
+    todo.forEach(m => { const a = m.address.trim(); if (!byAddr.has(a)) byAddr.set(a, []); byAddr.get(a).push(m.id); });
+    const addrs = [...byAddr.keys()];
+    const batch = addrs.slice(0, GEO_BATCH_ADDRESSES);
+    const summary = { processed: 0, exact: 0, near: 0, approx: 0, fail: 0 };
+    // 서버 함수 실행 시간 제한을 넘지 않도록 한 번 호출에 약 7초까지만 처리하고 나머지는 다음 호출로 넘긴다
+    // (화면이 남은 건수가 0이 될 때까지 반복 호출한다).
+    const started = Date.now();
+    for (const addr of batch) {
+      if (Date.now() - started > 7000) break;
+      let hit = null;
+      try {
+        hit = await geocodeMemberAddress(addr, regions);
+      } catch (e) {
+        if (e.kakaoAuth) return res.status(400).json({ error: e.message, ...summary });
+        console.error('geocode error:', addr, e.message);
+        continue; // 일시 오류는 다음에 다시 시도(geo_address를 안 바꿈)
+      }
+      const nowIso = new Date().toISOString();
+      const patch = hit
+        ? { geo_lat: hit.lat, geo_lon: hit.lon, geo_precision: hit.precision, geo_address: addr,
+            geo_dong: hit.dong || null, geo_apt: hit.apt || null, geo_matched: hit.matched || null,
+            geo_region: hit.region, geo_updated_at: nowIso }
+        : { geo_lat: null, geo_lon: null, geo_precision: 'fail', geo_address: addr,
+            geo_dong: null, geo_apt: null, geo_matched: null, geo_region: null, geo_updated_at: nowIso };
+      const { error } = await supabase.from('members').update(patch).in('id', byAddr.get(addr));
+      if (error) throw error;
+      summary.processed++;
+      summary[hit ? hit.precision : 'fail']++;
+    }
+    const remainingAddrs = addrs.length - summary.processed;
+    res.json({ ...summary, remaining: Math.max(0, remainingAddrs), total: addrs.length });
+  } catch (err) {
+    console.error('POST /api/distribution/geocode error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/parishes', async (req, res) => {
   const { church_id } = req.query;
   try {

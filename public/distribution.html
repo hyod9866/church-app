@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성도 분포 - Pastoral Ministry Program</title>
+    <link rel="stylesheet" href="/css/tailwind.min.css">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            if (theme === 'dark' || (theme === 'system' && darkQuery.matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/dark-theme-fixes.css?v=1">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <style>
+        /* [2026-09-27] 성도 분포 지도 — 원본 "성도분포도_만들기_v1.0.html"의 표시 방식을 앱 디자인으로 옮김.
+           지도 이름표·칩·막대처럼 JS가 그리는 부분은 dm- 접두어의 전용 스타일을 쓴다(다른 화면과 충돌 방지). */
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        :root {
+            --dm-navy:#1D4E73; --dm-ocean:#0B2E4A; --dm-sky:#3FA9DC; --dm-mid:#24688C; --dm-teal:#2A9D8F;
+            --dm-ink:#334155; --dm-muted:#64748b; --dm-line:#e2e8f0; --dm-faint:#D8DEE4; --dm-panel:#f8fafc;
+            --dm-card:#ffffff; --dm-male:#0B2E4A; --dm-female:#A03A62; --dm-labelbg:rgba(255,255,255,.96);
+        }
+        .dark {
+            --dm-ink:#e2e8f0; --dm-muted:#94a3b8; --dm-line:#1e293b; --dm-faint:#334155; --dm-panel:#0f172a;
+            --dm-card:#131B2E; --dm-male:#93c5fd; --dm-female:#f9a8d4; --dm-labelbg:rgba(15,23,42,.94);
+        }
+        #dmMap { background: var(--dm-panel); }
+        #dmMap.gray .leaflet-tile-pane { filter: grayscale(1) brightness(1.07) contrast(.9); opacity: .62; }
+        .dark #dmMap .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(.85) contrast(.9); opacity: .75; }
+        .dark #dmMap:not(.gray) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85); opacity: .85; }
+        .leaflet-container { font-family: 'Pretendard', -apple-system, sans-serif; }
+        .dm-seg { display:flex; border:1px solid var(--dm-line); border-radius:10px; overflow:hidden; }
+        .dm-seg button { flex:1; border:0; background:var(--dm-card); padding:7px 3px; cursor:pointer; font-size:11.5px; color:var(--dm-muted); }
+        .dm-seg button + button { border-left:1px solid var(--dm-line); }
+        .dm-seg button.on { background:var(--dm-navy); color:#fff; font-weight:800; }
+        .dark .dm-seg button.on { background:#2563eb; }
+        .dm-chips { display:flex; flex-wrap:wrap; gap:5px; }
+        .dm-chip { display:flex; align-items:center; gap:6px; border:1px solid var(--dm-line); background:var(--dm-card); border-radius:8px;
+                   padding:4px 8px 4px 6px; cursor:pointer; font-size:12px; color:var(--dm-ink); font-variant-numeric:tabular-nums; user-select:none; }
+        .dm-chip:hover { border-color:var(--dm-sky); }
+        .dm-chip.on { border-color:var(--dm-navy); box-shadow:inset 0 0 0 1px var(--dm-navy); font-weight:800; }
+        .dark .dm-chip.on { border-color:#60a5fa; box-shadow:inset 0 0 0 1px #60a5fa; }
+        .dm-chip .n { color:var(--dm-muted); font-weight:500; font-size:11px; }
+        .dm-chip .ck { width:11px; height:11px; border-radius:3px; flex:none; box-shadow:inset 0 0 0 1px #94a3b8; }
+        .dm-chip.on .ck { background:var(--dm-navy); box-shadow:none; }
+        .dark .dm-chip.on .ck { background:#60a5fa; }
+        .dm-chip .rk { width:11px; height:11px; border-radius:3px; flex:none; }
+        input.dm-sw { width:15px; height:15px; flex:none; padding:0; border:1px solid rgba(11,46,74,.22); border-radius:3px; background:none; cursor:pointer; -webkit-appearance:none; appearance:none; }
+        input.dm-sw::-webkit-color-swatch-wrapper { padding:0; }
+        input.dm-sw::-webkit-color-swatch { border:0; border-radius:2px; }
+        .dm-rowbtn { display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+        .dm-rowbtn button { flex:1; min-width:70px; border:1px solid var(--dm-line); background:var(--dm-card); border-radius:8px; padding:6px 4px; cursor:pointer; font-size:11.5px; color:var(--dm-muted); }
+        .dm-rowbtn button:hover { border-color:var(--dm-sky); color:var(--dm-ink); }
+        .dm-h { margin:0 0 10px; font-size:11px; font-weight:900; letter-spacing:.06em; color:var(--dm-muted); }
+        .dm-h em { font-style:normal; font-weight:500; letter-spacing:0; opacity:.85; }
+        .dm-sec { padding:16px 0; border-bottom:1px solid var(--dm-line); }
+        .dm-sec:last-child { border-bottom:0; }
+        .dm-note { background:var(--dm-panel); border-left:3px solid var(--dm-sky); border-radius:6px; padding:10px 12px; font-size:11.5px; line-height:1.8; color:var(--dm-muted); }
+        .dm-note b { color:var(--dm-ink); }
+        .dm-note p { margin:0 0 6px; } .dm-note p:last-child { margin:0; }
+        .dm-mleg { background:var(--dm-panel); border-left:3px solid var(--dm-sky); border-radius:6px; padding:9px 12px; font-size:11px; line-height:1.6; color:var(--dm-muted); }
+        .dm-mleg .row { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:center; margin-bottom:5px; } .dm-mleg .row:last-child { margin-bottom:0; }
+        .dm-mleg .it { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+        .dm-mleg i { width:8px; height:8px; border-radius:2px; display:block; flex:none; }
+        .dm-mleg b.m { color:var(--dm-male); } .dm-mleg b.f { color:var(--dm-female); }
+        .dm-mleg .x { display:block; margin-top:6px; padding-top:6px; border-top:1px solid var(--dm-line); }
+        .dm-leg { display:flex; flex-direction:column; gap:7px; }
+        .dm-legrow { display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--dm-ink); }
+        .dm-legrow .sw2 { width:13px; height:13px; border-radius:50%; flex:none; }
+        .dm-legrow .ct { margin-left:auto; color:var(--dm-muted); font-variant-numeric:tabular-nums; }
+        .dm-rz { margin-bottom:16px; } .dm-rz:last-child { margin-bottom:0; }
+        .dm-rzh { display:flex; align-items:baseline; gap:8px; padding:0 0 6px; border-bottom:2px solid var(--dm-navy); margin-bottom:2px; }
+        .dark .dm-rzh { border-bottom-color:#3b82f6; }
+        .dm-rzh .z { font-size:17px; font-weight:900; }
+        .dm-rzh .m { font-size:11.5px; color:var(--dm-muted); margin-left:auto; font-variant-numeric:tabular-nums; }
+        .dm-rzh .m b { color:var(--dm-ink); }
+        .dm-rb { margin-top:8px; }
+        .dm-rbh { display:flex; align-items:baseline; gap:6px; font-size:11px; font-weight:800; color:var(--dm-ink); padding:2px 0 3px; border-bottom:1px solid var(--dm-line); }
+        .dm-rbh .c { color:var(--dm-muted); font-weight:500; font-size:10.5px; }
+        .dm-rp { display:grid; grid-template-columns:13px auto 1fr; gap:0 7px; align-items:baseline; padding:3px 0; border-bottom:1px solid var(--dm-line); }
+        .dm-rp:last-child { border-bottom:0; }
+        .dm-rp .mk { width:9px; height:9px; border-radius:2px; align-self:center; }
+        .dm-rp .nm { font-size:12.5px; font-weight:800; color:var(--dm-male); white-space:nowrap; }
+        .dm-rp .nm.f { color:var(--dm-female); }
+        .dm-rp.lead .nm { text-decoration:underline; text-decoration-thickness:1.5px; text-underline-offset:2px; }
+        .dm-rp .po { font-size:11px; color:var(--dm-muted); word-break:keep-all; }
+        .dm-rkey { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; padding-top:9px; border-top:1px solid var(--dm-line); font-size:10.5px; color:var(--dm-muted); }
+        .dm-rkey span { display:flex; align-items:center; gap:5px; } .dm-rkey i { width:9px; height:9px; border-radius:2px; display:block; }
+        .dm-bar { display:grid; grid-template-columns:64px 1fr 30px; gap:9px; align-items:center; padding:3px 0; cursor:pointer; font-size:12.5px; color:var(--dm-ink); }
+        .dm-bar .nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .dm-bar .tr { display:block; background:var(--dm-faint); height:7px; border-radius:0 3px 3px 0; }
+        .dm-bar .fl { display:block; height:100%; background:var(--dm-navy); border-radius:0 3px 3px 0; }
+        .dark .dm-bar .fl { background:#3b82f6; }
+        .dm-bar .ct { text-align:right; color:var(--dm-muted); font-variant-numeric:tabular-nums; }
+        .dm-bar.zn { grid-template-columns:12px 52px 1fr 28px 56px 36px; gap:7px; }
+        .dm-bar .dot { width:10px; height:10px; border-radius:50%; }
+        .dm-bar .sp, .dm-bar .lg { text-align:right; font-size:10.5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .dm-bar .sp { color:var(--dm-muted); } .dm-bar .lg { font-weight:800; }
+        .dm-unl .ua { display:block; margin-top:8px; color:var(--dm-ink); font-weight:800; font-size:12px; }
+        .dm-unl .un { color:var(--dm-muted); font-size:11.5px; }
+        .dm-nlab { background:0; border:0; }
+        .dm-nlab .box { background:var(--dm-labelbg); border:1px solid var(--dm-line); border-left-width:3px; border-radius:3px; padding:2px 6px 2px 5px; box-shadow:0 1px 2px rgba(11,46,74,.12); white-space:nowrap; }
+        .dm-nlab .ln { display:flex; align-items:baseline; gap:4px; line-height:13px; }
+        .dm-nlab .mk { width:8px; height:8px; border-radius:2px; flex:none; align-self:center; }
+        .dm-nlab .n { font:800 11.5px/13px 'Pretendard', sans-serif; color:var(--dm-male); }
+        .dm-nlab .n.f { color:var(--dm-female); }
+        .dm-nlab .r { font:400 9.5px/13px 'Pretendard', sans-serif; color:var(--dm-muted); }
+        .dm-nlab .n.ld { text-decoration:underline; text-decoration-thickness:1.5px; text-underline-offset:2px; }
+        .dm-ndot { background:0; border:0; }
+        .dm-ndot i { display:block; width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 1.5px #fff; }
+        .dm-cnt { background:0; border:0; color:#fff; text-align:center; font:800 11px/1 'Pretendard', sans-serif; text-shadow:0 1px 2px rgba(11,46,74,.6); }
+        .leaflet-popup-content-wrapper { border-radius:8px; padding:0; overflow:hidden; background:var(--dm-card); color:var(--dm-ink); }
+        .leaflet-popup-tip { background:var(--dm-card); }
+        .leaflet-popup-content { margin:0; font-size:13px; line-height:1.6; width:300px !important; max-height:360px; overflow-y:auto; }
+        .dm-pop-h { background:var(--dm-ocean); color:#fff; padding:10px 14px; }
+        .dm-pop-h .t { font-weight:800; font-size:14px; }
+        .dm-pop-h .s { font-size:11px; color:#B9D2E2; margin-top:2px; }
+        .dm-pop-b { padding:8px 14px 12px; }
+        .dm-pop-m { display:grid; grid-template-columns:36px 1fr; gap:9px; padding:4px 0; border-top:1px solid var(--dm-line); align-items:baseline; }
+        .dm-pop-m:first-child { border-top:0; }
+        .dm-pop-z { font-size:10px; font-weight:800; color:#fff; border-radius:3px; text-align:center; line-height:1.7; }
+        .dm-pop-m .nm { font-weight:800; color:var(--dm-male); } .dm-pop-m .nm.f { color:var(--dm-female); }
+        .dm-pop-m .mt { font-size:11px; color:var(--dm-muted); display:block; }
+        .dm-zmix { display:flex; flex-wrap:wrap; gap:3px; }
+        .dm-zmix span { font-size:10.5px; font-weight:800; color:#fff; border-radius:3px; padding:0 6px; line-height:1.7; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-[#0B1120] h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 dark:from-slate-900 dark:via-[#0F172A] dark:to-slate-900 text-white p-3 md:p-4 shadow-md dark:shadow-none border-b border-blue-950/20 dark:border-slate-800/60 flex justify-between items-center flex-shrink-0 sticky top-0 z-50">
+        <div class="flex items-center gap-2 md:gap-3 mr-2 min-w-0">
+            <a href="/" class="hover:opacity-80 transition-opacity duration-150">
+                <h1 class="text-base md:text-xl font-black truncate">
+                    <span class="md:hidden">P.M.P</span>
+                    <span class="hidden md:flex flex-col xl:flex-row xl:items-baseline xl:gap-1.5 text-left leading-none">
+                        <span class="text-sm md:text-base font-black tracking-wider">Pastoral Ministry</span>
+                        <span class="text-sm md:text-base font-black tracking-wider">Program</span>
+                    </span>
+                </h1>
+            </a>
+        </div>
+        <div class="flex items-center gap-1.5 min-w-0">
+            <div class="flex gap-2 overflow-x-auto no-scrollbar items-center pr-1">
+                <a href="/status.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v16m-6 0a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                    교회 현황
+                </a>
+                <a href="/member_management.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    성도 현황
+                </a>
+                <!-- [2026-09-27] 성도 분포 지도 -->
+                <a href="/distribution.html" class="bg-white text-blue-700 dark:bg-blue-600 dark:text-white dark:border-blue-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                    성도 분포
+                </a>
+                <a href="/dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    출석 현황
+                </a>
+                <!-- 심방 관리 -->
+                <a href="/visitation_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    심방 관리
+                </a>
+                <!-- 상담 관리 -->
+                <a href="/counseling_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    상담 관리
+                </a>
+
+                <a href="/meeting_dashboard.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                    모임 현황
+                </a>
+            </div>
+            <!-- 설정 버튼 (톱니바퀴) -->
+            <button id="openSettingsBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 p-2 rounded-lg transition whitespace-nowrap flex items-center justify-center shrink-0 cursor-pointer ml-1" title="설정">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+    </header>
+    <!-- Main: 왼쪽 조건/명단, 오른쪽 지도 (모바일은 지도 위, 조건 아래) -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+        <aside class="order-2 md:order-1 w-full md:w-[390px] flex-1 md:flex-none flex flex-col min-h-0 bg-white dark:bg-[#131B2E] border-r border-slate-200 dark:border-slate-800 overflow-y-auto md:overflow-hidden">
+            <!-- 요약 -->
+            <div class="bg-gradient-to-br from-[#0B2E4A] to-[#1D4E73] dark:from-slate-900 dark:to-[#0F172A] text-white px-5 py-4 flex-none">
+                <div class="text-[10px] font-black tracking-[.16em] text-sky-300 mb-1">성도 분포 지도</div>
+                <h2 class="text-xl font-black">성도 분포</h2>
+                <p id="dmStat" class="mt-2 text-[12px] leading-relaxed text-slate-200">불러오는 중...</p>
+                <div id="dmGeoBox" class="hidden mt-3">
+                    <div class="h-1.5 bg-white/15 rounded overflow-hidden"><div id="dmGeoBar" class="h-full bg-sky-400 transition-all duration-200" style="width:0%"></div></div>
+                    <div id="dmGeoTxt" class="mt-1.5 text-[11px] text-slate-200"></div>
+                </div>
+                <div id="dmNotice" class="hidden mt-3 text-[11.5px] leading-relaxed rounded-lg px-3 py-2 bg-amber-400/15 text-amber-100 border border-amber-300/30"></div>
+            </div>
+            <div class="flex-1 md:overflow-y-auto px-5 pb-8 min-h-0">
+                <section class="dm-sec">
+                    <h3 class="dm-h">색으로 무엇을 볼까</h3>
+                    <div class="dm-seg" id="dmMode">
+                        <button data-m="density" class="on">세대 밀도</button>
+                        <button data-m="zone">구역별 색</button>
+                        <button data-m="age">세대구분</button>
+                        <button data-m="area">지역 집계</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-2.5">
+                        <div><div class="text-[10px] font-black text-slate-400 mb-1">배경지도</div>
+                            <div class="dm-seg" id="dmTiles"><button data-t="gray" class="on">흑백</button><button data-t="color">컬러</button></div></div>
+                        <div><div class="text-[10px] font-black text-slate-400 mb-1">지도 표시</div>
+                            <div class="dm-seg" id="dmMarks"><button data-k="name" class="on">이름</button><button data-k="dot">점</button></div></div>
+                        <div><div class="text-[10px] font-black text-slate-400 mb-1">크기</div>
+                            <div class="dm-seg" id="dmSize"><button data-s="1" class="on">보통</button><button data-s="1.4">크게</button></div></div>
+                    </div>
+                    <div id="dmLegend" class="mt-3"></div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">구역 고르기 <em>— 여러 개 · 네모를 눌러 색 변경</em></h3>
+                    <div class="dm-chips" id="dmZoneChips"></div>
+                    <div class="dm-rowbtn">
+                        <button id="dmAllZ">구역 전체</button>
+                        <button id="dmInvZ">선택 반전</button>
+                        <button id="dmFit">지도 맞춤</button>
+                        <button id="dmResetC">색 초기화</button>
+                    </div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">직분으로 좁히기</h3>
+                    <div class="dm-chips" id="dmRankChips"></div>
+                    <h3 class="dm-h" style="margin-top:14px">소속으로 좁히기</h3>
+                    <div class="dm-chips" id="dmGroupChips"></div>
+                    <div class="dm-rowbtn">
+                        <button id="dmOfficers">임원만 (구역·교구)</button>
+                        <button id="dmClear">조건 해제</button>
+                    </div>
+                    <div class="dm-mleg" id="dmFsum" style="margin-top:10px"></div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">구역 명단 <em id="dmRosterTitle"></em></h3>
+                    <div id="dmRoster"></div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">지역별 인원 <em>— 고른 조건 기준 · 눌러서 이동</em></h3>
+                    <div id="dmDongBars"></div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">구역별 인원 · 직분자 · 흩어짐 <em>— 구역 조건은 빼고 비교</em></h3>
+                    <div id="dmZoneBars"></div>
+                </section>
+
+                <section class="dm-sec" id="dmUnlSec">
+                    <h3 class="dm-h">주소 확인 필요</h3>
+                    <div class="dm-unl" id="dmUnloc"></div>
+                    <div id="dmAdmin" class="hidden mt-3 space-y-2">
+                        <div class="flex flex-wrap gap-2">
+                            <button id="dmRetryFail" class="text-[11.5px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"><i class="fa-solid fa-rotate mr-1"></i>못 찾은 주소 다시 찾기</button>
+                        </div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                            시·군 없이 적힌 주소는 아래 지역을 차례로 붙여서 찾습니다.
+                            <div class="flex gap-1.5 mt-1.5">
+                                <input id="dmRegions" type="text" class="flex-1 min-w-0 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2.5 py-1.5 text-[12px] text-slate-700 dark:text-slate-200" placeholder="경기 의왕시, 경기 수원시, 경기 화성시">
+                                <button id="dmSaveRegions" class="text-[11.5px] font-bold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700">저장 후 다시 찾기</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="dm-sec">
+                    <h3 class="dm-h">읽는 법</h3>
+                    <div class="dm-note">
+                        <p><b>지도의 이름표</b>가 그 사람이 사는 곳입니다. 같은 주소에 사는 사람은 한 이름표에 묶입니다. 겹칠 자리가 없으면 점으로만 표시되니 <b>확대하면 더 많은 이름</b>이 나옵니다.</p>
+                        <p>이름 앞 <b>네모 색</b>이 직분입니다. <b>밑줄 친 이름</b>은 구역임원입니다. 이름 색으로 <b>형제·자매</b>를 구분합니다.</p>
+                        <p><b>구역 · 직분 · 소속</b> 세 조건이 함께 걸립니다. 각 조건에서 아무것도 안 고르면 그 조건은 전체입니다.</p>
+                        <p><b>점선 테두리</b>는 번지까지 특정되지 않아 동 중심 부근에 흩어 놓은 위치로, 실제 집이 아닙니다. 아파트 <b>동·호수는 반영되지 않습니다.</b> 시·군이 없는 주소는 기본 지역으로 추정한 것이라 이름표를 누르면 "추정"이라고 표시됩니다.</p>
+                        <p>성도 현황에서 주소를 고치면 이 화면을 다시 열 때 자동으로 새 위치를 찾습니다.</p>
+                    </div>
+                </section>
+            </div>
+        </aside>
+        <div class="order-1 md:order-2 flex-none md:flex-1 h-[50vh] md:h-auto relative min-h-0">
+            <div id="dmMap" class="gray absolute inset-0"></div>
+            <div id="dmEmpty" class="hidden absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-500 dark:text-slate-400 bg-slate-50/90 dark:bg-slate-900/90 z-[500]"></div>
+        </div>
+    </main>
+
+    <!-- Settings Modal (Dynamic Theme Settings) -->
+    <div id="settingsModal" class="fixed inset-0 z-[300] flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="settingsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-[90%] max-w-sm rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-2xl relative z-10 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    애플리케이션 설정
+                </h3>
+                <button id="closeSettingsModal" class="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider block mb-2">테마 스타일</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="themeLightBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">☀️</span>
+                            라이트
+                        </button>
+                        <button type="button" id="themeDarkBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">🌙</span>
+                            다크
+                        </button>
+                        <button type="button" id="themeSystemBtn" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-[#0B0F19] dark:hover:bg-[#1E293B]/30 text-xs font-bold text-slate-700 dark:text-slate-300 transition duration-150 cursor-pointer">
+                            <span class="text-lg mb-1">💻</span>
+                            시스템
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800/60 text-center">
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-550">Pastoral Ministry Program v1.2.0</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Scripts -->
+    <script src="/js/theme.js?v=final-theme-fix-10"></script>
+    <script src="/js/distribution.js?v=1"></script>
+</body>
+</html>
