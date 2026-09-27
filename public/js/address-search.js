@@ -7,7 +7,7 @@
    대상: name="address"인 입력칸 (성도 등록/수정 모달). 직접 타이핑하는 기존 방식도 그대로 된다.
    ════════════════════════════════════════════════════════════════════ */
 (function () {
-  const SCRIPT_URL = 'https://t1.daumcdn.net/mapjsapi/bizdaum/postcode/postcode.v2.js';
+  const SCRIPT_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
   let loading = null;
 
   function loadPostcode() {

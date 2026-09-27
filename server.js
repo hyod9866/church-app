@@ -2147,14 +2147,23 @@ async function loadGeoRegions() {
   return GEO_DEFAULT_REGIONS;
 }
 
-const DIST_MEMBER_COLS = 'id, name, bs, district, category, position, church_service, birth_year, address, geo_lat, geo_lon, geo_precision, geo_address, geo_dong, geo_apt, geo_matched, geo_region, geo_updated_at';
+const DIST_MEMBER_COLS = 'id, name, bs, district, category, position, church_service, birth_year, address, church, parish, geo_lat, geo_lon, geo_precision, geo_address, geo_dong, geo_apt, geo_matched, geo_region, geo_updated_at';
 const needsGeocode = (m) => {
   const addr = (m.address || '').trim();
   return !!addr && (m.geo_address || '') !== addr;
 };
 
+// [2026-09-27] 성도 분포는 "정식 성도" 중에서도 강효근(담당 전도사)이 현재 맡은 교회/교구 소속만 보여야 한다.
+// 상담 중 새로 생성된 성도 행은 다른 교회·교구 소속이거나 소속 정보가 없을 수 있는데(member_status가 'member'로
+// 기본 저장돼도), 그런 분들까지 지도/주소 확인 목록에 섞이면 안 된다. /api/visitation/status와 동일한 범위 규칙을 쓴다.
 async function fetchDistributionMembers() {
-  return await fetchAllRows((from, to) =>
+  const { data: myProfile, error: profErr } = await supabase
+    .from('members').select('church, parish').eq('name', '강효근').single();
+  if (profErr) console.error('distribution scope profile lookup failed:', profErr);
+  const myChurch = (myProfile && myProfile.church) || '서울중앙교회';
+  const myParish = (myProfile && myProfile.parish) || '부곡교구';
+
+  const rawMembers = await fetchAllRows((from, to) =>
     supabase.from('members').select(DIST_MEMBER_COLS)
       .eq('status', 'active')
       .eq('member_status', 'member')
@@ -2162,6 +2171,12 @@ async function fetchDistributionMembers() {
       .order('id', { ascending: true })
       .range(from, to)
   );
+
+  return (rawMembers || []).filter(m => (
+    myChurch === '서울중앙교회'
+      ? (m.church === myChurch && m.parish === myParish)
+      : (m.church === myChurch)
+  ));
 }
 
 // 성도 분포 지도용 데이터 (좌표는 현재 주소와 일치할 때만 내려준다 — 주소가 바뀌었으면 '변환 대기')
