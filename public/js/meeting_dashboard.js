@@ -68,6 +68,7 @@ function renderKeywordFilters() {
         selectedMeetingTypes.clear();
         renderKeywordFilters();
         updateWordCloud();
+        updateBibleChart();
         applyFilters();
     };
     container.appendChild(allBtn);
@@ -92,6 +93,7 @@ function renderKeywordFilters() {
             }
             renderKeywordFilters();
             updateWordCloud();
+            updateBibleChart();
             applyFilters();
         };
         container.appendChild(btn);
@@ -164,6 +166,27 @@ function updateWordCloud() {
         wordCloudChart.container("wordCloudContainer");
         wordCloudChart.draw();
     }
+}
+
+// [2026-09-28] 성경 본문 분포 차트를 "설교 키워드 클라우드"의 모임 구분 필터(칩)와 연동한다.
+// updateWordCloud()와 동일한 기준(selectedMeetingTypes)으로 currentSermons를 걸러
+// 각 설교의 sermon_bible(본문)을 다시 집계 — 본문을 안 쓴 설교는 자연히 집계에서 빠진다.
+function updateBibleChart() {
+    const filteredSermons = selectedMeetingTypes.size === 0
+        ? currentSermons
+        : currentSermons.filter(s => selectedMeetingTypes.has(s.type));
+
+    const bibleBooksCount = {};
+    filteredSermons.forEach(s => {
+        const book = (s.sermon_bible || '').trim();
+        if (book) bibleBooksCount[book] = (bibleBooksCount[book] || 0) + 1;
+    });
+
+    const bibleDist = Object.entries(bibleBooksCount)
+        .sort((a, b) => b[1] - a[1])
+        .map(([book, count]) => ({ book, count }));
+
+    renderBibleCharts(bibleDist);
 }
 
 function applyFilters() {
@@ -369,10 +392,9 @@ async function fetchStats() {
         // 3. 필터 기준에 따른 실시간 워드 클라우드 렌더링
         updateWordCloud();
 
-        // 4. 성경 분포 세로 막대 차트 (신구약 분리) 렌더링
-        if (data.bibleDist && data.bibleDist.length > 0) {
-            renderBibleCharts(data.bibleDist);
-        }
+        // 4. 성경 분포 세로 막대 차트 (신구약 분리) 렌더링 — 모임 구분 필터(칩) 선택에 따라
+        //    다시 계산되도록 서버가 준 data.bibleDist 대신 updateBibleChart()를 사용한다.
+        updateBibleChart();
 
     } catch(e) {
         console.error(e);
