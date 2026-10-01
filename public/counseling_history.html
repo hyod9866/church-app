@@ -557,6 +557,21 @@
                     <div class="h-36 lg:h-40 w-full relative">
                         <canvas id="counselingTrendChart"></canvas>
                     </div>
+
+                    <!-- 년도별 상담현황 (2026~2035 고정, 가로스크롤) — [2026-10-01] 추가 -->
+                    <div class="border-t dark:border-slate-800 pt-3 mt-1">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-calendar-days text-indigo-500"></i> 년도별 상담현황
+                            </span>
+                            <span class="text-[10px] text-slate-400 dark:text-slate-500">2026~2035 · 막대 클릭 시 해당 연도로 이동</span>
+                        </div>
+                        <div id="yearOverviewScroll" class="overflow-x-auto pb-1">
+                            <div class="h-28" style="width: 900px;">
+                                <canvas id="yearOverviewChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

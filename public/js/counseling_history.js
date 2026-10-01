@@ -2054,6 +2054,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let trendChartInstance = null;
     let trendMonthly = { member: {}, evangelism: {} }; // 전체 세션을 'YYYY-MM'으로 집계 (allStatus 기준)
     let trendYears = []; // 데이터가 있는 연도(오름차순)
+    let yearOverviewChartInstance = null;
+    const YEAR_OVERVIEW_START = 2026; // [2026-10-01] 년도별 상담현황 고정 시작년도
+    const YEAR_OVERVIEW_COUNT = 10;   // 2026~2035
 
     // 전역 연도 필터에 따라 추이 그래프를 렌더링
     //  - 특정 연도: 그 해 1~12월
@@ -2082,6 +2085,113 @@ document.addEventListener('DOMContentLoaded', () => {
                 years.map(y => `${y}년`)
             );
         }
+    }
+
+    // [2026-10-01] 년도별 상담현황 (2026~2035 고정 범위, 가로스크롤)
+    //  - trendMonthly는 updateDashboard()에서 항상 '전체 데이터(allStatus)' 기준으로 미리 계산되어 있으므로 그대로 재사용
+    //  - 초기(연도 미검색, filterYear='') 상태: 맨 왼쪽(= 2026년)부터 보이도록 스크롤 0
+    //  - 특정 연도 검색(filterYear=해당 연도) 상태: 그 연도 막대가 가로 스크롤 영역의 가운데로 오도록 스크롤 이동
+    function renderYearOverview() {
+        const canvas = document.getElementById('yearOverviewChart');
+        const ctx = canvas?.getContext('2d');
+        if (!ctx) return;
+
+        const years = [];
+        for (let i = 0; i < YEAR_OVERVIEW_COUNT; i++) years.push(String(YEAR_OVERVIEW_START + i));
+
+        const sumYear = (grp, y) => Object.keys(trendMonthly[grp])
+            .filter(ym => ym.substring(0, 4) === y)
+            .reduce((acc, ym) => acc + trendMonthly[grp][ym], 0);
+
+        const memberData = years.map(y => sumYear('member', y));
+        const evData = years.map(y => sumYear('evangelism', y));
+
+        if (yearOverviewChartInstance) {
+            yearOverviewChartInstance.destroy();
+        }
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? '#334155' : '#f1f5f9';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+
+        yearOverviewChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: years.map(y => `${y}년`),
+                datasets: [
+                    {
+                        label: '성도 상담',
+                        data: memberData,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: '전도대상 상담',
+                        data: evData,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4,
+                        maxBarThickness: 18
+                    }
+                ]
+            },
+            options: {
+                onClick: (event) => {
+                    const chart = yearOverviewChartInstance;
+                    const activePoints = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    if (activePoints && activePoints.length > 0) {
+                        const clickedYear = years[activePoints[0].index];
+                        const sel = document.getElementById('globalYearSelect');
+                        if (sel && clickedYear) {
+                            if (![...sel.options].some(o => o.value === clickedYear)) {
+                                const opt = document.createElement('option');
+                                opt.value = clickedYear;
+                                opt.textContent = `${clickedYear}년`;
+                                sel.appendChild(opt);
+                            }
+                            sel.value = clickedYear;
+                            filterYear = clickedYear;
+                            applyGlobalYear();
+                        }
+                    }
+                },
+                onHover: (event) => {
+                    const chart = yearOverviewChartInstance;
+                    const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    event.native.target.style.cursor = (points && points.length > 0) ? 'pointer' : 'default';
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: textColor, font: { weight: 'bold', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: { color: textColor, font: { weight: 'bold', size: 10 }, stepSize: 1, precision: 0 },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        requestAnimationFrame(() => {
+            const wrap = document.getElementById('yearOverviewScroll');
+            if (!wrap) return;
+            const idx = years.indexOf(filterYear);
+            if (idx === -1) {
+                wrap.scrollLeft = 0; // 전체 년도(검색 안 함): 맨 왼쪽(2026년)부터
+            } else {
+                const colWidth = wrap.scrollWidth / years.length;
+                const target = (idx + 0.5) * colWidth - wrap.clientWidth / 2;
+                wrap.scrollLeft = Math.max(0, Math.min(target, wrap.scrollWidth - wrap.clientWidth));
+            }
+        });
     }
 
     function renderTopTags() {
@@ -2522,6 +2632,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trendYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b)); // 오름차순 (x축)
 
         renderTrend();
+        renderYearOverview();
     }
 
     // 필터링 적용 시 대시보드 그래프 외 기타 상담주제 등의 수치만 갱신하기 위한 함수
