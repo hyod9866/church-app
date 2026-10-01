@@ -254,11 +254,21 @@ app.use(express.static(dirname(fileURLToPath(import.meta.url)) + '/public', {
 }));
 
 // --- Family Link Sync Engine ---
-function getSymmetricRelation(relation) {
+// meBs: 이 관계를 "나"(현재 저장 중인 사람) 기준으로 뒤집을 때, 사위/며느리처럼 "나"의 성별에
+// 따라 결과가 갈리는 경우에만 사용(없으면 남편/아내 쪽으로 기본 처리). [2026-10-01] 장인/장모/
+// 시부/시모/사위/며느리 역관계 추가.
+function getSymmetricRelation(relation, meBs) {
     if (relation.includes('남편')) return '아내';
     if (relation.includes('아내')) return '남편';
     if (relation.includes('부모')) return '자녀';
     if (relation.includes('자녀')) return '부모';
+    // 내가 상대를 장인/장모(또는 시부/시모)라고 불렀다면, 상대가 나를 부르는 말은 내 성별과 무관하게
+    // 항상 "사위"(또는 "며느리")로 고정된다.
+    if (relation.includes('장인') || relation.includes('장모')) return '사위';
+    if (relation.includes('시부') || relation.includes('시모')) return '며느리';
+    // 반대로 내가 상대를 사위/며느리라고 불렀다면, 상대가 나를 부르는 말은 "나"의 성별로 갈린다.
+    if (relation.includes('사위')) return meBs === 'S' ? '장모' : '장인';
+    if (relation.includes('며느리')) return meBs === 'S' ? '시모' : '시부';
     return '기타';
 }
 
@@ -355,12 +365,31 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
             
             let r = '기타';
             if (other.id === meId) {
-              r = getSymmetricRelation(inputMap[targetCore] || '기타');
+              r = getSymmetricRelation(inputMap[targetCore] || '기타', memberBs);
             } else {
               const myRelToTarget = inputMap[targetCore] || '기타';
               const myRelToOther = inputMap[otherCore] || '기타';
-              if (myRelToTarget.includes('남편') || myRelToTarget.includes('아내')) r = myRelToOther;
-              else if (myRelToOther.includes('남편') || myRelToOther.includes('아내')) r = getSymmetricRelation(myRelToTarget);
+              if (myRelToTarget.includes('남편') || myRelToTarget.includes('아내')) {
+                // target은 나의 배우자.
+                // [2026-10-01] other가 "나"의 부모라면, target에게 other는 친부모가 아니라
+                // 처가/시댁 쪽 부모 — 장인/장모(target이 남편일 때) 또는 시부/시모(target이 아내일 때).
+                if (myRelToOther.includes('부모')) {
+                  r = myRelToTarget.includes('남편')
+                    ? ((other.bs === 'B') ? '장인' : '장모')
+                    : ((other.bs === 'B') ? '시부' : '시모');
+                } else {
+                  r = myRelToOther;
+                }
+              } else if (myRelToOther.includes('남편') || myRelToOther.includes('아내')) {
+                // other는 나의 배우자.
+                // [2026-10-01] target이 "나"의 부모라면, other는 target에게 친자녀가 아니라
+                // 자녀의 배우자 — 사위(other가 남자) 또는 며느리(other가 여자).
+                if (myRelToTarget.includes('부모')) {
+                  r = (other.bs === 'B') ? '사위' : '며느리';
+                } else {
+                  r = getSymmetricRelation(myRelToTarget, memberBs);
+                }
+              }
               // [2026-10-01] 나(me)에게 target과 other가 둘 다 '부모'면 두 사람은 서로 배우자다
               // (예: 이은혜 기준 이명호·고성희가 둘 다 부모 → 둘은 부부). 이 경우가 비어 있어서
               // 지금까지는 기본값 '기타'로 떨어졌고, 그 결과 기존에 맞게 들어있던 남편/아내 표시까지
