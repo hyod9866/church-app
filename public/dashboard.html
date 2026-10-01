@@ -17,7 +17,6 @@
             }
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/css/dark-theme-fixes.css?v=2">
     <style>
         .sticky-col {
@@ -128,11 +127,6 @@
         .dark header .bg-blue-700 {
             background-color: #131B2E !important;
             border-color: #1e293b !important;
-        }
-        .dark #toggleSidebar {
-            background-color: #0B0F19 !important;
-            border-color: #1e293b !important;
-            color: #cbd5e1 !important;
         }
         .dark select, .dark input {
             background-color: #0B0F19 !important;
@@ -328,10 +322,6 @@
         
         <!-- Filter Bar -->
         <div class="bg-blue-700 dark:bg-slate-900 border-t border-blue-600 dark:border-slate-800/80 px-3 py-2 md:px-4 flex flex-wrap gap-3 items-center text-sm shadow-sm z-0 relative">
-            <button id="toggleSidebar" class="xl:hidden bg-blue-800 hover:bg-blue-900 dark:bg-slate-800 dark:hover:bg-slate-700 border border-blue-500 dark:border-slate-700/50 active:scale-95 transition-all text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shadow-sm">
-                <svg class="w-4 h-4 text-blue-300 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                추이 차트 보기
-            </button>
             <select id="yearSelect" class="bg-blue-800 dark:bg-slate-800 dark:border-slate-700/50 text-white border border-blue-500 dark:border-slate-700/50 rounded-lg px-2 py-1.5 font-bold focus:outline-none transition duration-200">
                 <!-- Years will be populated dynamically -->
             </select>
@@ -405,73 +395,6 @@
     </header>
 
     <div class="flex flex-1 overflow-hidden relative">
-        <!-- Sidebar (Now for Chart) -->
-        <aside id="sidebar" class="w-80 xl:w-96 bg-white dark:bg-[#131B2E] border-r dark:border-slate-800/80 flex flex-col flex-shrink-0 z-40 transition-transform duration-300 transform xl:translate-x-0 -translate-x-full absolute xl:relative h-full shadow-lg">
-            <div class="p-4 border-b bg-gray-50 dark:bg-[#0B0F19]/40 dark:border-slate-800/60 flex justify-between items-center">
-                <h2 class="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    출석 인원 추이
-                </h2>
-                <button id="closeSidebar" class="xl:hidden text-gray-500 dark:text-slate-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-8 scrollbar-hide">
-                <!-- District Chart -->
-                <div class="chart-section">
-                    <h3 class="text-xs font-black text-gray-700 dark:text-slate-300 mb-2 flex items-center">
-                        <span class="w-1 h-3 bg-blue-600 mr-2 rounded-full"></span>
-                        구역모임 (581~583)
-                    </h3>
-                    <!-- [2026-08-27] 구역모임이 없던 달은 교구전체모임 참석 인원으로 대체 집계됨을 안내 -->
-                    <p class="text-[10px] text-gray-400 dark:text-slate-500 font-medium mb-1.5 -mt-1">※ 구역모임이 없던 달은 교구전체모임 참석 인원으로 대신 집계됩니다.</p>
-                    <div class="relative h-[160px] w-full">
-                        <canvas id="districtChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Group Chart -->
-                <div class="chart-section">
-                    <h3 class="text-xs font-black text-gray-700 dark:text-slate-300 mb-2 flex items-center">
-                        <span class="w-1 h-3 bg-red-600 mr-2 rounded-full"></span>
-                        조모임 (581~583)
-                    </h3>
-                    <div class="relative h-[160px] w-full">
-                        <canvas id="groupChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Brother Chart -->
-                <div class="chart-section">
-                    <h3 class="text-xs font-black text-gray-700 dark:text-slate-300 mb-2 flex items-center">
-                        <span class="w-1 h-3 bg-indigo-600 mr-2 rounded-full"></span>
-                        교구형제모임
-                    </h3>
-                    <div class="relative h-[160px] w-full">
-                        <canvas id="brotherChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Youth Chart -->
-                <div class="chart-section">
-                    <h3 class="text-xs font-black text-gray-700 dark:text-slate-300 mb-2 flex items-center">
-                        <span class="w-1 h-3 bg-purple-600 mr-2 rounded-full"></span>
-                        교구청년모임
-                    </h3>
-                    <div class="relative h-[160px] w-full">
-                        <canvas id="youthChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-auto border-t p-4 space-y-2 bg-gray-50 dark:bg-[#0B0F19]/40 dark:border-slate-800/60">
-                <div class="flex flex-wrap gap-2 text-[10px] text-gray-500 dark:text-slate-400 p-3 bg-white dark:bg-[#131B2E] rounded-xl border dark:border-slate-800/60 shadow-sm">
-                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-blue-500 rounded-full mr-1.5"></span> 출석(V)</div>
-                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-gray-200 rounded-full mr-1.5"></span> 미출석(X)</div>
-                    <div class="flex items-center"><span class="w-2.5 h-2.5 bg-yellow-400 rounded-full mr-1.5"></span> 간증있음</div>
-                </div>
-            </div>
-        </aside>
-
         <!-- Main Content -->
         <main class="flex-1 p-2 md:p-4 overflow-hidden flex flex-col gap-4">
             <!-- Main Table Container -->

@@ -2054,7 +2054,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let trendChartInstance = null;
     let trendMonthly = { member: {}, evangelism: {} }; // 전체 세션을 'YYYY-MM'으로 집계 (allStatus 기준)
     let trendYears = []; // 데이터가 있는 연도(오름차순)
-    let trendMonthlyNames = {}; // 'YYYY-MM' -> [{id, name, isMember}] (그 달에 상담한 사람, 중복 제거)
 
     // 전역 연도 필터에 따라 추이 그래프를 렌더링
     //  - 특정 연도: 그 해 1~12월
@@ -2083,45 +2082,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 years.map(y => `${y}년`)
             );
         }
-        renderMonthlyNamesList();
-    }
-
-    // [2026-09-28] 추이 그래프 아래 여백에 "월별 상담자" 이름 목록을 채운다.
-    // 이름을 누르면 기존 상담 이력 모달(openMemberHistoryModal)을 그대로 재사용한다.
-    function renderMonthlyNamesList() {
-        const container = document.getElementById('monthlyNamesList');
-        if (!container) return;
-
-        if (!filterYear) {
-            container.innerHTML = `<p class="text-slate-400 italic text-[11px] text-center py-6">연도를 선택하면 월별 상담자 목록을 볼 수 있어요.</p>`;
-            return;
-        }
-
-        const rows = [];
-        for (let m = 1; m <= 12; m++) {
-            const ym = `${filterYear}-${String(m).padStart(2, '0')}`;
-            const people = (trendMonthlyNames[ym] || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko'));
-            if (people.length === 0) continue;
-
-            const chips = people.map(p => {
-                const cls = p.isMember
-                    ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-900/50'
-                    : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50';
-                const safe = String(p.name || '');
-                return `<span class="px-2 py-0.5 rounded-md border text-[11px] font-bold cursor-pointer hover:underline ${cls}" onclick="openMemberHistoryModal(${p.id})" title="${safe} 상담내역 보기">${safe}</span>`;
-            }).join('');
-
-            rows.push(`
-                <div class="flex items-start gap-2">
-                    <span class="shrink-0 w-9 text-[11px] font-black text-slate-500 dark:text-slate-400 pt-0.5">${m}월</span>
-                    <div class="flex flex-wrap gap-1.5">${chips}</div>
-                </div>
-            `);
-        }
-
-        container.innerHTML = rows.length > 0
-            ? rows.join('')
-            : `<p class="text-slate-400 italic text-[11px] text-center py-6">${filterYear}년 상담 기록이 없습니다.</p>`;
     }
 
     function renderTopTags() {
@@ -2345,78 +2305,102 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnFilterMonthly = document.getElementById('btnFilterMonthly');
         if (btnFilterMonthly) btnFilterMonthly.title = `성도 ${memberMonthlyCount}건 / 전도대상 ${evMonthlyCount}건`;
 
-        // 2. 성도 vs 전도대상 인원 수 및 비율
+        // [2026-10-01] "명"(인원수) 옆에 "건"(상담 세션 수)도 같이 보여달라는 요청 — 한 사람이 여러 번
+        // 상담했으면 명수보다 건수가 더 크다. 기존 막대/헤더 구조를 그대로 쓰고, 텍스트에 건수만 덧붙인다.
+        const sessCount = (m) => Array.isArray(m.all_sessions) ? m.all_sessions.length : 0;
+
+        // 2. 성도 vs 전도대상 인원 수 및 비율 (상단에서 이미 계산한 memberTotalCount/evTotalCount = 건수)
         const totalPeople = data.length || 1;
         const memberCount = data.filter(s => s.member_status !== 'evangelism').length;
         const targetCount = totalPeople - memberCount;
         const memberPct = Math.round((memberCount / totalPeople) * 100);
         const targetPct = 100 - memberPct;
 
-        setEl('memberTargetRatioText', `성도 ${memberCount}명 / 전도 ${targetCount}명`);
+        setEl('memberTargetRatioText', `성도 ${memberCount}명(${memberTotalCount}건) / 전도 ${targetCount}명(${evTotalCount}건)`);
 
         // [2026-09-28] 막대 안 표기도 "대상 및 소속 분포" 상단 텍스트와 동일하게 비율(%) 대신 실제 건수(명)로 보여준다.
-        // 정확한 %는 막대 위에 마우스를 올리면(title) 계속 볼 수 있게 남겨둔다.
-        const updateRatioBar = (id, pct, label, count) => {
+        // 정확한 %와 상담 건수는 막대 위에 마우스를 올리면(title) 계속 볼 수 있게 남겨둔다.
+        const updateRatioBar = (id, pct, label, count, sessions) => {
             const bar = document.getElementById(id);
             if (bar) {
                 bar.style.width = `${pct}%`;
                 bar.textContent = pct >= 12 ? `${label} ${count}명` : (pct >= 8 ? `${count}명` : '');
-                bar.title = `${label}: ${count}명 (${pct}%)`;
+                bar.title = sessions !== undefined ? `${label}: ${count}명 / ${sessions}건 (${pct}%)` : `${label}: ${count}명 (${pct}%)`;
             }
         };
-        updateRatioBar('memberRatioBar', memberPct, '성도', memberCount);
-        updateRatioBar('targetRatioBar', targetPct, '전도대상', targetCount);
+        updateRatioBar('memberRatioBar', memberPct, '성도', memberCount, memberTotalCount);
+        updateRatioBar('targetRatioBar', targetPct, '전도대상', targetCount, evTotalCount);
 
         // 3. 성도 성별 (형제 vs 자매)
         const memberBrothers = data.filter(s => s.member_status !== 'evangelism' && s.bs === 'B').length;
         const memberSisters = memberCount - memberBrothers;
         const memberBroPct = memberCount > 0 ? Math.round((memberBrothers / memberCount) * 100) : 0;
         const memberSisPct = memberCount > 0 ? 100 - memberBroPct : 0;
-        setEl('memberGenderRatioText', `형제 ${memberBrothers}명 / 자매 ${memberSisters}명`);
-        updateRatioBar('memberBrotherRatioBar', memberBroPct, '형제', memberBrothers);
-        updateRatioBar('memberSisterRatioBar', memberSisPct, '자매', memberSisters);
+        let memberBroSessions = 0, memberSisSessions = 0;
+        data.forEach(s => {
+            if (s.member_status === 'evangelism') return;
+            if (s.bs === 'B') memberBroSessions += sessCount(s); else memberSisSessions += sessCount(s);
+        });
+        setEl('memberGenderRatioText', `형제 ${memberBrothers}명(${memberBroSessions}건) / 자매 ${memberSisters}명(${memberSisSessions}건)`);
+        updateRatioBar('memberBrotherRatioBar', memberBroPct, '형제', memberBrothers, memberBroSessions);
+        updateRatioBar('memberSisterRatioBar', memberSisPct, '자매', memberSisters, memberSisSessions);
 
         // 4. 전도대상 성별 (남자 vs 여자)
         const evMales = data.filter(s => s.member_status === 'evangelism' && s.bs === 'B').length;
         const evFemales = targetCount - evMales;
         const evMalePct = targetCount > 0 ? Math.round((evMales / targetCount) * 100) : 0;
         const evFemalePct = targetCount > 0 ? 100 - evMalePct : 0;
-        setEl('evangelismGenderRatioText', `남자 ${evMales}명 / 여자 ${evFemales}명`);
-        updateRatioBar('evangelismMaleRatioBar', evMalePct, '남자', evMales);
-        updateRatioBar('evangelismFemaleRatioBar', evFemalePct, '여자', evFemales);
+        let evMaleSessions = 0, evFemaleSessions = 0;
+        data.forEach(s => {
+            if (s.member_status !== 'evangelism') return;
+            if (s.bs === 'B') evMaleSessions += sessCount(s); else evFemaleSessions += sessCount(s);
+        });
+        setEl('evangelismGenderRatioText', `남자 ${evMales}명(${evMaleSessions}건) / 여자 ${evFemales}명(${evFemaleSessions}건)`);
+        updateRatioBar('evangelismMaleRatioBar', evMalePct, '남자', evMales, evMaleSessions);
+        updateRatioBar('evangelismFemaleRatioBar', evFemalePct, '여자', evFemales, evFemaleSessions);
 
         // 5. 서울중앙 vs 타교회/모름
         const seoulCount = data.filter(s => s.church === '서울중앙교회').length;
         const otherCount = totalPeople - seoulCount;
         const seoulPct = Math.round((seoulCount / totalPeople) * 100);
         const otherPct = 100 - seoulPct;
+        let seoulSessions = 0, otherSessions = 0;
+        data.forEach(s => {
+            if (s.church === '서울중앙교회') seoulSessions += sessCount(s); else otherSessions += sessCount(s);
+        });
 
-        setEl('churchRatioText', `서울중앙 ${seoulCount}명 / 타교회 ${otherCount}명`);
-        updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙', seoulCount);
-        updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름', otherCount);
+        setEl('churchRatioText', `서울중앙 ${seoulCount}명(${seoulSessions}건) / 타교회 ${otherCount}명(${otherSessions}건)`);
+        updateRatioBar('seoulChurchRatioBar', seoulPct, '서울중앙', seoulCount, seoulSessions);
+        updateRatioBar('otherChurchRatioBar', otherPct, '타교회/모름', otherCount, otherSessions);
 
-        // 5-2. 대면 vs 전화상담 현황 — "사람(명)" 기준으로 집계
-        // (다른 분포들과 동일하게 인원수 기준으로 통일. 한 사람이 대면+전화 둘 다 있으면 양쪽 모두에 카운팅)
-        let faceCount = 0;
-        let phoneCount = 0;
+        // 5-2. 대면 vs 전화상담 현황 — 인원(명)은 지금까지와 동일하게 "그 방식으로 한 번이라도 상담한 사람"
+        // 기준이고, 건수(건)는 실제 상담 세션을 방식별로 그대로 센 것 — 한 사람이 대면 3번이면 3건.
+        let faceCount = 0, phoneCount = 0;
+        let faceSessions = 0, phoneSessions = 0;
         data.forEach(m => {
             const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
             const hasFace = sessions.some(sess => sess.counseling_method === '대면');
             const hasPhone = sessions.some(sess => sess.counseling_method === '전화');
             if (hasFace) faceCount++;
             if (hasPhone) phoneCount++;
+            sessions.forEach(sess => {
+                if (sess.counseling_method === '대면') faceSessions++;
+                else if (sess.counseling_method === '전화') phoneSessions++;
+            });
         });
         // 비율은 전체 인원 대비(대면만 or 전화만 진행한 비율)로 표시
         const totalForMethod = totalPeople || 1;
         const facePct = Math.round((faceCount / totalForMethod) * 100);
         const phonePct = Math.round((phoneCount / totalForMethod) * 100);
-        setEl('counselingMethodRatioText', `대면 ${faceCount}명 / 전화 ${phoneCount}명`);
-        updateRatioBar('methodFaceRatioBar', facePct, '대면', faceCount);
-        updateRatioBar('methodPhoneRatioBar', phonePct, '전화', phoneCount);
+        setEl('counselingMethodRatioText', `대면 ${faceCount}명(${faceSessions}건) / 전화 ${phoneCount}명(${phoneSessions}건)`);
+        updateRatioBar('methodFaceRatioBar', facePct, '대면', faceCount, faceSessions);
+        updateRatioBar('methodPhoneRatioBar', phonePct, '전화', phoneCount, phoneSessions);
 
-        // 6. 성도 및 전도대상 각각의 소속회 분포 계산
+        // 6. 성도 및 전도대상 각각의 소속회 분포 계산 (명 + 건)
         const memberCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
         const evCat = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
+        const memberCatSessions = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
+        const evCatSessions = { '봉사회': 0, '어머니회': 0, '청년회': 0, '은장회': 0, '모름': 0 };
         let memberTotal = 0;
         let evTotal = 0;
 
@@ -2424,37 +2408,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const isMember = s.member_status !== 'evangelism';
             const cat = s.category || '모름';
             const normalizedCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
+            const cnt = sessCount(s);
             if (isMember) {
                 memberCat[normalizedCat]++;
+                memberCatSessions[normalizedCat] += cnt;
                 memberTotal++;
             } else {
                 evCat[normalizedCat]++;
+                evCatSessions[normalizedCat] += cnt;
                 evTotal++;
             }
         });
 
-        const updateStackedBar = (prefix, counts, total) => {
+        const updateStackedBar = (prefix, counts, total, sessionCounts) => {
             const denom = total || 1;
             const cats = ['Bongsa', 'Eomeoni', 'Cheongnyeon', 'Eunjang', 'Unknown'];
             const labels = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
             const keys = ['봉사회', '어머니회', '청년회', '은장회', '모름'];
-            
+
             cats.forEach((c, idx) => {
                 const count = counts[keys[idx]] || 0;
+                const sessions = sessionCounts ? (sessionCounts[keys[idx]] || 0) : undefined;
                 const pct = Math.round((count / denom) * 100);
                 const bar = document.getElementById(`${prefix}${c}RatioBar`);
                 if (bar) {
                     bar.style.width = `${pct}%`;
                     bar.textContent = pct >= 18 ? `${labels[idx].substring(0,2)} ${count}명` : (pct >= 8 ? `${count}명` : '');
-                    bar.title = `${labels[idx]}: ${count}명 (${pct}%)`;
+                    bar.title = sessions !== undefined ? `${labels[idx]}: ${count}명 / ${sessions}건 (${pct}%)` : `${labels[idx]}: ${count}명 (${pct}%)`;
                 }
             });
         };
-        updateStackedBar('member', memberCat, memberTotal);
-        updateStackedBar('evangelism', evCat, evTotal);
-        
-        setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명`);
-        setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명`);
+        updateStackedBar('member', memberCat, memberTotal, memberCatSessions);
+        updateStackedBar('evangelism', evCat, evTotal, evCatSessions);
+
+        setEl('memberCategoryRatioText', `성도 총 ${memberTotal}명(${memberTotalCount}건)`);
+        setEl('evangelismCategoryRatioText', `전도대상 총 ${evTotal}명(${evTotalCount}건)`);
 
         // 성도 및 전도대상의 상담주제 태그 실시간 집계
         const memberTagCounts = {}, evangelismTagCounts = {};
@@ -2478,24 +2466,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. 월별 추이 데이터 계산 — 그래프는 항상 '전체 데이터(allStatus)'를 기준으로 집계하고,
         //    보여주는 범위(특정 연도 / 전체 연도별)는 filterYear로 renderTrend()에서 결정한다.
         trendMonthly = { member: {}, evangelism: {} };
-        trendMonthlyNames = {};
         const yearSet = new Set();
         (allStatus || []).forEach(member => {
             const isMember = member.member_status !== 'evangelism';
             const group = isMember ? 'member' : 'evangelism';
             const sessions = Array.isArray(member.all_sessions) ? member.all_sessions : [];
-            const monthsSeenForThisPerson = new Set(); // 한 달에 여러 번 상담해도 이름은 그 달에 한 번만
             sessions.forEach(s => {
                 if (!s.date) return;
                 const ym = s.date.substring(0, 7); // "YYYY-MM"
                 if (!/^\d{4}-\d{2}$/.test(ym)) return;
                 trendMonthly[group][ym] = (trendMonthly[group][ym] || 0) + 1;
                 yearSet.add(s.date.substring(0, 4));
-                if (!monthsSeenForThisPerson.has(ym)) {
-                    monthsSeenForThisPerson.add(ym);
-                    if (!trendMonthlyNames[ym]) trendMonthlyNames[ym] = [];
-                    trendMonthlyNames[ym].push({ id: member.id, name: member.name, isMember });
-                }
             });
         });
         trendYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b)); // 오름차순 (x축)

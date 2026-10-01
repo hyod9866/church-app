@@ -15,19 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentChurchName = '서울중앙교회';
     let currentParishName = '부곡교구';
 
-    // Sidebar elements
-    const sidebar = document.getElementById('sidebar');
-    const toggleSidebarBtn = document.getElementById('toggleSidebar');
-    const closeSidebarBtn = document.getElementById('closeSidebar');
     const searchInput = document.getElementById('memberSearch');
 
     let allData = { meetings: [], members: [] };
-    let charts = {
-        district: null,
-        group: null,
-        brother: null,
-        youth: null
-    };
 
     // Helper Functions
     function getAge(birthYear) {
@@ -194,36 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return { filteredMembers, filteredMeetings };
     }
 
-    // --- Sidebar Functions ---
-    function closeSidebarIfOpen() {
-        if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
-            sidebar.classList.add('-translate-x-full');
-        }
-    }
-
-    // Sidebar Toggle Logic
-    if (toggleSidebarBtn) {
-        toggleSidebarBtn.addEventListener('click', () => {
-            sidebar.classList.remove('-translate-x-full');
-        });
-    }
-
-    if (closeSidebarBtn) {
-        closeSidebarBtn.addEventListener('click', () => {
-            sidebar.classList.add('-translate-x-full');
-        });
-    }
-
-    // Close sidebar when clicking main content on mobile
-    const mainContent = document.querySelector('main');
-    if (mainContent) {
-        mainContent.addEventListener('click', () => {
-            if (window.innerWidth < 1280) {
-                closeSidebarIfOpen();
-            }
-        });
-    }
-
     // Initialize Year Selector
     const currentYear = new Date().getFullYear();
     for (let year = currentYear; year >= 2024; year--) {
@@ -378,129 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = `<tr><td colspan="${filteredMeetings.length + 1}" class="p-10 text-center text-gray-500">해당하는 성도가 없습니다.</td></tr>`;
         }
         // (End of Header/Body rendering code)
-
-        prepareChartData(allData.meetings, allData.members);
     }
 
-    function prepareChartData(allMeetings, allMembers) {
-        // 1. District Monthly
-        const districtLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-        const districtIds = loadedDistricts;
-        const colorPalette = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0d9488'];
-        const districtDatasets = districtIds.map((dist, idx) => {
-            const data = new Array(12).fill(0);
-            const hasRealDistrictMeeting = new Array(12).fill(false);
-
-            // 1차: 실제 그 구역의 구역모임 기록만 집계 (예전과 동일한 로직)
-            allMeetings.forEach(m => {
-                if (m.type.includes('구역모임') && m.type.includes(dist)) {
-                    const month = new Date(m.date).getMonth();
-                    hasRealDistrictMeeting[month] = true;
-                    let count = 0;
-                    allMembers.forEach(mem => { if (mem.attendance[m.id]?.is_present) count++; });
-                    data[month] += count;
-                }
-            });
-
-            // [2026-08-27] 2차 보정: 그 달에 이 구역의 구역모임 기록이 아예 없는데 교구전체모임은
-            // 있었다면, 그 교구전체모임에 참석한 이 구역 소속 성도 수를 구역모임 수치 대신 채운다
-            // (구역모임이 교구전체모임으로 대체 진행된 달을 통계에서 누락시키지 않기 위함).
-            // 실제 구역모임 기록이 있는 달은 건드리지 않는다 — 대체가 아니라 보정이므로.
-            allMeetings.forEach(m => {
-                if (!m.type.includes('교구전체모임')) return;
-                const month = new Date(m.date).getMonth();
-                if (hasRealDistrictMeeting[month]) return;
-                let count = 0;
-                allMembers.forEach(mem => {
-                    const normMemberDist = (mem.district || '').replace(/[^0-9]/g, '');
-                    if (normMemberDist === dist && mem.attendance[m.id]?.is_present) count++;
-                });
-                data[month] += count;
-            });
-
-            const color = colorPalette[idx % colorPalette.length];
-            return { label: `${dist}구역`, data, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
-        });
-        updateChart('district', districtLabels, districtDatasets);
-
-        // 2. Group Monthly
-        const groupDatasets = districtIds.map((dist, idx) => {
-            const data = new Array(12).fill(0);
-            allMeetings.forEach(m => {
-                if (m.type.includes('조모임') && m.type.includes(dist)) {
-                    const month = new Date(m.date).getMonth();
-                    let count = 0;
-                    allMembers.forEach(mem => { 
-                        // Exclusion: Youth category members are not part of Group meeting stats
-                        if (mem.category !== '청년회' && mem.attendance[m.id]?.is_present) count++; 
-                    });
-                    data[month] += count;
-                }
-            });
-            const color = colorPalette[idx % colorPalette.length];
-            return { label: `${dist}조`, data, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3 };
-        });
-        updateChart('group', districtLabels, groupDatasets);
-
-        // 3. Brother Progress
-        const brotherMeetings = allMeetings.filter(m => m.type.includes('형제')).sort((a, b) => new Date(a.date) - new Date(b.date));
-        const brotherLabels = brotherMeetings.map(m => { const d = new Date(m.date); return `${d.getMonth() + 1}/${d.getDate()}`; });
-        const brotherData = brotherMeetings.map(m => {
-            let count = 0;
-            allMembers.forEach(mem => { if (mem.attendance[m.id]?.is_present) count++; });
-            return count;
-        });
-        updateChart('brother', brotherLabels, [{ label: '참석', data: brotherData, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }]);
-
-        // 4. Youth Progress
-        const youthMeetings = allMeetings.filter(m => m.type.includes('청년')).sort((a, b) => new Date(a.date) - new Date(b.date));
-        const youthLabels = youthMeetings.map(m => { const d = new Date(m.date); return `${d.getMonth() + 1}/${d.getDate()}`; });
-        const youthData = youthMeetings.map(m => {
-            let count = 0;
-            allMembers.forEach(mem => { if (mem.attendance[m.id]?.is_present) count++; });
-            return count;
-        });
-        updateChart('youth', youthLabels, [{ label: '참석', data: youthData, borderColor: '#9333ea', backgroundColor: 'rgba(147, 51, 234, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }]);
-    }
-
-    function updateChart(type, labels, datasets) {
-        const canvasId = `${type}Chart`;
-        const ctx = document.getElementById(canvasId).getContext('2d');
-        
-        if (charts[type]) {
-            charts[type].data.labels = labels;
-            charts[type].data.datasets = datasets;
-            charts[type].update();
-            return;
-        }
-
-        charts[type] = new Chart(ctx, {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: (type === 'district' || type === 'group'),
-                        position: 'top',
-                        labels: { boxWidth: 8, font: { size: 9 }, padding: 5 }
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        padding: 8,
-                        titleFont: { size: 10 },
-                        bodyFont: { size: 10 }
-                    }
-                },
-                scales: {
-                    y: { beginAtZero: true, ticks: { font: { size: 9 }, maxTicksLimit: 5 } },
-                    x: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 } }
-                }
-            }
-        });
-    }
+    // [2026-10-01] 출석 인원 추이 사이드바(구역/조/형제/청년 추이 차트)를 제거하면서
+    // 해당 차트 전용이던 prepareChartData/updateChart 함수도 함께 삭제함.
 
     // Event Listeners (Tab listeners removed)
 

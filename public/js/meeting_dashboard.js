@@ -485,15 +485,6 @@ async function fetchAttendanceCharts() {
             monthKeys12.push(`${currentYear}-${String(i).padStart(2, '0')}`);
         }
 
-        // Generate last 6 months labels
-        const months6 = [];
-        const monthKeys6 = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(currentYear, currentMonth - i, 1);
-            months6.push(`${d.getMonth() + 1}월`);
-            monthKeys6.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`);
-        }
-        
         const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
         
         // Data structure
@@ -562,7 +553,8 @@ async function fetchAttendanceCharts() {
             }
             
             if (chartKey) {
-                const targetKeys = (chartKey === 'distChart' || chartKey === 'grpChart') ? monthKeys12 : monthKeys6;
+                // [2026-10-01] 형제모임/청년모임도 구역모임/조모임과 동일하게 "올해 1년"(12개월) 기준으로 집계한다.
+                const targetKeys = monthKeys12;
                 if (!targetKeys.includes(monthKey)) return;
                 
                 if (chartKey === 'broChart' || chartKey === 'ythChart' || useDistrictBreakdown) {
@@ -1063,8 +1055,8 @@ async function fetchAttendanceCharts() {
         
         renderChart('distChart', categories['distChart'], months12, monthKeys12, true, 'distKpiContainer', 'distAlertContainer');
         renderChart('grpChart', categories['grpChart'], months12, monthKeys12, true, 'grpKpiContainer', 'grpAlertContainer');
-        renderChart('broChart', categories['broChart'], months6, monthKeys6, true, 'broKpiContainer', 'broAlertContainer', true);
-        renderChart('ythChart', categories['ythChart'], months6, monthKeys6, true, 'ythKpiContainer', 'ythAlertContainer', true);
+        renderChart('broChart', categories['broChart'], months12, monthKeys12, true, 'broKpiContainer', 'broAlertContainer', true);
+        renderChart('ythChart', categories['ythChart'], months12, monthKeys12, true, 'ythKpiContainer', 'ythAlertContainer', true);
 
     } catch(e) {
         console.error(e);
