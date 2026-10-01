@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // [2026-10-01] 년도별 상담현황(누적 막대) 숫자 라벨 표시용. 이 페이지의 다른 차트(월별 추이)에는
+    // 영향 주지 않도록 각 차트별로 plugins.datalabels를 개별 설정한다.
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
+
     function getDynamicTagsSync(status) {
         if (window.CounselingTagManager && window.CounselingTagManager.cache.memberTags) {
             return status === 'evangelism' 
@@ -2114,6 +2120,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const gridColor = isDark ? '#334155' : '#f1f5f9';
         const textColor = isDark ? '#94a3b8' : '#64748b';
 
+        // [2026-10-01] 누적(stacked) 막대 1개로 합치고, 막대 위에는 총 건수(총 00건),
+        //  색깔 구간 안에는 각 구간별 건수(00)를 함께 표시한다.
         yearOverviewChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -2123,15 +2131,40 @@ document.addEventListener('DOMContentLoaded', () => {
                         label: '성도 상담',
                         data: memberData,
                         backgroundColor: '#3b82f6',
-                        borderRadius: 4,
-                        maxBarThickness: 18
+                        borderRadius: 3,
+                        maxBarThickness: 28,
+                        datalabels: {
+                            color: '#fff',
+                            font: { weight: 'bold', size: 10 },
+                            formatter: v => v > 0 ? v : ''
+                        }
                     },
                     {
                         label: '전도대상 상담',
                         data: evData,
                         backgroundColor: '#f59e0b',
-                        borderRadius: 4,
-                        maxBarThickness: 18
+                        borderRadius: 3,
+                        maxBarThickness: 28,
+                        datalabels: {
+                            labels: {
+                                value: {
+                                    color: '#fff',
+                                    font: { weight: 'bold', size: 10 },
+                                    formatter: v => v > 0 ? v : ''
+                                },
+                                total: {
+                                    anchor: 'end',
+                                    align: 'top',
+                                    offset: 2,
+                                    color: textColor,
+                                    font: { weight: 'bold', size: 11 },
+                                    formatter: (v, ctx) => {
+                                        const total = (memberData[ctx.dataIndex] || 0) + (evData[ctx.dataIndex] || 0);
+                                        return total > 0 ? `총 ${total}건` : '';
+                                    }
+                                }
+                            }
+                        }
                     }
                 ]
             },
@@ -2162,16 +2195,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 20 }
+                },
                 plugins: {
-                    legend: { display: false },
-                    tooltip: { mode: 'index', intersect: false }
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: textColor,
+                            boxWidth: 12,
+                            font: { weight: 'bold', size: 10 }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            footer: items => {
+                                const total = items.reduce((acc, it) => acc + (it.raw || 0), 0);
+                                return `총 ${total}건`;
+                            }
+                        }
+                    }
                 },
                 scales: {
                     x: {
+                        stacked: true,
                         grid: { display: false },
                         ticks: { color: textColor, font: { weight: 'bold', size: 10 } }
                     },
                     y: {
+                        stacked: true,
                         grid: { color: gridColor },
                         ticks: { color: textColor, font: { weight: 'bold', size: 10 }, stepSize: 1, precision: 0 },
                         beginAtZero: true
@@ -2335,7 +2389,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     tooltip: {
                         mode: 'index',
                         intersect: false
-                    }
+                    },
+                    datalabels: { display: false }
                 },
                 scales: {
                     x: {
