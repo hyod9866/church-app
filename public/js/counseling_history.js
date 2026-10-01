@@ -2422,9 +2422,11 @@ document.addEventListener('DOMContentLoaded', () => {
             setEl('memberGenderRatioText', '형제 0명 / 자매 0명');
             setEl('evangelismGenderRatioText', '남자 0명 / 여자 0명');
             setEl('churchRatioText', '서울중앙 0명 / 타교회 0명');
+            setEl('parishRatioText', '소속교구 0명 / 교구외 0명');
             setEl('counselingMethodRatioText', '대면 0건 / 전화 0건');
             ['memberRatioBar','targetRatioBar','memberBrotherRatioBar','memberSisterRatioBar',
              'evangelismMaleRatioBar','evangelismFemaleRatioBar','seoulChurchRatioBar','otherChurchRatioBar',
+             'parishRatioBar','noParishRatioBar',
              'memberBongsaRatioBar','memberEomeoniRatioBar','memberCheongnyeonRatioBar','memberEunjangRatioBar','memberUnknownRatioBar',
              'evangelismBongsaRatioBar','evangelismEomeoniRatioBar','evangelismCheongnyeonRatioBar','evangelismEunjangRatioBar','evangelismUnknownRatioBar',
              'methodFaceRatioBar', 'methodPhoneRatioBar'
@@ -2567,6 +2569,31 @@ document.addEventListener('DOMContentLoaded', () => {
         setEl('churchRatioTextSessions', `서울중앙 ${seoulSessions}건 / 타교회 ${otherSessions}건`);
         updateRatioBar('seoulChurchRatioBarSessions', seoulSessPct, '서울중앙', seoulSessions, '건');
         updateRatioBar('otherChurchRatioBarSessions', otherSessPct, '타교회/모름', otherSessions, '건');
+
+        // 5-1. 소속교구 vs 교구외 — [2026-10-01] 대상 및 소속 분포 레이아웃 재배치하며 빈 칸에 추가
+        const hasParish = (s) => {
+            const p = s.parish || '';
+            return !!p && !p.includes('정보없음') && p !== '교구 미지정';
+        };
+        const parishCount = data.filter(hasParish).length;
+        const noParishCount = totalPeople - parishCount;
+        const parishPct = Math.round((parishCount / totalPeople) * 100);
+        const noParishPct = 100 - parishPct;
+        let parishSessions = 0, noParishSessions = 0;
+        data.forEach(s => {
+            if (hasParish(s)) parishSessions += sessCount(s); else noParishSessions += sessCount(s);
+        });
+
+        setEl('parishRatioText', `소속교구 ${parishCount}명 / 교구외 ${noParishCount}명`);
+        updateRatioBar('parishRatioBar', parishPct, '소속교구', parishCount);
+        updateRatioBar('noParishRatioBar', noParishPct, '교구외', noParishCount);
+
+        const totalSessionsParish = (parishSessions + noParishSessions) || 1;
+        const parishSessPct = Math.round((parishSessions / totalSessionsParish) * 100);
+        const noParishSessPct = 100 - parishSessPct;
+        setEl('parishRatioTextSessions', `소속교구 ${parishSessions}건 / 교구외 ${noParishSessions}건`);
+        updateRatioBar('parishRatioBarSessions', parishSessPct, '소속교구', parishSessions, '건');
+        updateRatioBar('noParishRatioBarSessions', noParishSessPct, '교구외', noParishSessions, '건');
 
         // 5-2. 대면 vs 전화상담 현황 — 인원(명) 카드는 "그 방식으로 한 번이라도 상담한 사람" 기준(기존과 동일),
         // 건수(건) 카드는 실제 상담 세션을 방식별로 그대로 센 것 — 한 사람이 대면 3번이면 3건.
