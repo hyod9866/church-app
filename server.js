@@ -262,6 +262,23 @@ function getSymmetricRelation(relation) {
     return '기타';
 }
 
+// [2026-10-01] 나(me)에게 target과 other가 둘 다 '자녀'면 두 사람은 형제자매다.
+// target 쪽 목록에 적힐 "other(호칭)"을 target 기준 성별+나이로 정확히 고른다
+// (형/오빠/누나/언니는 target 본인의 성별에 따라 달라지고, 동생 쪽은 generic하게 남동생/여동생).
+// 생년을 모르거나 동갑(쌍둥이 등)이라 손위/손아래를 가릴 수 없으면 안전하게 '기타'로 둔다.
+function getSiblingRelation(target, other) {
+    const ty = parseInt(target.birth_year, 10);
+    const oy = parseInt(other.birth_year, 10);
+    if (!ty || !oy || ty === oy) return '기타';
+    if (oy < ty) {
+        // other가 target보다 손위
+        if (target.bs === 'B') return (other.bs === 'B') ? '형' : '누나';
+        return (other.bs === 'B') ? '오빠' : '언니';
+    }
+    // other가 target보다 손아래
+    return (other.bs === 'B') ? '남동생' : '여동생';
+}
+
 async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, providedFid, callback, familyRelationIds) {
   if (!familyRelation) return callback(null, providedFid);
   const entries = familyRelation.split(',').map(s => s.trim()).filter(s => s);
@@ -302,7 +319,7 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
     const activeMembers = await fetchAllRows((from, to) =>
       supabase
         .from('members')
-        .select('id, name, bs, family_id, family_relation')
+        .select('id, name, bs, family_id, family_relation, birth_year')
         .eq('status', 'active')
         .range(from, to)
     );
@@ -349,6 +366,8 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
               // 지금까지는 기본값 '기타'로 떨어졌고, 그 결과 기존에 맞게 들어있던 남편/아내 표시까지
               // 상대방 쪽에서 '기타'로 덮어써지는 문제가 있었다. bs(성별)로 남편/아내를 정해준다.
               else if (myRelToTarget.includes('부모') && myRelToOther.includes('부모')) r = (other.bs === 'B') ? '남편' : '아내';
+              // 나(me)에게 target과 other가 둘 다 '자녀'면 두 사람은 형제자매 — target 기준 호칭 적용.
+              else if (myRelToTarget.includes('자녀') && myRelToOther.includes('자녀')) r = getSiblingRelation(target, other);
             }
             return `${other.name.trim()}(${r})`;
           });
