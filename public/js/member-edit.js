@@ -122,9 +122,53 @@
         pendingRelationData = { id, name, district, bs, familyId };
         if (relationTargetTitle) relationTargetTitle.textContent = `'${name}' 성도와의 관계 선택`;
         if (familySearchModal) familySearchModal.classList.add('hidden');
+        // [2026-10-01] 모달을 새로 열 때는 항상 메인 4개 버튼 화면부터 보여준다
+        // (이전에 '기타' 상세 목록을 보다가 닫은 경우에도 다음엔 메인 화면으로).
+        window.showRelationMainChoices();
         const relModal = document.getElementById('familyRelationSelectModal');
         if (relModal) relModal.classList.remove('hidden');
     };
+
+    // [2026-10-01] '기타' 버튼 → 형제자매/처가/시댁 세부 호칭 목록으로 전환.
+    window.showRelationDetailChoices = function () {
+        const main = document.getElementById('relationMainChoices');
+        const detail = document.getElementById('relationDetailChoices');
+        if (main) main.classList.add('hidden');
+        if (detail) detail.classList.remove('hidden');
+    };
+    window.showRelationMainChoices = function () {
+        const main = document.getElementById('relationMainChoices');
+        const detail = document.getElementById('relationDetailChoices');
+        if (detail) detail.classList.add('hidden');
+        if (main) main.classList.remove('hidden');
+    };
+
+    // [2026-10-01] 세부 호칭(누나/장인 등)을 직접 골랐을 때, 상대방 쪽에 자동으로 등록 제안할
+    // 역호칭을 계산한다. 형제자매는 나의 성별로, 처가/시댁은 '나'와 '상대'의 성별 조합으로 갈린다.
+    // 판단이 애매하면(생년 모름 등으로 더 세분화할 수 없으면) 안전하게 '기타'로 둔다.
+    function getClientSymmetricRelation(finalRel, myBs, otherBs) {
+        if (finalRel === '남편') return '아내';
+        if (finalRel === '아내') return '남편';
+        if (finalRel === '자녀') return '부모';
+        if (finalRel === '부모') return '자녀';
+        // 형제자매: 상대가 나를 어떻게 부르는지는 '나'의 성별로만 갈린다 (상대의 나이는 이미 확정돼 있으므로).
+        if (finalRel === '형' || finalRel === '오빠' || finalRel === '누나' || finalRel === '언니') {
+            // 상대가 나보다 손위 → 나는 상대의 동생.
+            return (myBs === 'B') ? '남동생' : '여동생';
+        }
+        if (finalRel === '남동생' || finalRel === '여동생') {
+            // 상대가 나보다 손아래 → 나는 상대의 형/누나(내 성별 기준) 또는 오빠/언니.
+            if (myBs === 'B') return (otherBs === 'B') ? '형' : '누나';
+            return (otherBs === 'B') ? '오빠' : '언니';
+        }
+        // 처가/시댁: 장인·장모는 항상 '사위'로, 시부·시모는 항상 '며느리'로 되돌아온다.
+        if (finalRel === '장인' || finalRel === '장모') return '사위';
+        if (finalRel === '시부' || finalRel === '시모') return '며느리';
+        // 사위/며느리를 직접 고른 경우, 상대(장인/장모 또는 시부/시모)쪽 호칭은 '나'의 성별로 갈린다.
+        if (finalRel === '사위') return (myBs === 'S') ? '장모' : '장인';
+        if (finalRel === '며느리') return (myBs === 'S') ? '시모' : '시부';
+        return '기타';
+    }
 
     window.confirmRelation = function (type) {
         if (!pendingRelationData) return;
@@ -160,7 +204,8 @@
                 window._familyRelationIdMap[entry] = id;
                 if (familyId !== null && familyId !== undefined && familyId !== 'null' && familyId !== '') hiddenFamilyId.value = familyId;
                 const myName = currentMemberData ? currentMemberData.name : '본인';
-                const symRel = (finalRel === '남편') ? '아내' : (finalRel === '아내') ? '남편' : (finalRel === '자녀') ? '부모' : (finalRel === '부모') ? '자녀' : '기타';
+                const myBs = currentMemberData ? currentMemberData.bs : null;
+                const symRel = getClientSymmetricRelation(finalRel, myBs, bs);
                 if (confirm(`'${name}' 성도의 가족관계에도 '${myName}(${symRel})'을 자동으로 등록할까요?`)) {
                     pendingCrossUpdates.push({ targetId: id, myName: myName, relationToAdd: `${myName}(${symRel})` });
                 }
@@ -169,6 +214,7 @@
         updateFamilyUI();
         const relModal = document.getElementById('familyRelationSelectModal');
         if (relModal) relModal.classList.add('hidden');
+        window.showRelationMainChoices();
         pendingRelationData = null;
     };
 

@@ -838,12 +838,34 @@
                             <div id="relationTargetTitle" class="bg-blue-600 text-white p-4 text-center font-black text-sm shadow-md">
                                 [이름] 성도와의 관계
                             </div>
-                            <div class="p-4 grid grid-cols-1 gap-2">
+                            <div id="relationMainChoices" class="p-4 grid grid-cols-1 gap-2">
                                 <button type="button" onclick="confirmRelation('남편/아내')" class="w-full py-3 bg-blue-50 text-blue-700 rounded-xl font-black hover:bg-blue-100 transition active:scale-[0.98] border border-blue-200/50">남편 / 아내</button>
                                 <button type="button" onclick="confirmRelation('자녀')" class="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black hover:bg-emerald-100 transition active:scale-[0.98] border border-emerald-200/50">자녀</button>
                                 <button type="button" onclick="confirmRelation('부모')" class="w-full py-3 bg-amber-50 text-amber-700 rounded-xl font-black hover:bg-amber-100 transition active:scale-[0.98] border border-amber-200/50">부모</button>
-                                <button type="button" onclick="confirmRelation('기타')" class="w-full py-3 bg-slate-50 text-slate-700 rounded-xl font-black hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">기타</button>
+                                <button type="button" onclick="showRelationDetailChoices()" class="w-full py-3 bg-slate-50 text-slate-700 rounded-xl font-black hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">기타 (형제자매 / 처가·시댁)</button>
                                 <button type="button" onclick="document.getElementById('familyRelationSelectModal').classList.add('hidden')" class="w-full py-2 mt-2 text-slate-450 text-xs font-bold hover:underline transition">취소</button>
+                            </div>
+                            <div id="relationDetailChoices" class="p-4 hidden">
+                                <p class="text-[11px] font-bold text-slate-400 mb-2 px-0.5">형제자매</p>
+                                <div class="grid grid-cols-3 gap-1.5 mb-3">
+                                    <button type="button" onclick="confirmRelation('형')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">형</button>
+                                    <button type="button" onclick="confirmRelation('누나')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">누나</button>
+                                    <button type="button" onclick="confirmRelation('오빠')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">오빠</button>
+                                    <button type="button" onclick="confirmRelation('언니')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">언니</button>
+                                    <button type="button" onclick="confirmRelation('남동생')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">남동생</button>
+                                    <button type="button" onclick="confirmRelation('여동생')" class="py-2 bg-slate-50 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200">여동생</button>
+                                </div>
+                                <p class="text-[11px] font-bold text-slate-400 mb-2 px-0.5">처가 / 시댁</p>
+                                <div class="grid grid-cols-3 gap-1.5 mb-3">
+                                    <button type="button" onclick="confirmRelation('장인')" class="py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs hover:bg-indigo-100 transition active:scale-[0.98] border border-indigo-200">장인</button>
+                                    <button type="button" onclick="confirmRelation('장모')" class="py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs hover:bg-indigo-100 transition active:scale-[0.98] border border-indigo-200">장모</button>
+                                    <button type="button" onclick="confirmRelation('사위')" class="py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-xs hover:bg-indigo-100 transition active:scale-[0.98] border border-indigo-200">사위</button>
+                                    <button type="button" onclick="confirmRelation('시부')" class="py-2 bg-rose-50 text-rose-700 rounded-lg font-bold text-xs hover:bg-rose-100 transition active:scale-[0.98] border border-rose-200">시부</button>
+                                    <button type="button" onclick="confirmRelation('시모')" class="py-2 bg-rose-50 text-rose-700 rounded-lg font-bold text-xs hover:bg-rose-100 transition active:scale-[0.98] border border-rose-200">시모</button>
+                                    <button type="button" onclick="confirmRelation('며느리')" class="py-2 bg-rose-50 text-rose-700 rounded-lg font-bold text-xs hover:bg-rose-100 transition active:scale-[0.98] border border-rose-200">며느리</button>
+                                </div>
+                                <button type="button" onclick="confirmRelation('기타')" class="w-full py-2.5 bg-slate-50 text-slate-700 rounded-xl font-black text-xs hover:bg-slate-100 transition active:scale-[0.98] border border-slate-200 mb-2">이 중에 없음 (기타)</button>
+                                <button type="button" onclick="showRelationMainChoices()" class="w-full py-2 text-slate-450 text-xs font-bold hover:underline transition">← 뒤로</button>
                             </div>
                         </div>
                     </div>
