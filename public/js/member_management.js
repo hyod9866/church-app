@@ -370,12 +370,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     const myScore = getMemberRoleScore(m);
                     const spouseScore = getMemberRoleScore(spouse);
                     const coupleScore = Math.min(myScore, spouseScore);
-                    
+
                     const myRate = getMemberAttendanceRate(m.id);
                     const spouseRate = getMemberAttendanceRate(spouse.id);
                     const coupleRate = (myRate + spouseRate) / 2;
 
                     const isGlobalTop = (myScore === 0 || spouseScore === 0);
+
+                    // [2026-10-01] 남편/아내의 district 입력값이 서로 다르게 저장돼 있으면(예: 한쪽만 구역이
+                    // 바뀌었는데 배우자는 갱신이 안 된 경우) 아래 district 1차 정렬 단계에서 두 사람이
+                    // 서로 다른 구역 묶음으로 갈라져 바로 아래 줄에 붙지 못하는 문제가 있었다.
+                    // 부부는 항상 "남편(B)" 쪽 district를 공통 기준으로 삼아 같은 구역 묶음에 들어가게 한다.
+                    const husbandOfPair = (m.bs === 'B') ? m : (spouse.bs === 'B' ? spouse : m);
+                    const sortDistrict = (husbandOfPair.district && husbandOfPair.district.trim())
+                        ? husbandOfPair.district
+                        : (m.district || spouse.district || '');
 
                     memberSortMeta[m.id] = {
                         groupKey: `couple_${familyId}`,
@@ -383,7 +392,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         rate: coupleRate,
                         isCouple: true,
                         spouseId: spouse.id,
-                        relation: m.family_relation
+                        relation: m.family_relation,
+                        sortDistrict
                     };
                 } else {
                     const myScore = getMemberRoleScore(m);
@@ -396,7 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         rate: myRate,
                         isCouple: false,
                         spouseId: null,
-                        relation: m.family_relation
+                        relation: m.family_relation,
+                        sortDistrict: m.district || ''
                     };
                 }
             });
@@ -419,8 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const distA = a.district || '';
-                const distB = b.district || '';
+                const distA = gA.sortDistrict || a.district || '';
+                const distB = gB.sortDistrict || b.district || '';
                 if (distA !== distB) {
                     return distA.localeCompare(distB);
                 }
