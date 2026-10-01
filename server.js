@@ -344,6 +344,11 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
               const myRelToOther = inputMap[otherCore] || '기타';
               if (myRelToTarget.includes('남편') || myRelToTarget.includes('아내')) r = myRelToOther;
               else if (myRelToOther.includes('남편') || myRelToOther.includes('아내')) r = getSymmetricRelation(myRelToTarget);
+              // [2026-10-01] 나(me)에게 target과 other가 둘 다 '부모'면 두 사람은 서로 배우자다
+              // (예: 이은혜 기준 이명호·고성희가 둘 다 부모 → 둘은 부부). 이 경우가 비어 있어서
+              // 지금까지는 기본값 '기타'로 떨어졌고, 그 결과 기존에 맞게 들어있던 남편/아내 표시까지
+              // 상대방 쪽에서 '기타'로 덮어써지는 문제가 있었다. bs(성별)로 남편/아내를 정해준다.
+              else if (myRelToTarget.includes('부모') && myRelToOther.includes('부모')) r = (other.bs === 'B') ? '남편' : '아내';
             }
             return `${other.name.trim()}(${r})`;
           });
