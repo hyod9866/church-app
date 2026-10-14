@@ -72,25 +72,50 @@
         
         /* 툴바 영역 스타일링 */
         .fc-toolbar {
-            margin-bottom: 1.25rem !important;
+            margin-bottom: 1rem !important;
             padding: 0 0.25rem;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 0.5rem !important;
+            flex-wrap: nowrap !important;
+        }
+        .fc-toolbar-chunk {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.35rem !important;
+        }
+        .fc-button-group {
+            display: inline-flex !important;
+            gap: 0.25rem !important;
+        }
+        .fc-button-group > .fc-button {
+            border-radius: 0.65rem !important;
+            margin: 0 !important;
         }
         .fc-toolbar-title { 
-            font-size: 1.4rem !important; 
+            font-size: 1.35rem !important; 
             font-weight: 900; 
             color: #0f172a; 
             letter-spacing: -0.025em; 
+            white-space: nowrap !important;
+            text-align: center;
         }
         .fc-button { 
-            font-size: 0.825rem !important; 
+            font-size: 0.8rem !important; 
             font-weight: 700 !important; 
-            padding: 0.45rem 0.9rem !important; 
-            border-radius: 0.75rem !important; 
+            padding: 0.4rem 0.75rem !important; 
+            border-radius: 0.65rem !important; 
             transition: all 0.15s ease !important;
             border: 1px solid #e2e8f0 !important;
             background-color: #ffffff !important;
             color: #475569 !important;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            min-height: 2.1rem !important;
         }
         .fc-button:hover {
             background-color: #f8fafc !important;
@@ -105,6 +130,38 @@
         .fc-button-primary:not(:disabled).fc-button-active:focus,
         .fc-button-primary:not(:disabled):active:focus {
             box-shadow: none !important;
+        }
+
+        /* 모바일 화면 (아이폰 등 768px 이하) 최적화 */
+        @media (max-width: 768px) {
+            .fc-toolbar {
+                margin-bottom: 0.75rem !important;
+                gap: 0.25rem !important;
+            }
+            .fc-toolbar-chunk {
+                gap: 0.2rem !important;
+            }
+            .fc-button-group {
+                gap: 0.15rem !important;
+            }
+            .fc-toolbar-title {
+                font-size: 1.05rem !important;
+                white-space: nowrap !important;
+                letter-spacing: -0.03em !important;
+            }
+            .fc-button {
+                font-size: 0.725rem !important;
+                padding: 0.35rem 0.55rem !important;
+                border-radius: 0.5rem !important;
+                min-height: 1.9rem !important;
+            }
+            .fc .fc-toolbar-chunk:first-child .fc-button-group {
+                display: inline-flex !important;
+            }
+            /* prev, next 버튼 아이콘 패딩 조절 */
+            .fc .fc-prev-button, .fc .fc-next-button {
+                padding: 0.35rem 0.45rem !important;
+            }
         }
 
         /* 캘린더 헤더 셀 */
