@@ -507,11 +507,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-100/50 dark:border-amber-900/25 shadow-sm">
                     <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
                         <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider">설교 주제 / 본문 / 태그</h4>
-                        ${obsidianUri ? `
-                            <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-[11px] font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
-                                <span>🟣</span> 옵시디언 원고 열기
-                            </a>
-                        ` : ''}
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" id="analyzeSermonAiBtn" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-[0.98] text-white text-[11px] font-black transition-all shadow-sm cursor-pointer" title="Gemini AI로 설교문 대지, 요약, 적용 질문 심층 분석">
+                                <span>✨</span> AI 설교 분석
+                            </button>
+                            ${obsidianUri ? `
+                                <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-[11px] font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                                    <span>🟣</span> 옵시디언 원고 열기
+                                </a>
+                            ` : ''}
+                        </div>
                     </div>
                     <div id="sermonTitleArea" class="space-y-2 mt-2">
                         <div>
@@ -553,6 +558,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             elements.content.innerHTML = detailHTML;
 
+            // Bind AI Sermon Analysis modal
+            bindAiAnalysis(meeting, obsidianUri);
+
         } catch (error) {
             console.error('Error loading attendance details:', error);
             elements.content.innerHTML = '<p class="text-red-500 text-center py-10 font-bold">참석 정보를 불러오지 못했습니다.</p>';
@@ -588,6 +596,163 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }
+    }
+
+    // --- 4.5 AI Sermon Analysis Modal Logic ---
+    function bindAiAnalysis(meeting, obsidianUri) {
+        const analyzeBtn = document.getElementById('analyzeSermonAiBtn');
+        const modal = document.getElementById('aiSermonModal');
+        const backdrop = document.getElementById('aiSermonModalBackdrop');
+        const closeBtn = document.getElementById('closeAiSermonModal');
+        const closeFooterBtn = document.getElementById('closeAiModalFooterBtn');
+        const loadingState = document.getElementById('aiLoadingState');
+        const resultContainer = document.getElementById('aiResultContainer');
+        const applyBtn = document.getElementById('applyAiToMemoBtn');
+
+        if (!analyzeBtn || !modal) return;
+
+        const closeModal = () => {
+            modal.classList.add('hidden');
+        };
+
+        if (backdrop) backdrop.onclick = closeModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
+
+        analyzeBtn.onclick = async () => {
+            modal.classList.remove('hidden');
+            loadingState.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            applyBtn.classList.add('hidden');
+
+            document.getElementById('aiModalTitle').textContent = `AI 설교 분석: ${meeting.sermon_title || meeting.title}`;
+            document.getElementById('aiModalSubtitle').textContent = `${meeting.date} | ${meeting.sermon_bible || meeting.type}`;
+
+            try {
+                const res = await fetch('/api/ai/analyze-sermon', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meetingId: meeting.id,
+                        sermonTitle: meeting.sermon_title || meeting.title,
+                        obsidianUri: obsidianUri,
+                        memo: meeting.memo,
+                        bible: meeting.sermon_bible
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '분석에 실패했습니다.');
+                }
+
+                const an = data.analysis;
+
+                // 1. One line summary
+                document.getElementById('aiOneLineSummary').textContent = an.one_line_summary || '요약 정보가 없습니다.';
+
+                // 2. 3-point summary
+                const threeList = document.getElementById('aiThreePointList');
+                threeList.innerHTML = (an.three_point_summary || []).map((pt, i) => `
+                    <li class="flex items-start gap-2">
+                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-black shrink-0 mt-0.5">${i + 1}</span>
+                        <span>${pt}</span>
+                    </li>
+                `).join('');
+
+                // 3. Outline
+                const outlineList = document.getElementById('aiOutlineList');
+                outlineList.innerHTML = (an.outline || []).map(o => `
+                    <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3">
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 w-fit shrink-0">${o.step}</span>
+                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">${o.point}</span>
+                    </div>
+                `).join('');
+
+                // 4. Questions
+                const qList = document.getElementById('aiQuestionsList');
+                qList.innerHTML = (an.application_questions || []).map((q, idx) => `
+                    <li class="flex items-start gap-2">
+                        <span class="text-amber-600 dark:text-amber-400 font-black shrink-0">Q${idx + 1}.</span>
+                        <span>${q}</span>
+                    </li>
+                `).join('');
+
+                // 5. Tone & Tags
+                document.getElementById('aiSermonTone').textContent = an.sermon_tone || '은혜와 권면';
+                const tagsBadges = document.getElementById('aiTagsBadges');
+                tagsBadges.innerHTML = (an.recommended_tags || []).map(t => `
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">${t.startsWith('#') ? t : '#' + t}</span>
+                `).join('');
+
+                loadingState.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+                applyBtn.classList.remove('hidden');
+
+                // 메모에 적용 버튼
+                applyBtn.onclick = async () => {
+                    const confirmApply = confirm('이 AI 분석 내용(핵심 요약 및 대지 구조)을 모임 메모에 추가하여 저장하시겠습니까?');
+                    if (!confirmApply) return;
+
+                    const summaryMemoBlock = `[AI 설교 핵심 요약]\n` +
+                        `• ${an.one_line_summary}\n\n` +
+                        `[대지 구조]\n` +
+                        (an.outline || []).map(o => `• ${o.step}: ${o.point}`).join('\n') +
+                        `\n\n[나눔 질문]\n` +
+                        (an.application_questions || []).map((q, i) => `Q${i + 1}. ${q}`).join('\n');
+
+                    const currentCleanMemo = (meeting.memo || '').replace(/\[obsidian:.*?\]/g, '').trim();
+                    const newMemo = currentCleanMemo ? `${currentCleanMemo}\n\n---\n${summaryMemoBlock}` : summaryMemoBlock;
+
+                    applyBtn.disabled = true;
+                    applyBtn.textContent = '메모에 저장 중...';
+
+                    try {
+                        const putRes = await fetch(`/api/meetings/${meeting.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                title: meeting.title,
+                                date: meeting.date,
+                                end_date: meeting.end_date,
+                                type: meeting.type,
+                                sermon_title: meeting.sermon_title,
+                                memo: newMemo,
+                                church: meeting.church,
+                                start_time: meeting.start_time,
+                                end_time: meeting.end_time,
+                                sermon_bible: meeting.sermon_bible,
+                                sermon_tags: meeting.sermon_tags
+                            })
+                        });
+
+                        if (!putRes.ok) throw new Error('메모 업데이트 실패');
+
+                        meeting.memo = newMemo;
+                        alert('설교 분석 요약이 모임 메모에 성공적으로 저장되었습니다!');
+                        closeModal();
+                        showMeetingDetail(meeting.id);
+
+                    } catch (err) {
+                        console.error('Apply memo error:', err);
+                        alert('메모 저장 중 오류가 발생했습니다.');
+                    } finally {
+                        applyBtn.disabled = false;
+                        applyBtn.innerHTML = '<span>📝</span> 이 분석을 모임 메모에 적용';
+                    }
+                };
+
+            } catch (err) {
+                console.error('AI Sermon analysis error:', err);
+                loadingState.innerHTML = `
+                    <div class="py-8 text-center text-red-500 space-y-2">
+                        <span class="text-3xl">⚠️</span>
+                        <p class="font-bold text-sm">설교 분석에 실패했습니다.</p>
+                        <p class="text-xs text-slate-400">${err.message}</p>
+                    </div>
+                `;
+            }
+        };
     }
 
     // --- 5. Inline Editing & Saving Logic ---

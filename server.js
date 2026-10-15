@@ -4997,18 +4997,33 @@ function scanObsidianSermons() {
             const relPath = path.relative(vaultRoot, file).replace(/\\/g, '/');
             const obsidianUri = `obsidian://open?vault=${encodeURIComponent(OBSIDIAN_VAULT_NAME)}&file=${encodeURIComponent(relPath)}`;
 
-            parsedList.push({
-                file,
-                filename: path.basename(file),
-                obsidianUri,
-                date: date || null,
-                title: title || base,
-                bible: bible || '',
-                tags: tags.map(t => String(t).trim()).filter(Boolean),
-                type: type || '설교',
-                church: church || '',
-                district: district || ''
-            });
+            // 목사님이 '비고', '성격', '날짜' 등에 동일 설교를 여러 번 한 이력을 기록해 둔 경우 지원:
+            // 예: "비고: 2026-06-11 582조모임, 2026-08-09 청주오송교회" 또는 날짜 배열
+            const extraDates = [];
+            const remarksText = String(church || '') + ' ' + String(type || '');
+            const allDateMatches = [...remarksText.matchAll(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/g)];
+            for (const dm of allDateMatches) {
+                const parsedD = `${dm[1]}-${dm[2].padStart(2, '0')}-${dm[3].padStart(2, '0')}`;
+                if (!extraDates.includes(parsedD)) extraDates.push(parsedD);
+            }
+
+            // 기본 엔트리
+            const entryDates = extraDates.length > 0 ? extraDates : [date || null];
+
+            for (const d of entryDates) {
+                parsedList.push({
+                    file,
+                    filename: path.basename(file),
+                    obsidianUri,
+                    date: d,
+                    title: title || base,
+                    bible: bible || '',
+                    tags: tags.map(t => String(t).trim()).filter(Boolean),
+                    type: type || '설교',
+                    church: church || '',
+                    district: district || ''
+                });
+            }
         } catch (err) {
             console.warn('[OBSIDIAN PARSE ERROR]', file, err.message);
         }
@@ -5167,6 +5182,143 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
     } catch (e) {
         console.error('POST /api/obsidian/sync error:', e);
         res.status(500).json({ error: e.message });
+    }
+});
+
+// ==========================================
+// Google Gemini AI 설교문 심층 분석 API
+// ==========================================
+app.post('/api/ai/analyze-sermon', express.json(), async (req, res) => {
+    try {
+        const { meetingId, sermonTitle, obsidianUri, memo, bible } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+        }
+
+        let sermonContent = '';
+        let sourceFileName = '';
+
+        // 1. 옵시디언 로컬 원고 파일 찾기
+        if (obsidianUri) {
+            try {
+                const urlObj = new URL(obsidianUri);
+                const fileParam = urlObj.searchParams.get('file');
+                if (fileParam) {
+                    const vaultRoot = 'C:\\Users\\D-kanghyodgeun\\Documents\\KHG';
+                    let candidatePath = path.join(vaultRoot, decodeURIComponent(fileParam));
+                    if (!candidatePath.endsWith('.md')) candidatePath += '.md';
+                    if (fs.existsSync(candidatePath)) {
+                        sermonContent = fs.readFileSync(candidatePath, 'utf8');
+                        sourceFileName = path.basename(candidatePath);
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 2. obsidianUri로 못 찾았을 경우 제목으로 탐색
+        if (!sermonContent && (sermonTitle || sourceFileName)) {
+            const targetTitle = (sermonTitle || '').replace(/\.md$/, '').trim();
+            const allFiles = scanObsidianSermons();
+            const found = allFiles.find(f => {
+                return f.filename.includes(targetTitle) || targetTitle.includes(f.title);
+            });
+            if (found && fs.existsSync(found.file)) {
+                sermonContent = fs.readFileSync(found.file, 'utf8');
+                sourceFileName = found.filename;
+            }
+        }
+
+        // 3. 설교 본문 정제 (Frontmatter 제거, 최대 8500자 추출)
+        let cleanText = sermonContent;
+        if (cleanText) {
+            cleanText = cleanText.replace(/^---\r?\n[\s\S]*?\r?\n---/, '').trim();
+            if (cleanText.length > 8500) {
+                cleanText = cleanText.substring(0, 8500) + '\n\n...(이하 원고 생략)';
+            }
+        } else {
+            cleanText = `제목: ${sermonTitle || '무제'}\n본문: ${bible || '미지정'}\n기록된 메모: ${memo || ''}`;
+        }
+
+        // 4. Gemini 프롬프트 구성
+        const prompt = `
+당신은 한국 복음주의 교회의 설교 분석 및 목회 전문 보조 AI입니다.
+목사님의 설교문(원고)을 읽고 성도들의 영적 유익과 목회 현장에 실제 도움이 되도록 정밀하고 은혜롭게 분석해 주세요.
+
+[설교 제목]: ${sermonTitle || ''}
+[본문 성경]: ${bible || ''}
+
+[설교 원고 내용]:
+${cleanText}
+
+반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 생략하거나 파싱 가능하도록 순수 JSON 문자열만 반환해 주세요:
+{
+  "one_line_summary": "이 설교가 성도들에게 주는 가장 핵심적인 단 한 줄 메시지",
+  "three_point_summary": [
+    "핵심 요약 1",
+    "핵심 요약 2",
+    "핵심 요약 3"
+  ],
+  "outline": [
+    { "step": "서론", "point": "서론의 핵심 도입 및 문제 제기" },
+    { "step": "본론 1", "point": "첫 번째 대지 핵심 교훈" },
+    { "step": "본론 2", "point": "두 번째 대지 핵심 교훈" },
+    { "step": "본론 3", "point": "세 번째 대지 핵심 교훈 (해당되는 경우)" },
+    { "step": "결론", "point": "결론 및 성도의 결단과 위로" }
+  ],
+  "theological_points": ["핵심 신학/교리 키워드 2~4개 (예: 하나님의 은혜, 성결한 삶 등)"],
+  "application_questions": [
+    "구역/조모임/소그룹에서 성도들이 삶을 돌아보며 나눌 수 있는 실제적 질문 1",
+    "삶의 적용 나눔 질문 2"
+  ],
+  "sermon_tone": "설교의 주된 어조 (예: 은혜와 위로, 영적 경각심, 성결과 헌신, 복음과 확신)",
+  "recommended_tags": ["#추천태그1", "#추천태그2", "#추천태그3"]
+}
+`;
+
+        const candidateModels = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
+        let data = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                const resJson = await apiRes.json();
+                const textPart = resJson.candidates?.[0]?.content?.parts?.find(p => p.text);
+                if (textPart && textPart.text) {
+                    let outText = textPart.text.trim();
+                    outText = outText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    try {
+                        data = JSON.parse(outText);
+                        data.sourceFileName = sourceFileName || null;
+                        data.hasOriginalFile = !!sermonContent;
+                        break;
+                    } catch(jsonErr) {
+                        console.warn('JSON parse error from model response:', jsonErr);
+                    }
+                }
+            } catch (err) {
+                console.warn(`Model ${modelName} error:`, err.message);
+            }
+        }
+
+        if (!data) {
+            return res.status(500).json({ error: 'AI 분석 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+        }
+
+        res.json({
+            success: true,
+            analysis: data
+        });
+
+    } catch (err) {
+        console.error('AI Sermon analysis error:', err);
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -229,6 +229,93 @@
         </div>
     </div>
 
+    <!-- AI Sermon Analysis Modal -->
+    <div id="aiSermonModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 hidden">
+        <!-- Backdrop -->
+        <div id="aiSermonModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Modal Content -->
+        <div class="bg-white dark:bg-[#131B2E] w-full max-w-2xl max-h-[90vh] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl relative z-10 overflow-hidden flex flex-col transition-all duration-200">
+            <!-- Header -->
+            <div class="p-5 bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-700 text-white flex justify-between items-center shadow-md flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-black text-sm md:text-base tracking-tight" id="aiModalTitle">AI 설교문 심층 분석</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white border border-white/20">Gemini 3.5</span>
+                        </div>
+                        <p class="text-[11px] text-purple-200 font-medium mt-0.5" id="aiModalSubtitle">설교 원고 및 성경 본문 기반 목회 분석</p>
+                    </div>
+                </div>
+                <button id="closeAiSermonModal" class="text-white/80 hover:text-white transition-colors cursor-pointer p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-5 md:p-6 space-y-5 bg-slate-50/40 dark:bg-[#0B0F19]/60 no-scrollbar" id="aiModalBody">
+                <!-- Loading State -->
+                <div id="aiLoadingState" class="py-16 text-center space-y-4">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-purple-600 border-t-transparent"></div>
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300">옵시디언 설교 원고 전문을 AI가 분석하고 있습니다...</p>
+                    <p class="text-xs text-slate-400">대지 구조, 3대 핵심 요약, 성도 맞춤 적용 질문을 도출하는 중입니다.</p>
+                </div>
+
+                <!-- Result Container -->
+                <div id="aiResultContainer" class="hidden space-y-5">
+                    <!-- One Line Summary -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200/60 dark:border-purple-800/40">
+                        <span class="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider block mb-1">🎯 한 줄 핵심 메시지</span>
+                        <p id="aiOneLineSummary" class="text-sm md:text-base font-black text-slate-800 dark:text-slate-100 leading-relaxed"></p>
+                    </div>
+
+                    <!-- 3-Point Summary -->
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+                        <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-2">📋 설교 3대 핵심 요약</span>
+                        <ul id="aiThreePointList" class="space-y-2 text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed"></ul>
+                    </div>
+
+                    <!-- Outline (대지 구조) -->
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+                        <span class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-2">🏛️ 설교 대지 구조 (Outline)</span>
+                        <div id="aiOutlineList" class="space-y-2.5"></div>
+                    </div>
+
+                    <!-- Application Questions -->
+                    <div class="bg-amber-50/40 dark:bg-amber-950/20 p-4.5 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 shadow-sm">
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <span class="text-sm">💡</span>
+                            <span class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">소그룹 / 구역·조모임 삶의 적용 질문</span>
+                        </div>
+                        <ul id="aiQuestionsList" class="space-y-2 text-xs font-bold text-slate-800 dark:text-slate-200 leading-relaxed"></ul>
+                    </div>
+
+                    <!-- Theological Points & Tags -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="p-3.5 bg-white dark:bg-[#131B2E] rounded-xl border border-slate-200/70 dark:border-slate-800">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">🕊️ 설교 톤 & 분위기</span>
+                            <span id="aiSermonTone" class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"></span>
+                        </div>
+                        <div class="p-3.5 bg-white dark:bg-[#131B2E] rounded-xl border border-slate-200/70 dark:border-slate-800">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">🏷️ 추천 주제 태그</span>
+                            <div id="aiTagsBadges" class="flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Action Bar -->
+            <div class="p-4 bg-slate-50 dark:bg-[#172237]/50 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3 flex-shrink-0">
+                <button type="button" id="applyAiToMemoBtn" class="hidden items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white text-xs font-extrabold shadow-md transition-all cursor-pointer">
+                    <span>📝</span> 이 분석을 모임 메모에 적용
+                </button>
+                <button type="button" id="closeAiModalFooterBtn" class="ml-auto px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/meeting_editor.js?v=att-mode-11"></script>
     <script src="/js/sermon_history.js?v=leader-snapshot-1"></script>
