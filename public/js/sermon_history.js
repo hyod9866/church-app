@@ -628,10 +628,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('aiModalTitle').textContent = `AI 설교 분석: ${meeting.sermon_title || meeting.title}`;
             document.getElementById('aiModalSubtitle').textContent = `${meeting.date} | ${meeting.sermon_bible || meeting.type}`;
 
+            const savedKey = localStorage.getItem('GEMINI_API_KEY') || '';
+
             try {
                 const res = await fetch('/api/ai/analyze-sermon', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-gemini-key': savedKey
+                    },
                     body: JSON.stringify({
                         meetingId: meeting.id,
                         sermonTitle: meeting.sermon_title || meeting.title,
@@ -643,7 +648,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await res.json();
                 if (!res.ok || !data.success) {
-                    throw new Error(data.error || '분석에 실패했습니다.');
+                    if (data.error === 'NO_API_KEY' || (data.message && data.message.includes('GEMINI_API_KEY'))) {
+                        loadingState.innerHTML = `
+                            <div class="py-6 px-4 text-center max-w-md mx-auto space-y-4">
+                                <span class="text-3xl">🔑</span>
+                                <h4 class="font-black text-slate-800 dark:text-slate-100 text-sm md:text-base">Google Gemini API 키 입력</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    설교 분석을 사용하려면 Gemini API 키가 필요합니다.<br>
+                                    발급받으신 키를 입력하시면 안전하게 보관되어 즉시 분석이 실행됩니다.
+                                </p>
+                                <div class="space-y-2">
+                                    <input type="text" id="inputGeminiApiKey" placeholder="Gemini API 키 입력..." class="w-full border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-purple-500 outline-none">
+                                    <button type="button" id="saveAndRetryGeminiKeyBtn" class="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white font-black text-xs shadow-md transition-all cursor-pointer">
+                                        키 저장하고 바로 설교 분석 시작
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400">
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-600 dark:text-purple-400 hover:underline">Google AI Studio에서 무료 키 발급받기 →</a>
+                                </p>
+                            </div>
+                        `;
+
+                        const inputEl = document.getElementById('inputGeminiApiKey');
+                        const saveBtn = document.getElementById('saveAndRetryGeminiKeyBtn');
+                        if (saveBtn && inputEl) {
+                            saveBtn.onclick = () => {
+                                const val = inputEl.value.trim();
+                                if (!val) return alert('API 키를 입력해 주세요.');
+                                localStorage.setItem('GEMINI_API_KEY', val);
+                                analyzeBtn.click();
+                            };
+                            inputEl.onkeydown = (e) => {
+                                if (e.key === 'Enter') saveBtn.click();
+                            };
+                        }
+                        return;
+                    }
+                    throw new Error(data.error || data.message || '분석에 실패했습니다.');
                 }
 
                 const an = data.analysis;

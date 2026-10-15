@@ -5191,9 +5191,9 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
 app.post('/api/ai/analyze-sermon', express.json(), async (req, res) => {
     try {
         const { meetingId, sermonTitle, obsidianUri, memo, bible } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
         if (!apiKey) {
-            return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+            return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
 
         let sermonContent = '';
@@ -5329,9 +5329,9 @@ const uploadAudio = multer({ storage: multer.memoryStorage(), limits: { fileSize
 
 app.post('/api/ai/parse-counseling', uploadAudio.single('audio'), async (req, res) => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
         if (!apiKey) {
-            return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+            return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
 
         const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash'];
