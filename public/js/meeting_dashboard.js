@@ -308,10 +308,11 @@ function renderSermonTable(sermons = currentSermons) {
 
         const attendeeText = s.attendee_count ? `${s.attendee_count}명` : '-';
         const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
+        const obsidianLink = s.obsidian_uri || (typeof getObsidianUri === 'function' ? getObsidianUri(s.sermon_title, s.memo) : '');
+        const hasSermon = !!(s.sermon_title && s.sermon_title.trim());
 
         tr.onclick = () => {
             console.log("[DEBUG] Table Row Clicked. s:", s);
-            // Need to mock title and type for the detail panel mapping
             const mockMeetingObj = {
                 id: s.id,
                 date: s.date,
@@ -322,7 +323,6 @@ function renderSermonTable(sermons = currentSermons) {
                 start_time: s.start_time,
                 end_time: s.end_time
             };
-            console.log("[DEBUG] Calling showSingleMeetingDetail with mock:", mockMeetingObj);
             showSingleMeetingDetail(mockMeetingObj, s.type || '모임 상세', dateStr);
             openDetailPanel();
         };
@@ -330,9 +330,23 @@ function renderSermonTable(sermons = currentSermons) {
         tr.innerHTML = `
             <td class="px-4 py-3 whitespace-nowrap group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${dateStr}</td>
             <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${upcomingBadge}${s.meeting_title || '(모임 제목 없음)'}</td>
-            <td class="px-4 py-3 min-w-[120px]">${s.type === '설교' ? '내부설교' : s.type}</td>
+            <td class="px-4 py-3 min-w-[110px]">${s.type === '설교' ? '내부설교' : s.type}</td>
             <td class="px-4 py-3 font-medium text-slate-650 dark:text-slate-400">${s.sermon_title || '(설교 제목 없음)'}</td>
             <td class="px-4 py-3 font-bold ${attendeeClass}">${attendeeText}</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-end gap-1.5">
+                    ${obsidianLink ? `
+                        <a href="${obsidianLink}" target="_blank" class="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 dark:text-purple-300 font-bold text-[11px] border border-purple-200/80 dark:border-purple-800/60 transition shadow-sm" title="옵시디언에서 설교 원고 열기">
+                            🟣 원고
+                        </a>
+                    ` : ''}
+                    ${hasSermon ? `
+                        <button type="button" class="open-ai-sermon-btn px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer" data-id="${s.id}">
+                            ✨ AI 분석
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -1679,3 +1693,210 @@ function renderBibleCharts(bibleDist) {
     // Render Old Testament Chart (Amber/Orange theme)
     renderSingleBibleChart('oldBibleChart', 'oldBibleChartWrapper', oldBibleDist, '#f59e0b');
 }
+
+// ==========================================
+// 옵시디언 동기화 및 AI 설교 분석 연동
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. 옵시디언 즉시 동기화 버튼
+    const syncBtn = document.getElementById('syncObsidianBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async () => {
+            const origHtml = syncBtn.innerHTML;
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = `<span>⏳</span> 동기화 중...`;
+            try {
+                const res = await fetch('/api/obsidian/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`옵시디언 동기화 완료!\n총 ${data.totalFiles}개 파일 중 ${data.matchedCount}개 설교 일정이 매칭되었습니다.`);
+                    window.location.reload();
+                } else {
+                    alert('동기화 실패: ' + (data.error || '오류가 발생했습니다.'));
+                }
+            } catch(e) {
+                alert('동기화 중 오류가 발생했습니다: ' + e.message);
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = origHtml;
+            }
+        });
+    }
+
+    // 2. 전체 설교 흐름 AI 종합 분석 버튼 & 모달
+    const analyzeAllBtn = document.getElementById('analyzeAllSermonsBtn');
+    const allModal = document.getElementById('aiAllSermonsModal');
+    const closeAllModalBtn = document.getElementById('closeAiAllSermonsModal');
+    const allBackdrop = document.getElementById('aiAllSermonsModalBackdrop');
+    const allLoading = document.getElementById('aiAllLoadingState');
+    const allResult = document.getElementById('aiAllResultContainer');
+
+    const closeAllModal = () => {
+        if (allModal) allModal.classList.add('hidden');
+    };
+    if (closeAllModalBtn) closeAllModalBtn.onclick = closeAllModal;
+    if (allBackdrop) allBackdrop.onclick = closeAllModal;
+
+    if (analyzeAllBtn) {
+        analyzeAllBtn.addEventListener('click', async () => {
+            if (!allModal) return;
+            allModal.classList.remove('hidden');
+            allLoading.classList.remove('hidden');
+            allResult.classList.add('hidden');
+
+            try {
+                const savedKey = localStorage.getItem('GEMINI_API_KEY') || '';
+                const res = await fetch('/api/ai/analyze-all-sermons', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-gemini-key': savedKey
+                    }
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '전체 설교 분석에 실패했습니다.');
+                }
+
+                const an = data.analysis;
+                document.getElementById('aiAllMinistrySummary').textContent = an.ministry_summary || '';
+                document.getElementById('aiAllTestamentRatio').textContent = an.scripture_coverage?.testament_ratio || '비중 산출 완료';
+                
+                const booksContainer = document.getElementById('aiAllFrequentBooks');
+                booksContainer.innerHTML = (an.scripture_coverage?.frequent_books || []).map(b => `
+                    <span class="px-2 py-0.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200 font-bold text-xs">📖 ${b}</span>
+                `).join('');
+
+                document.getElementById('aiAllScriptureAnalysis').textContent = an.scripture_coverage?.analysis || '';
+                
+                const themesContainer = document.getElementById('aiAllCoreThemes');
+                themesContainer.innerHTML = (an.core_themes || []).map(th => `
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs">
+                        <span class="font-black text-blue-700 dark:text-blue-400 block mb-1">▪ ${th.theme}</span>
+                        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">${th.description}</p>
+                    </div>
+                `).join('');
+
+                document.getElementById('aiAllSynergy').textContent = an.congregation_synergy || '';
+
+                const recoList = document.getElementById('aiAllRecommendations');
+                recoList.innerHTML = (an.future_recommendations || []).map(r => `
+                    <li class="leading-relaxed">${r}</li>
+                `).join('');
+
+                document.getElementById('aiAllEncouragement').textContent = `"${an.encouragement_message || ''}"`;
+
+                allLoading.classList.add('hidden');
+                allResult.classList.remove('hidden');
+
+            } catch (err) {
+                allLoading.innerHTML = `
+                    <div class="py-12 text-center text-rose-500 font-bold text-sm">
+                        <p>분석에 실패했습니다: ${err.message}</p>
+                        <button type="button" onclick="document.getElementById('analyzeAllSermonsBtn').click()" class="mt-3 px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold cursor-pointer">다시 시도</button>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    // 3. 개별 설교 AI 분석 모달
+    const sermonModal = document.getElementById('aiSermonModal');
+    const closeSermonModalBtn = document.getElementById('closeAiSermonModal');
+    const sermonBackdrop = document.getElementById('aiSermonModalBackdrop');
+    const sermonLoading = document.getElementById('aiLoadingState');
+    const sermonResult = document.getElementById('aiResultContainer');
+
+    const closeSermonModal = () => {
+        if (sermonModal) sermonModal.classList.add('hidden');
+    };
+    if (closeSermonModalBtn) closeSermonModalBtn.onclick = closeSermonModal;
+    if (sermonBackdrop) sermonBackdrop.onclick = closeSermonModal;
+
+    // 테이블 내 AI 분석 버튼 클릭 위임
+    const tableBody = document.getElementById('sermonLogBody');
+    if (tableBody) {
+        tableBody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.open-ai-sermon-btn');
+            if (!btn) return;
+            const meetingId = btn.dataset.id;
+            const meeting = currentSermons.find(s => String(s.id) === String(meetingId));
+            if (!meeting || !sermonModal) return;
+
+            sermonModal.classList.remove('hidden');
+            sermonLoading.classList.remove('hidden');
+            sermonResult.classList.add('hidden');
+
+            document.getElementById('aiModalTitle').textContent = `AI 설교 분석: ${meeting.sermon_title || meeting.meeting_title}`;
+            document.getElementById('aiModalSubtitle').textContent = `${meeting.date} | ${meeting.type}`;
+
+            try {
+                const savedKey = localStorage.getItem('GEMINI_API_KEY') || '';
+                const res = await fetch('/api/ai/analyze-sermon', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-gemini-key': savedKey
+                    },
+                    body: JSON.stringify({
+                        meetingId: meeting.id,
+                        sermonTitle: meeting.sermon_title || meeting.meeting_title,
+                        obsidianUri: meeting.obsidian_uri || '',
+                        memo: meeting.memo || '',
+                        bible: meeting.sermon_bible || ''
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '분석에 실패했습니다.');
+                }
+
+                const an = data.analysis;
+                document.getElementById('aiOneLineSummary').textContent = an.one_line_summary || '';
+
+                const tpList = document.getElementById('aiThreePointList');
+                tpList.innerHTML = (an.three_point_summary || []).map((pt, i) => `
+                    <li class="flex items-start gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">${i + 1}</span>
+                        <span class="pt-0.5">${pt}</span>
+                    </li>
+                `).join('');
+
+                const outList = document.getElementById('aiOutlineList');
+                outList.innerHTML = (an.outline || []).map(item => `
+                    <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+                        <span class="font-black text-blue-600 dark:text-blue-400 block mb-0.5 text-[11px]">${item.step}</span>
+                        <p class="text-slate-700 dark:text-slate-300 font-semibold">${item.point}</p>
+                    </div>
+                `).join('');
+
+                const qList = document.getElementById('aiQuestionsList');
+                qList.innerHTML = (an.application_questions || []).map((q, i) => `
+                    <li class="flex items-start gap-2">
+                        <span class="text-amber-500 font-black">Q${i + 1}.</span>
+                        <span>${q}</span>
+                    </li>
+                `).join('');
+
+                document.getElementById('aiSermonTone').textContent = an.sermon_tone || '은혜와 교훈';
+
+                const tagContainer = document.getElementById('aiRecommendedTags');
+                tagContainer.innerHTML = (an.recommended_tags || []).map(t => `
+                    <span class="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold text-[11px] border border-purple-200/60 dark:border-purple-800/40">${t}</span>
+                `).join('');
+
+                sermonLoading.classList.add('hidden');
+                sermonResult.classList.remove('hidden');
+
+            } catch(err) {
+                sermonLoading.innerHTML = `
+                    <div class="py-12 text-center text-rose-500 font-bold text-sm">
+                        <p>분석에 실패했습니다: ${err.message}</p>
+                        <button type="button" onclick="document.getElementById('closeAiSermonModal').click()" class="mt-3 px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer">닫기</button>
+                    </div>
+                `;
+            }
+        });
+    }
+});

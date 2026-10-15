@@ -19,9 +19,35 @@ function buildLeadChips(leadTarget, size) {
     }).filter(Boolean).join(' ');
 }
 
+// 옵시디언 딥링크 생성 공통 헬퍼
+function getObsidianUri(sermon = '', memo = '') {
+    if (memo && typeof memo === 'string') {
+        const m = memo.match(/\[obsidian:\s*(.*?)\]/);
+        if (m) return m[1].trim();
+    }
+    if (sermon && typeof sermon === 'string' && sermon.trim()) {
+        const cleanName = sermon.replace(/\.md$/, '').trim();
+        return `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
+    }
+    return '';
+}
+window.getObsidianUri = getObsidianUri;
+
 function formatMeetingMemoContent(rawMemo) {
     if (!rawMemo) return '';
     let text = rawMemo.trim();
+
+    // JSON 형식 메타데이터({"bible":...,"tags":...})는 화면 메모에 노출하지 않고 제거
+    if (text.startsWith('{')) {
+        const firstLine = text.split(/\r?\n/)[0];
+        try {
+            if (firstLine.endsWith('}')) {
+                JSON.parse(firstLine);
+                text = text.substring(firstLine.length).trim();
+            }
+        } catch (e) {}
+    }
+
     let leadTarget = '';
     let method = '';
 
@@ -44,18 +70,6 @@ function formatMeetingMemoContent(rawMemo) {
         obsidianUri = obsMatch[1].trim();
         text = text.replace(/\[obsidian:\s*.*?\]/g, '');
     }
-
-function getObsidianUri(sermon = '', memo = '') {
-    if (memo) {
-        const m = memo.match(/\[obsidian:\s*(.*?)\]/);
-        if (m) return m[1].trim();
-    }
-    if (sermon && sermon.trim()) {
-        const cleanName = sermon.replace(/\.md$/, '').trim();
-        return `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
-    }
-    return '';
-}
 
     text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
     text = text.replace(/\s+/g, ' ').trim();
@@ -553,7 +567,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 sermon_tags: info.event.extendedProps.sermon_tags,
                 sermon_bible: info.event.extendedProps.sermon_bible
             };
-            showMeetingDetail(id, clickedInstanceDate, info.event.title, info.event.extendedProps.type, info.event.extendedProps.sermon_title, info.event.extendedProps.memo, info.event.extendedProps.church, info.event.extendedProps.start_time, info.event.extendedProps.end_time, info.event.extendedProps.sermon_tags, info.event.extendedProps.leader_church_snapshot, info.event.extendedProps.leader_parish_snapshot);
+            showMeetingDetail(
+                id, 
+                clickedInstanceDate, 
+                info.event.title, 
+                info.event.extendedProps.type, 
+                info.event.extendedProps.sermon_title, 
+                info.event.extendedProps.memo, 
+                info.event.extendedProps.church, 
+                info.event.extendedProps.start_time, 
+                info.event.extendedProps.end_time, 
+                info.event.extendedProps.sermon_tags, 
+                info.event.extendedProps.leader_church_snapshot, 
+                info.event.extendedProps.leader_parish_snapshot,
+                info.event.extendedProps.sermon_bible,
+                info.event.extendedProps.obsidian_uri
+            );
         }
     });
     calendar.render();
@@ -1044,164 +1073,185 @@ async function fetchDistricts(parishId) { const res = await fetch(`/api/district
 // Meeting Functions
 let currentMeetingId = null, extraAttendees = [], selectedChurch = '', currentSermonTagsList = [];
 
-async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '', sermonTags = '', leaderChurchSnapshot = '', leaderParishSnapshot = '') {
+async function showMeetingDetail(id, date, title, type, sermon, memo, church = '', startTime = '', endTime = '', sermonTags = '', leaderChurchSnapshot = '', leaderParishSnapshot = '', sermonBible = '', obsidianUri = '') {
     currentMeetingId = id; const c = document.getElementById('meetingPanelsContainer');
     c.classList.remove('hidden'); setTimeout(() => { c.classList.remove('translate-x-full'); c.classList.add('translate-x-0'); }, 10);
     document.getElementById('meetingDetailPanel').classList.remove('hidden'); document.getElementById('meetingModal').classList.add('hidden');
-    document.getElementById('detailTitle').textContent = title;
+    document.getElementById('detailTitle').textContent = title || '(제목 없음)';
     let timeStr = startTime;
     if (startTime && endTime) {
         timeStr = `${startTime}~${endTime}`;
     }
-    document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : type}`;
-    const res = await fetch(`/api/meetings/${id}/attendance`); const att = await res.json();
-    const p = att.filter(a => a.is_present);
-    const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
-    
-    // 미참석자 계산 로직
-    let absentHtml = '';
-    const typeStr = type || '';
-    if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
-        let targetParams = new URLSearchParams({ status: 'active' });
-        // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상.
-        // 이 모임에 저장된 소속 스냅샷이 있으면 그걸 우선 사용해서, 관리자 소속이 나중에 바뀌어도
-        // 과거 모임의 대상자 명단이 흔들리지 않도록 한다.
-        const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
-        if (isParishWide) {
-            const snap = leaderChurchSnapshot ? { church: leaderChurchSnapshot, parish: leaderParishSnapshot } : null;
-            await window.applyParishWideTargetFilter(targetParams, snap);
-        } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
-            const distMatch = typeStr.match(/\d+/);
-            if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
-        } else if (typeStr === '교구임원모임') {
-            targetParams.append('has_position', 'true');
-        } else if (typeStr.includes('형제모임')) {
-            targetParams.append('category', '봉사회');
-        } else if (typeStr.includes('청년모임')) {
-            targetParams.append('category', '청년회');
-        }
+    document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : (type || '')}`;
 
-        const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
-        let allTargets = await mRes.json();
-        // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
-        allTargets = window.filterMeetingTargets(allTargets);
-
-        // 교구전체모임 구분이지만 제목이 '조모임'이면 조모임 대상(성도 S, 청년 제외) 기준을 적용
-        if (isParishWide && (title || '').includes('조')) {
-            allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
-        }
+    try {
+        const res = await fetch(`/api/meetings/${id}/attendance`);
+        const att = res.ok ? await res.json() : [];
+        const p = Array.isArray(att) ? att.filter(a => a.is_present) : [];
+        const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
         
-        if (typeStr.includes('형제모임')) {
-            const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
-            const eMembers = await eRes.json();
-            allTargets = [...allTargets, ...eMembers];
-            // '자매' 제외 (성별 컬럼 bs가 'B'(형제)인 사람만 필터링)
-            allTargets = allTargets.filter(m => m.bs === 'B');
+        // 미참석자 계산 로직
+        let absentHtml = '';
+        const typeStr = type || '';
+        if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
+            try {
+                let targetParams = new URLSearchParams({ status: 'active' });
+                const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
+                if (isParishWide) {
+                    const snap = leaderChurchSnapshot ? { church: leaderChurchSnapshot, parish: leaderParishSnapshot } : null;
+                    if (typeof window.applyParishWideTargetFilter === 'function') {
+                        await window.applyParishWideTargetFilter(targetParams, snap);
+                    }
+                } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
+                    const distMatch = typeStr.match(/\d+/);
+                    if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
+                } else if (typeStr === '교구임원모임') {
+                    targetParams.append('has_position', 'true');
+                } else if (typeStr.includes('형제모임')) {
+                    targetParams.append('category', '봉사회');
+                } else if (typeStr.includes('청년모임')) {
+                    targetParams.append('category', '청년회');
+                }
+
+                const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
+                let allTargets = mRes.ok ? await mRes.json() : [];
+                if (Array.isArray(allTargets)) {
+                    if (typeof window.filterMeetingTargets === 'function') {
+                        allTargets = window.filterMeetingTargets(allTargets);
+                    }
+
+                    if (isParishWide && (title || '').includes('조')) {
+                        allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
+                    }
+                    
+                    if (typeStr.includes('형제모임')) {
+                        const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
+                        const eMembers = eRes.ok ? await eRes.json() : [];
+                        if (Array.isArray(eMembers)) allTargets = [...allTargets, ...eMembers];
+                        allTargets = allTargets.filter(m => m.bs === 'B');
+                    }
+
+                    if (typeStr.includes('조모임')) {
+                        allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
+                    }
+
+                    if (typeStr === '교구임원모임') {
+                        allTargets = allTargets.filter(m => m.position && m.position.trim().length > 0);
+                    }
+
+                    const presentIds = p.map(a => a.member_id);
+                    const absentees = allTargets.filter(m => !presentIds.includes(m.id));
+
+                    if (absentees.length > 0) {
+                        absentHtml = `
+                            <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
+                                <h4 class="text-xs font-black text-gray-400 dark:text-slate-550 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
+                                <div class="flex flex-wrap gap-1">
+                                    ${absentees.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (targetErr) {
+                console.warn('미참석자 집계 실패:', targetErr);
+            }
         }
 
-        if (typeStr.includes('조모임')) {
-            allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
-        }
-
-        if (typeStr === '교구임원모임') {
-            allTargets = allTargets.filter(m => m.position && m.position.trim().length > 0);
-        }
-
-        const presentIds = p.map(a => a.member_id);
-        const absentees = allTargets.filter(m => !presentIds.includes(m.id));
-
-        if (absentees.length > 0) {
-            absentHtml = `
+        // 간증 섹션 — 상담 기록은 "간증"이 아니라 상담 내용 그 자체이므로 상담 내용으로 표시
+        let testimonyHtml = '';
+        const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
+        if (pWithTestimony.length > 0) {
+            const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${pWithTestimony.length}명)`;
+            testimonyHtml = `
                 <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
-                    <h4 class="text-xs font-black text-gray-400 dark:text-slate-550 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
-                    <div class="flex flex-wrap gap-1">
-                        ${absentees.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name}</span>`).join('')}
+                    <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
+                    <div class="space-y-2">
+                        ${pWithTestimony.map(a => `
+                            <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
+                                <div class="font-bold text-blue-800 dark:text-blue-300 text-base mb-1">${a.name}</div>
+                                ${typeof formatTestimonySnapshot === 'function' ? formatTestimonySnapshot(a.testimony_snapshot, a.member_status) : (a.testimony_snapshot || '')}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
         }
-    }
 
-    // 간증 섹션 — [2026-08-29] 상담 기록은 "간증"이 아니라 상담 내용 그 자체이므로, 상담 유형일 때는
-    // 제목을 "상담 내용"으로 바꿔 표시한다 (인원수 표기도 불필요 — 상담 대상자 1명의 내용이므로).
-    let testimonyHtml = '';
-    const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
-    if (pWithTestimony.length > 0) {
-        const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${pWithTestimony.length}명)`;
-        testimonyHtml = `
-            <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
-                <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
-                <div class="space-y-2">
-                    ${pWithTestimony.map(a => `
-                        <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
-                            <div class="font-bold text-blue-800 dark:text-blue-300 text-base mb-1">${a.name}</div>
-                            ${formatTestimonySnapshot(a.testimony_snapshot, a.member_status)}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    let detailHTML = '';
-    if (typeStr === '교회행사') {
-        if (memo && memo.trim()) {
-            detailHTML = `
-                <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
-                    <h4 class="text-xs font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        행사 메모 / 안내 사항
-                    </h4>
-                    <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${memo}</p>
-                </div>
-            `;
+        let detailHTML = '';
+        if (typeStr === '교회행사') {
+            if (memo && memo.trim()) {
+                detailHTML = `
+                    <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
+                        <h4 class="text-xs font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            행사 메모 / 안내 사항
+                        </h4>
+                        <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${memo}</p>
+                    </div>
+                `;
+            } else {
+                detailHTML = `
+                    <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
+                        <p class="text-sm text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
+                    </div>
+                `;
+            }
         } else {
+            const finalObsidianUri = obsidianUri || (typeof getObsidianUri === 'function' ? getObsidianUri(sermon, memo) : '');
             detailHTML = `
-                <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
-                    <p class="text-sm text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
+                <div class="mb-4 bg-white dark:bg-[#1e293b] p-4.5 rounded-xl shadow-sm border dark:border-slate-800/80 flex justify-between items-center">
+                    <span class="font-bold text-lg dark:text-slate-200">총 참석</span>
+                    <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
                 </div>
+                ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-xs font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold text-lg dark:text-slate-200">${church}</p></div>` : ''}
+                ${sermon ? `
+                    <div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30">
+                        <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4>
+                                ${sermonBible ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 rounded text-[11px] font-bold border border-yellow-300 dark:border-yellow-700/60">📖 ${sermonBible}</span>` : ''}
+                            </div>
+                            ${finalObsidianUri ? `
+                            <a href="${finalObsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                                <span class="text-xs">🟣</span> 옵시디언 원고 열기
+                            </a>
+                            ` : ''}
+                        </div>
+                        <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
+                    </div>
+                ` : ''}
+                ${(sermonTags && typeof sermonTags === 'string') ? `
+                    <div class="mb-4 flex flex-wrap gap-1.5">
+                        ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
+                    </div>
+                ` : ''}
+                ${typeof formatMeetingMemoContent === 'function' ? formatMeetingMemoContent(memo) : ''}
+
+                ${isCounselingType ? '' : `
+                <div class="mb-4">
+                    <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
+                    <div class="flex flex-wrap gap-1">
+                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name}</span>`).join('') : '<span class="text-xs text-slate-400">참석자가 없습니다.</span>'}
+                    </div>
+                </div>
+                `}
+
+                ${absentHtml}
+                ${testimonyHtml}
             `;
         }
-    } else {
-        detailHTML = `
-            <div class="mb-4 bg-white dark:bg-[#1e293b] p-4.5 rounded-xl shadow-sm border dark:border-slate-800/80 flex justify-between items-center">
-                <span class="font-bold text-lg dark:text-slate-200">총 참석</span>
-                <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
-            </div>
-            ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-xs font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold text-lg dark:text-slate-200">${church}</p></div>` : ''}
-            ${sermon ? `
-                <div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30">
-                    <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-                        <h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4>
-                        <a href="${getObsidianUri(sermon, memo)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
-                            <span class="text-xs">🟣</span> 옵시디언 원고 열기
-                        </a>
-                    </div>
-                    <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
-                </div>
-            ` : ''}
-            ${sermonTags ? `
-                <div class="mb-4 flex flex-wrap gap-1.5">
-                    ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
-                </div>
-            ` : ''}
-            ${formatMeetingMemoContent(memo)}
 
-            ${isCounselingType ? '' : `
-            <div class="mb-4">
-                <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
-                <div class="flex flex-wrap gap-1">
-                    ${p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name}</span>`).join('')}
-                </div>
+        document.getElementById('detailContent').innerHTML = detailHTML;
+    } catch (err) {
+        console.error('Error rendering meeting detail:', err);
+        document.getElementById('detailContent').innerHTML = `
+            <div class="p-6 text-center text-rose-500 font-bold text-sm bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/30">
+                <p>모임 상세 정보를 불러오는 중 오류가 발생했습니다.</p>
+                <p class="text-xs font-normal text-slate-400 mt-1">${err.message}</p>
             </div>
-            `}
-
-            ${absentHtml}
-            ${testimonyHtml}
         `;
     }
-
-    document.getElementById('detailContent').innerHTML = detailHTML;
 }
 
 document.getElementById('editMeetingDetailBtn').addEventListener('click', () => {

@@ -5276,7 +5276,7 @@ ${cleanText}
 }
 `;
 
-        const candidateModels = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
+        const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
         let data = null;
 
         for (const modelName of candidateModels) {
@@ -5318,6 +5318,333 @@ ${cleanText}
 
     } catch (err) {
         console.error('AI Sermon analysis error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// Google Gemini AI 상시 사역 비서 (스마트 어시스턴트) API
+// ==========================================
+app.post('/api/ai/assistant', express.json(), async (req, res) => {
+    try {
+        const { message, history = [], clientDate, clientTime } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        if (!apiKey) {
+            return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+        }
+        if (!message || !message.trim()) {
+            return res.status(400).json({ error: '메시지를 입력해 주세요.' });
+        }
+
+        const nowKst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
+        const todayStr = clientDate || nowKst.toISOString().split('T')[0];
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const dayOfWeek = days[new Date(todayStr).getDay()];
+
+        const leaderProfile = await fetchLeaderChurchParish().catch(() => null);
+        const { data: recentMeetings } = await supabase
+            .from('meetings')
+            .select('id, title, date, type, sermon_title, start_time, end_time')
+            .order('date', { ascending: false })
+            .limit(10);
+
+        const prompt = `당신은 교회 목회 및 사역을 돕는 친절하고 유능한 "AI 사역 비서"입니다.
+사용자는 강효근 전도사님(관리자)입니다.
+현재 기준 일자: ${todayStr} (${dayOfWeek}요일)
+관리자 소속: ${leaderProfile?.church || '서울중앙교회'} ${leaderProfile?.parish || '부곡교구'}
+관리 구역: ${(leaderProfile?.managed_districts || ['581', '582', '583']).join(', ')}구역
+
+[최근 등록된 모임 10개]:
+${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임'})${m.sermon_title ? ' | 설교: ' + m.sermon_title : ''}`).join('\n')}
+
+사용자의 요청: "${message}"
+
+[지침]:
+1. 사용자의 요청 의도를 분석하세요.
+2. 아래 5가지 액션 중 하나를 식별하세요:
+   - CREATE_MEETING: 모임/일정 등록 요청 (예: "~에 구역모임 잡아줘", "내일 심방 일정 등록해줘")
+     * 상대 날짜 계산: 오늘이 ${todayStr}(${dayOfWeek}요일)임을 기준으로 "내일", "이번 주일", "다음 주 화요일", "10월 25일" 등의 날짜(YYYY-MM-DD)를 정확히 계산하세요.
+     * 시작/종료 시간: 언급된 시간(예: "저녁 7시 30분" -> 19:30, 종료시간 미언급 시 1시간 뒤로 설정).
+     * 모임 구분(type): 제목에 맞는 구분(예: 581구역모임, 교구임원모임, 교구전체모임, 청년모임, 심방, 상담, 교회행사 등).
+   - CHECK_ABSENTEES: 결석 성도, 교제/모임 잘 안 나오는 성도, 심방 필요한 장기 결석자 조회 요청
+   - GET_STATS: 출석률, 모임 통계, 최근 참석 현황 질의
+   - SEARCH_RECORDS: 특정 설교 제목, 본문, 특정 성도 상담, 과거 모임 검색 요청
+   - NONE: 일반 목회 질문, 성경 나눔 질문 생성, 축하 문구, 성경 구절 문의 등 일반 대화
+
+3. 반드시 마크다운 코드블록(\`\`\`json) 없이 순수 JSON 형식으로만 응답해 주세요:
+{
+  "reply": "사용자에게 전할 정중하고 따뜻하며 명확한 한국어 답변 (마크다운 포맷 지원)",
+  "action": "CREATE_MEETING" | "CHECK_ABSENTEES" | "GET_STATS" | "SEARCH_RECORDS" | "NONE",
+  "actionData": {
+    "title": "모임명 (CREATE_MEETING인 경우)",
+    "date": "YYYY-MM-DD (CREATE_MEETING인 경우)",
+    "type": "581구역모임 (CREATE_MEETING인 경우)",
+    "start_time": "HH:MM",
+    "end_time": "HH:MM",
+    "memo": "",
+    "searchQuery": "검색어 (SEARCH_RECORDS인 경우)",
+    "weeks": 3
+  }
+}`;
+
+        const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
+        let aiResult = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const resJson = await apiRes.json();
+                const textPart = resJson.candidates?.[0]?.content?.parts?.find(p => p.text);
+                if (textPart && textPart.text) {
+                    let outText = textPart.text.trim();
+                    outText = outText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    aiResult = JSON.parse(outText);
+                    break;
+                }
+            } catch(e) {
+                console.warn(`Assistant model ${modelName} attempt failed:`, e.message);
+            }
+        }
+
+        if (!aiResult) {
+            return res.status(500).json({ error: 'AI 비서 응답 생성에 실패했습니다. 잠시 후 다시 말씀해 주세요.' });
+        }
+
+        let resultMeta = {};
+
+        // 3. 액션 실행 (Server-Side Tool Execution)
+        if (aiResult.action === 'CREATE_MEETING' && aiResult.actionData?.date && aiResult.actionData?.title) {
+            const mData = aiResult.actionData;
+            const insertRow = {
+                title: mData.title,
+                date: mData.date,
+                end_date: mData.date,
+                type: mData.type || mData.title,
+                start_time: mData.start_time || null,
+                end_time: mData.end_time || null,
+                memo: mData.memo || '',
+                leader_church_snapshot: leaderProfile?.church || null,
+                leader_parish_snapshot: leaderProfile?.parish || null
+            };
+
+            const { data: createdMeeting, error: createErr } = await supabase
+                .from('meetings')
+                .insert(insertRow)
+                .select('id, title, date, start_time, end_time, type')
+                .single();
+
+            if (!createErr && createdMeeting) {
+                resultMeta.createdMeeting = createdMeeting;
+            }
+        } else if (aiResult.action === 'CHECK_ABSENTEES') {
+            const { data: recentActiveMeetings } = await supabase
+                .from('meetings')
+                .select('id, title, date, type')
+                .neq('type', '심방')
+                .neq('type', '설교')
+                .neq('type', '외부설교')
+                .neq('type', '상담')
+                .lte('date', todayStr)
+                .order('date', { ascending: false })
+                .limit(4);
+
+            if (recentActiveMeetings && recentActiveMeetings.length > 0) {
+                const meetingIds = recentActiveMeetings.map(m => m.id);
+                const { data: attList } = await supabase
+                    .from('attendance')
+                    .select('meeting_id, member_id, is_present, members(id, name, district, category)')
+                    .in('meeting_id', meetingIds);
+
+                const memberAttendanceMap = {};
+                (attList || []).forEach(a => {
+                    if (!a.members) return;
+                    const mId = a.members.id;
+                    if (!memberAttendanceMap[mId]) {
+                        memberAttendanceMap[mId] = {
+                            id: mId,
+                            name: a.members.name,
+                            district: a.members.district || '미지정',
+                            category: a.members.category || '',
+                            presentCount: 0,
+                            totalMeetings: meetingIds.length
+                        };
+                    }
+                    if (Number(a.is_present) === 1) {
+                        memberAttendanceMap[mId].presentCount++;
+                    }
+                });
+
+                const absentees = Object.values(memberAttendanceMap)
+                    .filter(m => m.presentCount <= 1)
+                    .sort((a, b) => a.presentCount - b.presentCount)
+                    .slice(0, 10);
+
+                resultMeta.absentees = absentees;
+                resultMeta.meetingCount = recentActiveMeetings.length;
+            }
+        } else if (aiResult.action === 'GET_STATS') {
+            const { data: statsMeetings } = await supabase
+                .from('meetings')
+                .select('id, title, date, type')
+                .neq('type', '심방')
+                .neq('type', '설교')
+                .neq('type', '외부설교')
+                .neq('type', '상담')
+                .lte('date', todayStr)
+                .order('date', { ascending: false })
+                .limit(5);
+
+            if (statsMeetings && statsMeetings.length > 0) {
+                const { data: recentAtt } = await supabase
+                    .from('attendance')
+                    .select('meeting_id, is_present')
+                    .in('meeting_id', statsMeetings.map(m => m.id))
+                    .eq('is_present', 1);
+
+                const counts = {};
+                (recentAtt || []).forEach(a => {
+                    counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1;
+                });
+
+                const summary = statsMeetings.map(m => ({
+                    title: m.title,
+                    date: m.date,
+                    type: m.type,
+                    attendees: counts[m.id] || 0
+                }));
+
+                resultMeta.statsSummary = summary;
+            }
+        } else if (aiResult.action === 'SEARCH_RECORDS' && aiResult.actionData?.searchQuery) {
+            const q = aiResult.actionData.searchQuery.trim();
+            const { data: searchResults } = await supabase
+                .from('meetings')
+                .select('id, title, date, sermon_title, type, memo')
+                .or(`title.ilike.%${q}%,sermon_title.ilike.%${q}%,memo.ilike.%${q}%`)
+                .order('date', { ascending: false })
+                .limit(6);
+
+            resultMeta.searchResults = searchResults || [];
+        }
+
+        res.json({
+            success: true,
+            reply: aiResult.reply,
+            action: aiResult.action,
+            actionData: aiResult.actionData,
+            resultMeta
+        });
+
+    } catch (err) {
+        console.error('AI Assistant API error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// Google Gemini AI 전체 설교 흐름 종합 분석 API
+// ==========================================
+app.post('/api/ai/analyze-all-sermons', express.json(), async (req, res) => {
+    try {
+        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        if (!apiKey) {
+            return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+        }
+
+        const { data: sermonMeetings, error } = await supabase
+            .from('meetings')
+            .select('id, title, date, type, sermon_title, memo')
+            .not('sermon_title', 'is', null)
+            .neq('sermon_title', '')
+            .order('date', { ascending: false })
+            .limit(30);
+
+        if (error || !sermonMeetings || sermonMeetings.length === 0) {
+            return res.status(404).json({ error: '분석할 설교 기록이 없습니다.' });
+        }
+
+        const sermonListText = sermonMeetings.map((m, idx) => {
+            let bible = '';
+            let tags = '';
+            if (m.memo && m.memo.startsWith('{')) {
+                try {
+                    const meta = JSON.parse(m.memo.split('\n')[0]);
+                    bible = meta.bible || '';
+                    tags = meta.tags || '';
+                } catch(e) {}
+            }
+            return `${idx + 1}. [${m.date}] ${m.sermon_title} (구분: ${m.type || '설교'}, 본문: ${bible || '미지정'}, 태그: ${tags || '없음'})`;
+        }).join('\n');
+
+        const prompt = `당신은 깊은 영성과 성경적 통찰을 갖춘 목회 사역 분석가이자 설교 멘토 AI입니다.
+아래는 강효근 전도사님이 최근 전하신 설교 목록 총 ${sermonMeetings.length}편입니다:
+
+${sermonListText}
+
+위 설교 흐름을 종합적으로 심층 분석하여, 전도사님의 사역을 격려하고 발전시킬 수 있는 종합 리포트를 작성해 주세요.
+
+반드시 마크다운 코드블록(\`\`\`json) 없이 순수 JSON 형식으로만 응답해 주세요:
+{
+  "ministry_summary": "최근 설교 흐름의 전체적인 맥락과 중심 메시지를 요약하는 2~3문장의 총평",
+  "scripture_coverage": {
+    "testament_ratio": "구약 vs 신약 비중 (예: 구약 30%, 신약 70%)",
+    "frequent_books": ["가장 많이 전한 성경 책 2~3권 (예: 요한계시록, 로마서 등)"],
+    "analysis": "성경 본문 선택의 특징과 균형에 대한 평가"
+  },
+  "core_themes": [
+    { "theme": "핵심 주제 1 (예: 첫사랑의 회복과 충성)", "description": "이 주제가 어떻게 반복 강조되었는지 설명" },
+    { "theme": "핵심 주제 2 (예: 성도의 성결과 삶의 구별)", "description": "설명" },
+    { "theme": "핵심 주제 3", "description": "설명" }
+  ],
+  "congregation_synergy": "설교가 성도들의 구역 생활, 교제, 봉사, 영적 성숙에 미치는 긍정적 영향 및 연계성 분석",
+  "future_recommendations": [
+    "향후 사역에서 다루면 좋을 성경 본문이나 주제 제안 1 (이유 포함)",
+    "향후 추천 제안 2 (이유 포함)"
+  ],
+  "encouragement_message": "설교 사역을 감당하는 목회자를 향한 따뜻하고 힘이 되는 영적 격려와 축복의 말씀"
+}`;
+
+        const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
+        let data = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const resJson = await apiRes.json();
+                const textPart = resJson.candidates?.[0]?.content?.parts?.find(p => p.text);
+                if (textPart && textPart.text) {
+                    let outText = textPart.text.trim();
+                    outText = outText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    data = JSON.parse(outText);
+                    break;
+                }
+            } catch(e) {
+                console.warn(`All-sermons model ${modelName} failed:`, e.message);
+            }
+        }
+
+        if (!data) {
+            return res.status(500).json({ error: '전체 설교 종합 분석 생성에 실패했습니다.' });
+        }
+
+        res.json({
+            success: true,
+            sermonCount: sermonMeetings.length,
+            analysis: data
+        });
+
+    } catch (err) {
+        console.error('Analyze all sermons error:', err);
         res.status(500).json({ error: err.message });
     }
 });

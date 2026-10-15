@@ -59,15 +59,10 @@
                 </a>
 
                 
-                <!-- 모임 현황 (Active) -->
+                <!-- 모임 & 설교 현황 (Active) -->
                 <a href="/meeting_dashboard.html" class="bg-white text-blue-700 dark:bg-blue-600 dark:text-white dark:border-blue-500/80 border border-white px-3 py-1.5 rounded-lg font-bold shadow-sm text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-                    모임 현황
-                </a>
-                <!-- 설교 현황 (Obsidian) -->
-                <a href="/sermon_history.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50 px-3 py-1.5 rounded-lg font-medium transition text-xs md:text-sm whitespace-nowrap flex items-center gap-1.5">
-                    <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    설교 현황
+                    모임 & 설교 현황
                 </a>
             </div>
             <!-- 설정 버튼 (톱니바퀴) -->
@@ -81,14 +76,14 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h2 class="text-2xl font-black">모임 현황 및 설교 인사이트</h2>
             <div class="flex items-center gap-2 bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-xl">
-                <a href="/meeting_dashboard.html" class="px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-white dark:bg-[#131B2E] text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-1.5">
+                <button type="button" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-white dark:bg-[#131B2E] text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-1.5 cursor-pointer">
                     <span>📊</span>
                     <span>모임 통계</span>
-                </a>
-                <a href="/sermon_history.html" class="px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition flex items-center gap-1.5">
+                </button>
+                <button type="button" onclick="document.getElementById('syncObsidianBtn').scrollIntoView({behavior: 'smooth'})" class="px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition flex items-center gap-1.5 cursor-pointer">
                     <span>🟣</span>
-                    <span>설교 관리 & 옵시디언</span>
-                </a>
+                    <span>설교 관리 & AI</span>
+                </button>
             </div>
         </div>
 
@@ -196,15 +191,26 @@
 
         <!-- Sermon Log Table -->
         <div class="bg-white dark:bg-[#131B2E] rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800/60 p-5 mb-10 space-y-4 transition-colors">
-            <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span class="w-1.5 h-4 bg-blue-600 dark:bg-blue-500 rounded-full"></span>
-                    최근 설교 및 모임 목록
-                </h3>
-                <div class="relative w-full md:w-64">
-                    <input type="text" id="sermonSearch" placeholder="제목/본문/날짜 검색..." 
-                           class="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition duration-150 bg-slate-50/50 dark:bg-[#0B0F19] dark:text-slate-100">
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <div class="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <span class="w-1.5 h-4 bg-purple-600 dark:bg-purple-500 rounded-full"></span>
+                        설교 기록 및 원고 관리
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">옵시디언(Obsidian) 원고 즉시 연동 및 AI 설교 분석</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <button type="button" id="syncObsidianBtn" class="px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-xs font-black shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
+                        <span>🟣</span> 옵시디언 동기화
+                    </button>
+                    <button type="button" id="analyzeAllSermonsBtn" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
+                        <span>✨</span> 전체 설교 흐름 AI 종합 분석
+                    </button>
+                    <div class="relative w-full md:w-56">
+                        <input type="text" id="sermonSearch" placeholder="제목/본문/날짜 검색..." 
+                               class="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition duration-150 bg-slate-50/50 dark:bg-[#0B0F19] dark:text-slate-100">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
                 </div>
             </div>
 
@@ -235,7 +241,7 @@
                                     <span id="sort-icon-meeting_title" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
                                 </div>
                             </th>
-                            <th class="px-4 py-3 cursor-pointer select-none group min-w-[120px]" onclick="sortSermons('type')">
+                            <th class="px-4 py-3 cursor-pointer select-none group min-w-[110px]" onclick="sortSermons('type')">
                                 <div class="flex items-center gap-1">
                                     모임 구분
                                     <span id="sort-icon-type" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
@@ -249,14 +255,17 @@
                             </th>
                             <th class="px-4 py-3 cursor-pointer select-none group" onclick="sortSermons('attendee_count')">
                                 <div class="flex items-center gap-1">
-                                    참석 인원수
+                                    참석
                                     <span id="sort-icon-attendee_count" class="text-slate-400 dark:text-slate-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">▲</span>
                                 </div>
+                            </th>
+                            <th class="px-4 py-3 text-right min-w-[140px]">
+                                원고 / AI 분석
                             </th>
                         </tr>
                     </thead>
                     <tbody id="sermonLogBody" class="divide-y divide-gray-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-                        <tr><td colspan="5" class="text-center py-4">로딩 중...</td></tr>
+                        <tr><td colspan="6" class="text-center py-4">로딩 중...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -413,9 +422,144 @@
         </div>
     </div>
 
+    <!-- AI Single Sermon Analysis Modal -->
+    <div id="aiSermonModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 hidden">
+        <div id="aiSermonModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="bg-white dark:bg-[#131B2E] w-full max-w-2xl max-h-[90vh] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl relative z-10 overflow-hidden flex flex-col transition-all duration-200">
+            <!-- Header -->
+            <div class="p-5 bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-700 text-white flex justify-between items-center shadow-md flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-black text-sm md:text-base tracking-tight" id="aiModalTitle">AI 설교문 심층 분석</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white border border-white/20">Gemini</span>
+                        </div>
+                        <p class="text-[11px] text-purple-200 font-medium mt-0.5" id="aiModalSubtitle">설교 원고 및 성경 본문 기반 목회 분석</p>
+                    </div>
+                </div>
+                <button id="closeAiSermonModal" class="text-white/80 hover:text-white transition-colors cursor-pointer p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-5 md:p-6 space-y-5 bg-slate-50/40 dark:bg-[#0B0F19]/60 no-scrollbar" id="aiModalBody">
+                <div id="aiLoadingState" class="py-16 text-center space-y-4">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-purple-600 border-t-transparent"></div>
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300">옵시디언 설교 원고 전문을 AI가 분석하고 있습니다...</p>
+                    <p class="text-xs text-slate-400">대지 구조, 3대 핵심 요약, 성도 맞춤 적용 질문을 도출하는 중입니다.</p>
+                </div>
+
+                <div id="aiResultContainer" class="hidden space-y-5">
+                    <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200/60 dark:border-purple-800/40">
+                        <span class="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider block mb-1">🎯 한 줄 핵심 메시지</span>
+                        <p id="aiOneLineSummary" class="text-sm md:text-base font-black text-slate-800 dark:text-slate-100 leading-relaxed"></p>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+                        <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-2">📋 설교 3대 핵심 요약</span>
+                        <ul id="aiThreePointList" class="space-y-2 text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed"></ul>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+                        <span class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-2">🏛️ 설교 대지 구조 (Outline)</span>
+                        <div id="aiOutlineList" class="space-y-2.5"></div>
+                    </div>
+
+                    <div class="bg-amber-50/40 dark:bg-amber-950/20 p-4.5 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 shadow-sm">
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <span class="text-sm">💡</span>
+                            <span class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">소그룹 / 구역·조모임 삶의 적용 질문</span>
+                        </div>
+                        <ul id="aiQuestionsList" class="space-y-2 text-xs font-bold text-slate-800 dark:text-slate-200 leading-relaxed"></ul>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="p-3.5 bg-white dark:bg-[#131B2E] rounded-xl border border-slate-200/70 dark:border-slate-800">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">🕊️ 설교 톤 & 분위기</span>
+                            <span id="aiSermonTone" class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"></span>
+                        </div>
+                        <div class="p-3.5 bg-white dark:bg-[#131B2E] rounded-xl border border-slate-200/70 dark:border-slate-800">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">🏷️ 추천 주제 태그</span>
+                            <div id="aiRecommendedTags" class="flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI All Sermons Comprehensive Analysis Modal -->
+    <div id="aiAllSermonsModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 hidden">
+        <div id="aiAllSermonsModalBackdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="bg-white dark:bg-[#131B2E] w-full max-w-2xl max-h-[90vh] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl relative z-10 overflow-hidden flex flex-col transition-all duration-200">
+            <div class="p-5 bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-700 text-white flex justify-between items-center shadow-md flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">✨</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-black text-base md:text-lg tracking-tight">전체 설교 흐름 AI 종합 분석</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white border border-white/20">사역 종합 리포트</span>
+                        </div>
+                        <p class="text-xs text-purple-200 font-medium mt-0.5">최근 전하신 설교 전수 분석</p>
+                    </div>
+                </div>
+                <button id="closeAiAllSermonsModal" class="text-white/80 hover:text-white transition-colors cursor-pointer p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 md:p-6 space-y-5 bg-slate-50/40 dark:bg-[#0B0F19]/60 no-scrollbar">
+                <div id="aiAllLoadingState" class="py-16 text-center space-y-4">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-purple-600 border-t-transparent"></div>
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300">최근 전하신 설교 전체를 종합 분석하고 있습니다...</p>
+                    <p class="text-xs text-slate-400">성경 본문 비중, 반복 강조된 핵심 주제, 성도들의 삶과의 시너지를 도출 중입니다.</p>
+                </div>
+
+                <div id="aiAllResultContainer" class="hidden space-y-5">
+                    <div class="p-4.5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200/60 dark:border-purple-800/40">
+                        <span class="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider block mb-1">📜 사역 설교 흐름 총평</span>
+                        <p id="aiAllMinistrySummary" class="text-sm md:text-base font-bold text-slate-800 dark:text-slate-100 leading-relaxed"></p>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm space-y-2">
+                        <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">📖 성경 본문 분포 및 비중</span>
+                        <div class="flex items-center gap-2">
+                            <span id="aiAllTestamentRatio" class="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-black text-xs"></span>
+                            <div id="aiAllFrequentBooks" class="flex flex-wrap gap-1"></div>
+                        </div>
+                        <p id="aiAllScriptureAnalysis" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1"></p>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#131B2E] p-4.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+                        <span class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-2.5">💡 최근 강조된 3대 핵심 주제</span>
+                        <div id="aiAllCoreThemes" class="space-y-2"></div>
+                    </div>
+
+                    <div class="bg-emerald-50/40 dark:bg-emerald-950/20 p-4.5 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40 shadow-sm">
+                        <span class="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">🤝 구역·조모임 및 성도 삶과의 시너지</span>
+                        <p id="aiAllSynergy" class="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed"></p>
+                    </div>
+
+                    <div class="bg-amber-50/40 dark:bg-amber-950/20 p-4.5 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 shadow-sm">
+                        <span class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider block mb-2">🌱 향후 추천 설교 본문 및 사역 제안</span>
+                        <ul id="aiAllRecommendations" class="space-y-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 leading-relaxed list-disc list-inside"></ul>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60">
+                        <span class="text-[10px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider block mb-1">🕊️ 전도사님을 향한 격려와 축복</span>
+                        <p id="aiAllEncouragement" class="text-xs font-medium text-purple-900 dark:text-purple-200 italic leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/theme.js?v=final-theme-fix-10"></script>
     <script src="/js/meeting_editor.js?v=visit-autofill-1"></script>
     <script src="/js/mandatory_meeting.js?v=1"></script>
-    <script src="/js/meeting_dashboard.js?v=counsel-detail-1"></script>
+    <script src="/js/meeting_dashboard.js?v=ai-unified-1"></script>
+    <script src="/js/ai_assistant.js?v=1"></script>
 </body>
 </html>
