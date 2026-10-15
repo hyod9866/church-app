@@ -2955,4 +2955,213 @@ document.addEventListener('DOMContentLoaded', () => {
             return filterCounselingMethod;
         }
     );
+
+    // ==========================================
+    // ✨ Gemini AI 음성 녹음 및 분석 연동
+    // ==========================================
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingTimerInterval = null;
+    let recordingSeconds = 0;
+
+    const aiRecordBtn = document.getElementById('aiRecordBtn');
+    const aiRecordBtnText = document.getElementById('aiRecordBtnText');
+    const aiRecordingTimer = document.getElementById('aiRecordingTimer');
+    const aiAnalyzeBtn = document.getElementById('aiAnalyzeBtn');
+    const aiQuickInput = document.getElementById('aiQuickInput');
+
+    function applyAiResultToForm(result) {
+        if (!result) return;
+
+        // 1. 이름
+        if (result.name && !document.getElementById('counselingName').value.trim()) {
+            document.getElementById('counselingName').value = result.name;
+        }
+
+        // 2. 신분 (성도 / 전도대상)
+        if (result.member_status) {
+            const statusVal = result.member_status === 'evangelism' ? 'evangelism' : 'member';
+            const btn = document.querySelector(`.member-status-btn[data-val="${statusVal}"]`);
+            if (btn) btn.click();
+        }
+
+        // 3. 상담 유형 (대면 / 전화)
+        if (result.counseling_method) {
+            const methodBtn = document.querySelector(`.counsel-method-btn[data-val="${result.counseling_method}"]`);
+            if (methodBtn) methodBtn.click();
+        }
+
+        // 4. 인도대상/모임/특징
+        if (result.lead_target) {
+            const leadInput = document.getElementById('counselingLeadTarget');
+            leadInput.value = leadInput.value ? `${leadInput.value} ${result.lead_target}` : result.lead_target;
+        }
+
+        // 5. 주제 태그
+        if (Array.isArray(result.tags) && result.tags.length > 0) {
+            result.tags.forEach(tag => {
+                const clean = tag.replace(/^#/, '').trim();
+                if (!clean) return;
+                // 프리셋 버튼이 있으면 클릭
+                const presetBtn = document.querySelector(`.counsel-tag-btn[data-tag="${clean}"]`);
+                if (presetBtn) {
+                    if (!selectedTags.has(clean)) presetBtn.click();
+                } else {
+                    // 없으면 커스텀 추가
+                    selectedTags.add(clean);
+                }
+            });
+            renderSelectedTagsPreview();
+        }
+
+        // 6. 상담 본문 내용
+        if (result.content) {
+            const memoArea = document.getElementById('counselingMemoContent');
+            memoArea.value = memoArea.value ? `${memoArea.value}\n${result.content}` : result.content;
+        }
+
+        // 7. 비고
+        if (result.remark) {
+            const remarkInput = document.getElementById('counselingRemark');
+            remarkInput.value = remarkInput.value ? `${remarkInput.value} / ${result.remark}` : result.remark;
+        }
+
+        // 알림
+        alert('✨ 제미나이 AI가 상담 내용을 분석하여 양식에 자동으로 채웠습니다!\n내용을 확인하신 후 [상담 저장하기]를 눌러주세요.');
+    }
+
+    // 마이크 녹음 토글
+    if (aiRecordBtn) {
+        aiRecordBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                // 녹음 중지
+                mediaRecorder.stop();
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) {
+                        audioChunks.push(e.data);
+                    }
+                };
+
+                mediaRecorder.onstart = () => {
+                    recordingSeconds = 0;
+                    aiRecordingTimer.classList.remove('hidden');
+                    aiRecordBtn.classList.replace('bg-purple-600', 'bg-rose-600');
+                    aiRecordBtn.classList.replace('hover:bg-purple-700', 'hover:bg-rose-700');
+                    aiRecordBtnText.textContent = '중지';
+
+                    recordingTimerInterval = setInterval(() => {
+                        recordingSeconds++;
+                        const mm = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
+                        const ss = String(recordingSeconds % 60).padStart(2, '0');
+                        aiRecordingTimer.textContent = `● 녹음 중 (${mm}:${ss})`;
+                    }, 1000);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    clearInterval(recordingTimerInterval);
+                    aiRecordingTimer.classList.add('hidden');
+                    aiRecordBtn.classList.replace('bg-rose-600', 'bg-purple-600');
+                    aiRecordBtn.classList.replace('hover:bg-rose-700', 'hover:bg-purple-700');
+                    aiRecordBtnText.textContent = '녹음';
+
+                    // 스트림 트랙 중지
+                    stream.getTracks().forEach(t => t.stop());
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    if (audioBlob.size < 1000) {
+                        alert('녹음 데이터가 너무 짧습니다.');
+                        return;
+                    }
+
+                    // 제미나이 API 전송
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+                    if (aiQuickInput.value.trim()) {
+                        formData.append('text', aiQuickInput.value.trim());
+                    }
+
+                    aiRecordBtn.disabled = true;
+                    aiAnalyzeBtn.disabled = true;
+                    const originalBtnText = aiAnalyzeBtn.textContent;
+                    aiAnalyzeBtn.textContent = 'AI 분석 중...';
+
+                    try {
+                        const res = await fetch('/api/ai/parse-counseling', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.success && data.data) {
+                            applyAiResultToForm(data.data);
+                        } else {
+                            alert('AI 분석 실패: ' + (data.error || '알 수 없는 오류'));
+                        }
+                    } catch (err) {
+                        console.error('Audio AI parse error:', err);
+                        alert('AI 분석 통신 중 오류가 발생했습니다: ' + err.message);
+                    } finally {
+                        aiRecordBtn.disabled = false;
+                        aiAnalyzeBtn.disabled = false;
+                        aiAnalyzeBtn.textContent = originalBtnText;
+                    }
+                };
+
+                mediaRecorder.start();
+            } catch (err) {
+                console.error('Microphone access error:', err);
+                alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.');
+            }
+        });
+    }
+
+    // 텍스트 분석 버튼
+    if (aiAnalyzeBtn) {
+        aiAnalyzeBtn.addEventListener('click', async () => {
+            const text = (aiQuickInput.value || '').trim();
+            if (!text) {
+                alert('분석할 음성을 녹음하거나 텍스트를 입력해 주세요.');
+                aiQuickInput.focus();
+                return;
+            }
+
+            aiAnalyzeBtn.disabled = true;
+            const originalText = aiAnalyzeBtn.textContent;
+            aiAnalyzeBtn.textContent = 'AI 분석 중...';
+
+            try {
+                const res = await fetch('/api/ai/parse-counseling', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    applyAiResultToForm(data.data);
+                } else {
+                    alert('AI 분석 실패: ' + (data.error || '알 수 없는 오류'));
+                }
+            } catch (err) {
+                console.error('Text AI parse error:', err);
+                alert('AI 분석 중 오류가 발생했습니다: ' + err.message);
+            } finally {
+                aiAnalyzeBtn.disabled = false;
+                aiAnalyzeBtn.textContent = originalText;
+            }
+        });
+
+        aiQuickInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                aiAnalyzeBtn.click();
+            }
+        });
+    }
 });

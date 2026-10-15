@@ -4907,6 +4907,120 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
     }
 });
 
+// ==========================================
+// Google Gemini AI 상담/사역 보조 API
+// ==========================================
+const uploadAudio = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+app.post('/api/ai/parse-counseling', uploadAudio.single('audio'), async (req, res) => {
+    try {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+        }
+
+        const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash'];
+        let parts = [];
+
+        // 1. 오디오 파일이 함께 전달된 경우 (멀티모달)
+        if (req.file) {
+            parts.push({
+                inline_data: {
+                    mime_type: req.file.mimetype || 'audio/webm',
+                    data: req.file.buffer.toString('base64')
+                }
+            });
+        }
+
+        // 2. 텍스트 프롬프트
+        const rawText = req.body.text || '';
+        const systemPrompt = `
+당신은 교회 목회 지원 시스템(PMP)의 전문 비서입니다.
+제공된 상담/심방 관련 음성 또는 텍스트 내용을 듣고/읽고 핵심 내용을 구조화된 JSON 형태로 분석해 주세요.
+
+[요청 사항]
+1. name: 상담 대상자 이름 (알 수 없는 경우 빈 문자열)
+2. member_status: 성도인지 전도대상(비신자/새가족/구도자)인지 판단 ("member" 또는 "evangelism")
+3. counseling_method: 상담 형태 ("대면" 또는 "전화", 기본값 "대면")
+4. lead_target: 인도자나 소개자, 또는 관련 모임/특징 (@이름 또는 #특징 형식, 예: "@김재선 #청년부")
+5. tags: 상담 주제 해시태그 배열 (예: ["전도상담", "구원확신/의심", "진로", "이성", "죄", "자녀", "부부관계", "가족", "성경질문", "이단", "직장생활", "결혼", "병원심방"] 등)
+6. content: 상담 본문 핵심 요약 (정중하고 정돈된 목회 어조, 2~4문장)
+7. remark: 비고/기도제목/특이사항 (1~2문장)
+
+반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 생략하거나 파싱 가능하도록 순수 JSON 문자열을 반환해 주세요.
+{
+  "name": "",
+  "member_status": "member",
+  "counseling_method": "대면",
+  "lead_target": "",
+  "tags": [],
+  "content": "",
+  "remark": ""
+}
+`;
+
+        parts.push({
+            text: systemPrompt + (rawText ? `\n[사용자 입력 텍스트]: ${rawText}` : '')
+        });
+
+        let data = null;
+        let lastError = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts }] })
+                });
+
+                const resJson = await apiRes.json();
+                if (resJson.candidates && resJson.candidates[0]?.content?.parts?.[0]?.text) {
+                    data = resJson;
+                    break;
+                } else {
+                    lastError = resJson;
+                    console.warn(`Gemini model ${modelName} returned non-candidate response:`, resJson?.error?.message || resJson);
+                }
+            } catch (err) {
+                lastError = err;
+                console.warn(`Gemini model ${modelName} call failed:`, err.message);
+            }
+        }
+
+        if (!data || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+            console.error('All Gemini model calls failed:', JSON.stringify(lastError));
+            return res.status(500).json({ error: '제미나이 응답을 받지 못했습니다.', raw: lastError });
+        }
+
+        let replyText = data.candidates[0].content.parts[0].text.trim();
+        // ```json ... ``` 제거
+        replyText = replyText.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```$/i, '').trim();
+
+        let parsedJson;
+        try {
+            parsedJson = JSON.parse(replyText);
+        } catch (pe) {
+            console.warn('JSON parse error from Gemini reply:', replyText);
+            parsedJson = {
+                content: replyText,
+                tags: [],
+                counseling_method: '대면',
+                member_status: 'member'
+            };
+        }
+
+        res.json({
+            success: true,
+            data: parsedJson
+        });
+    } catch (err) {
+        console.error('POST /api/ai/parse-counseling error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // iCalendar (.ics) 날짜 변환 헬퍼 함수
 function formatICSDate(dateStr, timeStr, adjustToUTC = true) {
   if (!dateStr) return '';
