@@ -5342,11 +5342,48 @@ app.post('/api/ai/assistant', express.json(), async (req, res) => {
         const dayOfWeek = days[new Date(todayStr).getDay()];
 
         const leaderProfile = await fetchLeaderChurchParish().catch(() => null);
+
+        // 최근 등록된 모임 10개
         const { data: recentMeetings } = await supabase
             .from('meetings')
             .select('id, title, date, type, sermon_title, start_time, end_time')
             .order('date', { ascending: false })
             .limit(10);
+
+        // 메시지나 이전 대화에서 언급된 날짜(예: 10/11, 10월 11일 등) 감지하여 해당 날짜의 기존 모임들을 사전 조회
+        let targetDateMeetings = [];
+        let detectedDateStr = '';
+        const recentHistoryText = (history && Array.isArray(history)) ? history.map(h => h.text || '').join(' ') : '';
+        const combinedText = `${recentHistoryText} ${message}`;
+        const dateMatch = combinedText.match(/(?:(\d{4})[.-/년]\s*)?(\d{1,2})[.-/월]\s*(\d{1,2})/);
+        if (dateMatch) {
+            const currentYear = new Date(todayStr).getFullYear();
+            const y = dateMatch[1] || currentYear;
+            const m = String(dateMatch[2]).padStart(2, '0');
+            const d = String(dateMatch[3]).padStart(2, '0');
+            detectedDateStr = `${y}-${m}-${d}`;
+            const { data: foundMeetings } = await supabase
+                .from('meetings')
+                .select('id, title, date, type, sermon_title, start_time, end_time, memo')
+                .eq('date', detectedDateStr);
+            if (foundMeetings && foundMeetings.length > 0) {
+                targetDateMeetings = foundMeetings;
+            }
+        }
+
+        const historyContext = (history && Array.isArray(history) && history.length > 0)
+            ? `[이전 대화 내역 (맥락 유지)]:
+${history.map(h => `${h.role === 'user' ? '전도사님' : 'AI 비서'}: ${h.text}`).join('\n')}
+
+`
+            : '';
+
+        const targetMeetingsContext = (targetDateMeetings.length > 0)
+            ? `[언급된 날짜(${detectedDateStr})에 이미 등록되어 있는 모임 DB 현황]:
+${targetDateMeetings.map(m => `- 모임ID: ${m.id} | 제목: "${m.title}" | 구분: ${m.type || '모임'} | 시간: ${m.start_time || '시간미정'}~${m.end_time || ''} | 현재설교제목: "${m.sermon_title || '미등록'}"`).join('\n')}
+
+`
+            : '';
 
         const prompt = `당신은 교회 목회 및 사역을 돕는 친절하고 유능한 "AI 사역 비서"입니다.
 사용자는 강효근 전도사님(관리자)입니다.
@@ -5354,40 +5391,49 @@ app.post('/api/ai/assistant', express.json(), async (req, res) => {
 관리자 소속: ${leaderProfile?.church || '서울중앙교회'} ${leaderProfile?.parish || '부곡교구'}
 관리 구역: ${(leaderProfile?.managed_districts || ['581', '582', '583']).join(', ')}구역
 
-[최근 등록된 모임 10개]:
+${targetMeetingsContext}[최근 등록된 모임 10개]:
 ${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임'})${m.sermon_title ? ' | 설교: ' + m.sermon_title : ''}`).join('\n')}
 
-사용자의 요청: "${message}"
+${historyContext}사용자의 현재 요청: "${message}"
 
 [지침]:
-1. 사용자의 요청 의도를 분석하세요.
-2. 아래 5가지 액션 중 하나를 식별하세요:
-   - CREATE_MEETING: 모임/일정 등록 요청 (예: "~에 구역모임 잡아줘", "내일 심방 일정 등록해줘")
-     * 상대 날짜 계산: 오늘이 ${todayStr}(${dayOfWeek}요일)임을 기준으로 "내일", "이번 주일", "다음 주 화요일", "10월 25일" 등의 날짜(YYYY-MM-DD)를 정확히 계산하세요.
-     * 시작/종료 시간: 언급된 시간(예: "저녁 7시 30분" -> 19:30, 종료시간 미언급 시 1시간 뒤로 설정).
-     * 모임 구분(type): 제목에 맞는 구분(예: 581구역모임, 교구임원모임, 교구전체모임, 청년모임, 심방, 상담, 교회행사 등).
+1. 사용자의 요청 의도와 이전 대화 맥락을 종합 분석하세요.
+2. 아래 6가지 액션 중 가장 알맞은 하나를 식별하세요:
+   - UPDATE_SERMON: 기존 모임의 설교 제목 등록/수정 요청
+     * 예: "10/11 시설부 설교제목을 '믿음의 반석'으로 등록해줘", "어제 구역모임 설교제목 OO로 수정해줘"
+     * 만약 사용자가 설교 제목 내용을 아직 주지 않고 "10/11 시설부 설교제목 등록해줘" 또는 "10/11은?"처럼 모임/날짜만 지정했다면:
+       -> action은 "NONE"으로 두고, reply로 해당 날짜의 모임명을 짚으며 친절하게 어떤 설교 제목으로 등록할지 물어보세요!
+          (예: "전도사님, 10월 11일(주일) 09:20 '시설부 말씀' 모임이 확인되었습니다. 어떤 설교 제목으로 등록해 드릴까요?")
+     * 설교 제목이 주어졌다면:
+       -> action: "UPDATE_SERMON"
+       -> actionData: { "meetingId": 해당모임ID(숫자), "date": "YYYY-MM-DD", "title": "모임명", "sermon_title": "등록할 설교제목" }
+   - CREATE_MEETING: 새로운 모임/일정 등록 요청 (예: "~에 구역모임 잡아줘", "내일 심방 일정 등록해줘")
+     * 날짜 계산: 오늘이 ${todayStr}(${dayOfWeek}요일)임을 기준으로 YYYY-MM-DD를 정확히 계산.
+     * 설교 제목이 함께 언급되었다면 actionData.sermon_title에 채워 넣으세요.
    - CHECK_ABSENTEES: 결석 성도, 교제/모임 잘 안 나오는 성도, 심방 필요한 장기 결석자 조회 요청
    - GET_STATS: 출석률, 모임 통계, 최근 참석 현황 질의
    - SEARCH_RECORDS: 특정 설교 제목, 본문, 특정 성도 상담, 과거 모임 검색 요청
-   - NONE: 일반 목회 질문, 성경 나눔 질문 생성, 축하 문구, 성경 구절 문의 등 일반 대화
+   - NONE: 질문에 대한 답변, 확인 질문, 일반 목회 대화 등
 
 3. 반드시 마크다운 코드블록(\`\`\`json) 없이 순수 JSON 형식으로만 응답해 주세요:
 {
   "reply": "사용자에게 전할 정중하고 따뜻하며 명확한 한국어 답변 (마크다운 포맷 지원)",
-  "action": "CREATE_MEETING" | "CHECK_ABSENTEES" | "GET_STATS" | "SEARCH_RECORDS" | "NONE",
+  "action": "UPDATE_SERMON" | "CREATE_MEETING" | "CHECK_ABSENTEES" | "GET_STATS" | "SEARCH_RECORDS" | "NONE",
   "actionData": {
-    "title": "모임명 (CREATE_MEETING인 경우)",
-    "date": "YYYY-MM-DD (CREATE_MEETING인 경우)",
-    "type": "581구역모임 (CREATE_MEETING인 경우)",
+    "meetingId": 285,
+    "title": "모임명",
+    "date": "YYYY-MM-DD",
+    "type": "모임 구분",
     "start_time": "HH:MM",
     "end_time": "HH:MM",
+    "sermon_title": "설교제목",
     "memo": "",
-    "searchQuery": "검색어 (SEARCH_RECORDS인 경우)",
+    "searchQuery": "검색어",
     "weeks": 3
   }
-}`;
+} `;
 
-        const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
+        const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
         let aiResult = null;
 
         for (const modelName of candidateModels) {
@@ -5418,7 +5464,35 @@ ${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임
         let resultMeta = {};
 
         // 3. 액션 실행 (Server-Side Tool Execution)
-        if (aiResult.action === 'CREATE_MEETING' && aiResult.actionData?.date && aiResult.actionData?.title) {
+        if (aiResult.action === 'UPDATE_SERMON' && aiResult.actionData?.sermon_title) {
+            const mData = aiResult.actionData;
+            let targetMeetingId = mData.meetingId;
+
+            // meetingId가 없으면 날짜/제목으로 탐색
+            if (!targetMeetingId && mData.date) {
+                let q = supabase.from('meetings').select('id, title, date, sermon_title').eq('date', mData.date);
+                if (mData.title) {
+                    q = q.ilike('title', `%${mData.title.replace(/모임|말씀/g, '').trim()}%`);
+                }
+                const { data: matched } = await q.limit(1);
+                if (matched && matched.length > 0) {
+                    targetMeetingId = matched[0].id;
+                }
+            }
+
+            if (targetMeetingId) {
+                const { data: updated, error: updateErr } = await supabase
+                    .from('meetings')
+                    .update({ sermon_title: mData.sermon_title.trim() })
+                    .eq('id', targetMeetingId)
+                    .select('id, title, date, sermon_title')
+                    .single();
+
+                if (!updateErr && updated) {
+                    resultMeta.updatedMeeting = updated;
+                }
+            }
+        } else if (aiResult.action === 'CREATE_MEETING' && aiResult.actionData?.date && aiResult.actionData?.title) {
             const mData = aiResult.actionData;
             const insertRow = {
                 title: mData.title,
@@ -5427,6 +5501,7 @@ ${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임
                 type: mData.type || mData.title,
                 start_time: mData.start_time || null,
                 end_time: mData.end_time || null,
+                sermon_title: mData.sermon_title || null,
                 memo: mData.memo || '',
                 leader_church_snapshot: leaderProfile?.church || null,
                 leader_parish_snapshot: leaderProfile?.parish || null
@@ -5435,7 +5510,7 @@ ${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임
             const { data: createdMeeting, error: createErr } = await supabase
                 .from('meetings')
                 .insert(insertRow)
-                .select('id, title, date, start_time, end_time, type')
+                .select('id, title, date, start_time, end_time, type, sermon_title')
                 .single();
 
             if (!createErr && createdMeeting) {
@@ -5609,7 +5684,7 @@ ${sermonListText}
   "encouragement_message": "설교 사역을 감당하는 목회자를 향한 따뜻하고 힘이 되는 영적 격려와 축복의 말씀"
 }`;
 
-        const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
+        const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
         let data = null;
 
         for (const modelName of candidateModels) {

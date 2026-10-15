@@ -213,8 +213,8 @@
                 chatHistory.push({ role: 'user', text });
                 chatHistory.push({ role: 'model', text: data.reply });
 
-                // 만약 일정이 등록되었다면 FullCalendar 새로고침
-                if (data.action === 'CREATE_MEETING' && typeof calendar !== 'undefined' && calendar.refetchEvents) {
+                // 만약 일정이 등록되거나 설교가 수정되었다면 FullCalendar 새로고침
+                if ((data.action === 'CREATE_MEETING' || data.action === 'UPDATE_SERMON') && typeof calendar !== 'undefined' && calendar.refetchEvents) {
                     calendar.refetchEvents();
                 }
 
@@ -360,6 +360,26 @@
                         <div class="mt-2">
                             <a href="/" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shadow-sm">
                                 달력에서 확인하기 →
+                            </a>
+                        </div>
+                    </div>
+                `;
+            // 1-2. 설교 제목 등록/수정 완료 카드
+            else if (action === 'UPDATE_SERMON' && meta?.updatedMeeting) {
+                const u = meta.updatedMeeting;
+                actionCardHtml = `
+                    <div class="mt-2.5 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/60 text-xs text-purple-900 dark:text-purple-200">
+                        <div class="font-black text-sm flex items-center gap-1.5 mb-1 text-purple-700 dark:text-purple-300">
+                            <span>🟣</span> 설교 제목 등록/수정 완료
+                        </div>
+                        <p class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(u.title)} <span class="text-[11px] text-slate-500 font-normal">(${u.date})</span></p>
+                        <p class="text-xs font-black text-purple-600 dark:text-purple-400 mt-1">📖 설교: ${escapeHtml(u.sermon_title)}</p>
+                        <div class="mt-2 flex gap-2">
+                            <a href="/" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] transition shadow-sm">
+                                달력에서 확인하기 →
+                            </a>
+                            <a href="/meeting_dashboard.html" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] transition shadow-sm">
+                                모임 대시보드 →
                             </a>
                         </div>
                     </div>
