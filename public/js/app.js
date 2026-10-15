@@ -1084,11 +1084,25 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
     }
     document.getElementById('detailDate').textContent = `${date}${timeStr ? ' ' + timeStr : ''} | ${type === '설교' ? '내부설교' : (type || '')}`;
 
+    // 즉시 로딩 표시기를 띄워 데이터 로딩 중 빈 화면 방지
+    const detailContentEl = document.getElementById('detailContent');
+    if (detailContentEl) {
+        detailContentEl.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3">
+                <svg class="animate-spin h-7 w-7 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span class="text-xs font-bold text-slate-500 dark:text-slate-400">출석 및 간증 기록 불러오는 중...</span>
+            </div>
+        `;
+    }
+
     try {
         const res = await fetch(`/api/meetings/${id}/attendance`);
         const att = res.ok ? await res.json() : [];
-        const p = Array.isArray(att) ? att.filter(a => a.is_present) : [];
-        const pWithTestimony = p.filter(a => a.testimony_snapshot && a.testimony_snapshot.trim());
+        const p = Array.isArray(att) ? att.filter(a => a && a.is_present) : [];
+        const pWithTestimony = p.filter(a => a && a.testimony_snapshot && a.testimony_snapshot.trim());
         
         // 미참석자 계산 로직
         let absentHtml = '';
@@ -1121,33 +1135,33 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                     }
 
                     if (isParishWide && (title || '').includes('조')) {
-                        allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
+                        allTargets = allTargets.filter(m => m && m.bs === 'S' && m.category !== '청년회');
                     }
                     
                     if (typeStr.includes('형제모임')) {
                         const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
                         const eMembers = eRes.ok ? await eRes.json() : [];
                         if (Array.isArray(eMembers)) allTargets = [...allTargets, ...eMembers];
-                        allTargets = allTargets.filter(m => m.bs === 'B');
+                        allTargets = allTargets.filter(m => m && m.bs === 'B');
                     }
 
                     if (typeStr.includes('조모임')) {
-                        allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
+                        allTargets = allTargets.filter(m => m && m.bs === 'S' && m.category !== '청년회');
                     }
 
                     if (typeStr === '교구임원모임') {
-                        allTargets = allTargets.filter(m => m.position && m.position.trim().length > 0);
+                        allTargets = allTargets.filter(m => m && m.position && m.position.trim().length > 0);
                     }
 
                     const presentIds = p.map(a => a.member_id);
-                    const absentees = allTargets.filter(m => !presentIds.includes(m.id));
+                    const absentees = allTargets.filter(m => m && !presentIds.includes(m.id));
 
                     if (absentees.length > 0) {
                         absentHtml = `
                             <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
                                 <h4 class="text-xs font-black text-gray-400 dark:text-slate-550 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
                                 <div class="flex flex-wrap gap-1">
-                                    ${absentees.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name}</span>`).join('')}
+                                    ${absentees.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name || '성도'}</span>`).join('')}
                                 </div>
                             </div>
                         `;
@@ -1166,10 +1180,10 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
             testimonyHtml = `
                 <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
                     <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                         ${pWithTestimony.map(a => `
-                            <div class="p-2.5 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-100 dark:border-blue-900/30">
-                                <div class="font-bold text-blue-800 dark:text-blue-300 text-base mb-1">${a.name}</div>
+                            <div class="p-3 bg-blue-50/70 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                <div class="font-bold text-blue-800 dark:text-blue-300 text-sm mb-1">${a.name || '성도'}</div>
                                 ${typeof formatTestimonySnapshot === 'function' ? formatTestimonySnapshot(a.testimony_snapshot, a.member_status) : (a.testimony_snapshot || '')}
                             </div>
                         `).join('')}
@@ -1232,7 +1246,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <div class="mb-4">
                     <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
                     <div class="flex flex-wrap gap-1">
-                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name}</span>`).join('') : '<span class="text-xs text-slate-400">참석자가 없습니다.</span>'}
+                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name || '성도'}</span>`).join('') : '<span class="text-xs text-slate-400">참석자가 없습니다.</span>'}
                     </div>
                 </div>
                 `}
@@ -1242,15 +1256,20 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
             `;
         }
 
-        document.getElementById('detailContent').innerHTML = detailHTML;
+        if (detailContentEl) {
+            detailContentEl.innerHTML = detailHTML;
+        }
     } catch (err) {
         console.error('Error rendering meeting detail:', err);
-        document.getElementById('detailContent').innerHTML = `
-            <div class="p-6 text-center text-rose-500 font-bold text-sm bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/30">
-                <p>모임 상세 정보를 불러오는 중 오류가 발생했습니다.</p>
-                <p class="text-xs font-normal text-slate-400 mt-1">${err.message}</p>
-            </div>
-        `;
+        const detailContentEl = document.getElementById('detailContent');
+        if (detailContentEl) {
+            detailContentEl.innerHTML = `
+                <div class="p-6 text-center text-rose-500 font-bold text-sm bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/30">
+                    <p>모임 상세 정보를 불러오는 중 오류가 발생했습니다.</p>
+                    <p class="text-xs font-normal text-slate-400 mt-1">${err.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
