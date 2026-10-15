@@ -364,6 +364,7 @@
                         </div>
                     </div>
                 `;
+            }
             // 1-2. 설교 제목 등록/수정 완료 카드
             else if (action === 'UPDATE_SERMON' && meta?.updatedMeeting) {
                 const u = meta.updatedMeeting;
