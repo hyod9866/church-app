@@ -37,6 +37,14 @@ function formatMeetingMemoContent(rawMemo) {
         text = text.replace(/\[method:\s*.*?\]/g, '');
     }
 
+    // [obsidian:...] 딥링크 파싱
+    let obsidianUri = '';
+    const obsMatch = text.match(/\[obsidian:\s*(.*?)\]/);
+    if (obsMatch) {
+        obsidianUri = obsMatch[1].trim();
+        text = text.replace(/\[obsidian:\s*.*?\]/g, '');
+    }
+
     text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
     text = text.replace(/\s+/g, ' ').trim();
 
@@ -50,7 +58,16 @@ function formatMeetingMemoContent(rawMemo) {
         methodChipHtml = `<span class="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${method}</span>`;
     }
 
-    if (!leadChipsHtml && !methodChipHtml && !text) return '';
+    let obsidianBtnHtml = '';
+    if (obsidianUri) {
+        obsidianBtnHtml = `
+            <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-xs font-black hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all shadow-sm">
+                <span class="text-sm">🟣</span> 옵시디언 설교 원고 열기
+            </a>
+        `;
+    }
+
+    if (!leadChipsHtml && !methodChipHtml && !obsidianBtnHtml && !text) return '';
 
     return `
         <div class="mb-4">
@@ -59,6 +76,7 @@ function formatMeetingMemoContent(rawMemo) {
                 메모
             </h4>
             <div class="space-y-2">
+                ${obsidianBtnHtml}
                 ${(leadChipsHtml || methodChipHtml) ? `
                     <div class="flex flex-wrap gap-1.5 items-center">
                         ${methodChipHtml}

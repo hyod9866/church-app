@@ -4680,11 +4680,230 @@ app.get('/api/sermon-stats', async (req, res) => {
             topKeywords,
             bibleDist,
             totalAnalyzed: meetings.length,
-            obsidianMatches: 0 // Not using obsidian anymore
+            obsidianMatches: 0
         });
     } catch (err) {
         console.error('Sermon stats error:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// 옵시디언(Obsidian) 설교 노트 연동 API
+// ==========================================
+const OBSIDIAN_SERMON_DIR = 'C:\\Users\\D-kanghyodgeun\\Documents\\KHG\\01 내 설교';
+const OBSIDIAN_VAULT_NAME = 'KHG';
+
+function scanObsidianSermons() {
+    if (!fs.existsSync(OBSIDIAN_SERMON_DIR)) {
+        return [];
+    }
+
+    function walk(dir) {
+        let results = [];
+        try {
+            const list = fs.readdirSync(dir);
+            for (const item of list) {
+                const fullPath = path.join(dir, item);
+                const stat = fs.statSync(fullPath);
+                if (stat.isDirectory()) {
+                    results = results.concat(walk(fullPath));
+                } else if (item.endsWith('.md')) {
+                    results.push(fullPath);
+                }
+            }
+        } catch (e) {
+            console.warn('[OBSIDIAN SCAN] Walk error on', dir, e.message);
+        }
+        return results;
+    }
+
+    const files = walk(OBSIDIAN_SERMON_DIR);
+    const parsedList = [];
+
+    for (const file of files) {
+        try {
+            const content = fs.readFileSync(file, 'utf8');
+            const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+            
+            let meta = {};
+            let curKey = null;
+            if (fmMatch) {
+                for (const line of fmMatch[1].split(/\r?\n/)) {
+                    const kv = line.match(/^([\w가-힣,_\s]+):\s*(.*)$/);
+                    if (kv) {
+                        curKey = kv[1].trim();
+                        meta[curKey] = kv[2].trim();
+                    } else if (line.trim().startsWith('-') && curKey) {
+                        if (!Array.isArray(meta[curKey])) {
+                            meta[curKey] = meta[curKey] ? [meta[curKey]] : [];
+                        }
+                        meta[curKey].push(line.trim().replace(/^-\s*/, ''));
+                    }
+                }
+            }
+
+            const base = path.basename(file, '.md');
+            
+            // 1. 날짜 추출 (프론트매터 -> 파일명 순서)
+            let date = meta['날짜'] || '';
+            if (!date) {
+                const m = base.match(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/);
+                if (m) date = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+            }
+            if (typeof date === 'string') {
+                date = date.replace(/\./g, '-').trim();
+            }
+
+            // 2. 본문 및 제목 파싱
+            let bible = meta['본문'] || '';
+            let title = base;
+            const titleMatch = base.match(/^(\d+\s+)?([가-힣]+)\s*(\d+[\d_\-~:]*)(\s+[a-z]+)?\s*(.*)$/i);
+            if (titleMatch) {
+                if (!bible && titleMatch[2] && titleMatch[3]) {
+                    bible = `${titleMatch[2]} ${titleMatch[3].replace(/_/g, ':')}`;
+                }
+                if (titleMatch[5]) {
+                    title = titleMatch[5].replace(/\.(202\d)[\.\-_].*$/, '').replace(/\.md$/, '').trim();
+                }
+            }
+
+            // 3. 태그
+            let tags = [];
+            if (meta['tags']) {
+                tags = Array.isArray(meta['tags']) ? meta['tags'] : [meta['tags']];
+            }
+
+            // 4. 설교 성격 / 모임 타입
+            let type = meta['성격'] || '';
+            if (Array.isArray(type)) type = type.join(', ');
+
+            // 5. 비고 (교회명 등)
+            let church = meta['비고'] || '';
+
+            // 6. 구역/조
+            let district = meta['조,구역'] || '';
+            if (Array.isArray(district)) district = district.join(', ');
+
+            // 옵시디언 딥링크 URI
+            const vaultRoot = 'C:\\Users\\D-kanghyodgeun\\Documents\\KHG';
+            const relPath = path.relative(vaultRoot, file).replace(/\\/g, '/');
+            const obsidianUri = `obsidian://open?vault=${encodeURIComponent(OBSIDIAN_VAULT_NAME)}&file=${encodeURIComponent(relPath)}`;
+
+            parsedList.push({
+                file,
+                filename: path.basename(file),
+                obsidianUri,
+                date: date || null,
+                title: title || base,
+                bible: bible || '',
+                tags: tags.map(t => String(t).trim()).filter(Boolean),
+                type: type || '설교',
+                church: church || '',
+                district: district || ''
+            });
+        } catch (err) {
+            console.warn('[OBSIDIAN PARSE ERROR]', file, err.message);
+        }
+    }
+
+    return parsedList;
+}
+
+// GET /api/obsidian/sermons — 로컬 옵시디언 설교 목록 조회
+app.get('/api/obsidian/sermons', (req, res) => {
+    try {
+        const sermons = scanObsidianSermons();
+        res.json({
+            success: true,
+            total: sermons.length,
+            sermons
+        });
+    } catch (e) {
+        console.error('GET /api/obsidian/sermons error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/obsidian/sync — 옵시디언 설교를 PMP meetings에 동기화
+app.post('/api/obsidian/sync', express.json(), async (req, res) => {
+    try {
+        const sermons = scanObsidianSermons();
+        // 날짜가 명시된 설교만 대상
+        const withDate = sermons.filter(s => s.date && /^\d{4}-\d{2}-\d{2}$/.test(s.date));
+        
+        let syncedCount = 0;
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        for (const s of withDate) {
+            // meetings에서 동일한 날짜와 설교제목/본문 검색
+            const { data: existing } = await supabase
+                .from('meetings')
+                .select('id, title, sermon_title, memo, date')
+                .eq('date', s.date)
+                .ilike('title', `%${s.title.slice(0, 10)}%`)
+                .maybeSingle();
+
+            const sermonTagsStr = s.tags.length > 0 ? s.tags.map(t => `#${t}`).join(' ') : '';
+            const memoMeta = {
+                bible: s.bible,
+                tags: sermonTagsStr,
+                obsidian_uri: s.obsidianUri,
+                obsidian_file: s.filename
+            };
+            const finalMemo = `${JSON.stringify(memoMeta)}\n[obsidian:${s.obsidianUri}]`;
+
+            let meetingType = '설교';
+            if (s.type.includes('외부') || s.church) meetingType = '외부설교';
+            else if (s.type.includes('구역')) meetingType = '구역모임';
+            else if (s.type.includes('조')) meetingType = '조모임';
+            else if (s.type.includes('임원')) meetingType = '교구임원모임';
+            else if (s.type.includes('청년')) meetingType = '청년모임';
+            else if (s.type.includes('형제')) meetingType = '형제모임';
+
+            let meetingTitle = s.title;
+            if (s.district) meetingTitle = `${s.district} ${s.title}`;
+            else if (s.type) meetingTitle = `${s.type} - ${s.title}`;
+
+            if (existing) {
+                // 이미 존재하면 옵시디언 링크 및 태그/본문 업데이트
+                await supabase
+                    .from('meetings')
+                    .update({
+                        sermon_title: s.title,
+                        memo: existing.memo && existing.memo.includes('[obsidian:') ? existing.memo : `${existing.memo || ''}\n[obsidian:${s.obsidianUri}]`.trim()
+                    })
+                    .eq('id', existing.id);
+                updatedCount++;
+            } else {
+                // 신규 미팅 생성
+                await supabase
+                    .from('meetings')
+                    .insert({
+                        title: meetingTitle,
+                        date: s.date,
+                        type: meetingType,
+                        sermon_title: s.title,
+                        memo: finalMemo,
+                        church: s.church || null
+                    });
+                createdCount++;
+            }
+            syncedCount++;
+        }
+
+        res.json({
+            success: true,
+            totalScanned: sermons.length,
+            withDateCount: withDate.length,
+            syncedCount,
+            createdCount,
+            updatedCount
+        });
+    } catch (e) {
+        console.error('POST /api/obsidian/sync error:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 

@@ -478,6 +478,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // 옵시디언 원고 링크 파싱
+            let obsidianUri = '';
+            let cleanMemoText = meeting.memo || '';
+            const obsMatch = cleanMemoText.match(/\[obsidian:\s*(.*?)\]/);
+            if (obsMatch) {
+                obsidianUri = obsMatch[1].trim();
+                cleanMemoText = cleanMemoText.replace(/\[obsidian:\s*.*?\]/g, '').trim();
+            }
+
             let detailHTML = `
                 <div class="mb-4 bg-white dark:bg-[#131B2E] p-3.5 rounded-xl border border-slate-100 dark:border-slate-850/50 flex justify-between items-center shadow-sm transition-colors">
                     <span class="font-extrabold text-xs text-slate-500 dark:text-slate-400">참석 교인</span>
@@ -512,9 +521,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div id="memoContainer" class="mb-4 bg-slate-50/40 dark:bg-[#0B0F19]/60 p-4 rounded-xl border border-slate-200/50 dark:border-slate-850/65">
-                    <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider mb-1.5">메모 / 설교 요약</h4>
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">메모 / 설교 요약</h4>
+                        ${obsidianUri ? `
+                            <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-[11px] font-black transition-all shadow-sm">
+                                <span>🟣</span> 옵시디언 원고 열기
+                            </a>
+                        ` : ''}
+                    </div>
                     <div id="memoViewArea">
-                        ${meeting.memo ? `<p class="text-xs font-semibold text-slate-700 dark:text-slate-350 whitespace-pre-wrap leading-relaxed">${meeting.memo}</p>` : '<p class="text-[11px] text-slate-400 dark:text-slate-550 italic">등록된 메모가 없습니다.</p>'}
+                        ${cleanMemoText ? `<p class="text-xs font-semibold text-slate-700 dark:text-slate-350 whitespace-pre-wrap leading-relaxed">${cleanMemoText}</p>` : (!obsidianUri ? '<p class="text-[11px] text-slate-400 dark:text-slate-550 italic">등록된 메모가 없습니다.</p>' : '')}
                     </div>
                 </div>
                 
@@ -922,6 +938,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 6. Event Listeners ---
     sermonSearch.addEventListener('input', applyFilters);
+
+    const syncObsidianBtn = document.getElementById('syncObsidianBtn');
+    if (syncObsidianBtn) {
+        syncObsidianBtn.addEventListener('click', async () => {
+            if (!confirm('내 PC의 옵시디언 설교 폴더(01 내 설교)에서 설교 노트를 읽어와 PMP에 동기화할까요?')) {
+                return;
+            }
+
+            const originalHtml = syncObsidianBtn.innerHTML;
+            syncObsidianBtn.disabled = true;
+            syncObsidianBtn.innerHTML = `
+                <div class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-purple-600 border-t-transparent"></div>
+                <span>동기화 중...</span>
+            `;
+
+            try {
+                const res = await fetch('/api/obsidian/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ 옵시디언 동기화 완료!\n- 스캔한 파일: ${data.totalScanned}개\n- 날짜 확인된 설교: ${data.withDateCount}개\n- 새로 등록: ${data.createdCount}건\n- 기존 연결 갱신: ${data.updatedCount}건`);
+                    await loadSermons();
+                } else {
+                    alert('동기화 실패: ' + (data.error || '알 수 없는 오류'));
+                }
+            } catch (err) {
+                console.error('Obsidian sync error:', err);
+                alert('동기화 중 네트워크 오류가 발생했습니다: ' + err.message);
+            } finally {
+                syncObsidianBtn.disabled = false;
+                syncObsidianBtn.innerHTML = originalHtml;
+            }
+        });
+    }
 
     sermonList.addEventListener('click', (e) => {
         const card = e.target.closest('.sermon-card');
