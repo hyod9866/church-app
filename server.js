@@ -4837,13 +4837,27 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
         let updatedCount = 0;
 
         for (const s of withDate) {
-            // meetings에서 동일한 날짜와 설교제목/본문 검색
-            const { data: existing } = await supabase
+            // meetings에서 동일한 날짜의 모임들 조회 (다양한 매칭 지원)
+            const { data: meetingsOnDate } = await supabase
                 .from('meetings')
-                .select('id, title, sermon_title, memo, date')
-                .eq('date', s.date)
-                .ilike('title', `%${s.title.slice(0, 10)}%`)
-                .maybeSingle();
+                .select('id, title, sermon_title, memo, date, church')
+                .eq('date', s.date);
+
+            let existing = null;
+            if (meetingsOnDate && meetingsOnDate.length > 0) {
+                const cleanFileName = s.filename.replace(/\.md$/, '').trim();
+                existing = meetingsOnDate.find(m => {
+                    const st = (m.sermon_title || '').trim();
+                    const tt = (m.title || '').trim();
+                    // 1. 설교제목이 옵시디언 파일명 또는 s.title과 일치/포함
+                    if (st && (cleanFileName.includes(st) || st.includes(cleanFileName) || st.includes(s.title) || s.title.includes(st))) return true;
+                    // 2. 모임제목이 s.title과 일치/포함
+                    if (tt && (tt.includes(s.title) || s.title.includes(tt))) return true;
+                    // 3. 교회명이 일치하는 경우 (예: 외부설교 나주교회)
+                    if (s.church && (m.church === s.church || tt.includes(s.church))) return true;
+                    return false;
+                }) || null;
+            }
 
             const sermonTagsStr = s.tags.length > 0 ? s.tags.map(t => `#${t}`).join(' ') : '';
             const memoMeta = {
@@ -4868,11 +4882,16 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
 
             if (existing) {
                 // 이미 존재하면 옵시디언 링크 및 태그/본문 업데이트
+                const currentMemo = existing.memo || '';
+                const updatedMemo = currentMemo.includes('[obsidian:')
+                    ? currentMemo.replace(/\[obsidian:.*?\]/, `[obsidian:${s.obsidianUri}]`)
+                    : `${currentMemo}\n[obsidian:${s.obsidianUri}]`.trim();
+
                 await supabase
                     .from('meetings')
                     .update({
-                        sermon_title: s.title,
-                        memo: existing.memo && existing.memo.includes('[obsidian:') ? existing.memo : `${existing.memo || ''}\n[obsidian:${s.obsidianUri}]`.trim()
+                        sermon_title: existing.sermon_title || s.title,
+                        memo: updatedMemo
                     })
                     .eq('id', existing.id);
                 updatedCount++;

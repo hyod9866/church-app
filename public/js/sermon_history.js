@@ -309,8 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="p-3.5 flex-1 flex items-center justify-between min-w-0">
                     <div class="flex-1 min-w-0 pr-3">
-                        <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-snug">
-                            ${sermon.sermon_title || sermon.title}
+                        <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 truncate leading-snug flex items-center gap-1.5">
+                            ${(sermon.sermon_title || (sermon.memo && sermon.memo.includes('[obsidian:'))) ? '<span class="text-purple-600 dark:text-purple-400 text-[10px] shrink-0" title="옵시디언 원고 연동됨">🟣</span>' : ''}
+                            <span class="truncate">${sermon.sermon_title || sermon.title}</span>
                         </h3>
                         ${sermon.title && sermon.sermon_title && sermon.title !== sermon.sermon_title ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate mt-0.5">${sermon.title}</p>` : ''}
                     </div>
@@ -485,6 +486,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (obsMatch) {
                 obsidianUri = obsMatch[1].trim();
                 cleanMemoText = cleanMemoText.replace(/\[obsidian:\s*.*?\]/g, '').trim();
+            } else if (meeting.sermon_title && meeting.sermon_title.trim()) {
+                const cleanName = meeting.sermon_title.replace(/\.md$/, '').trim();
+                obsidianUri = `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
             }
 
             let detailHTML = `
@@ -501,7 +505,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div id="sermonTitleContainer" class="mb-4 bg-amber-50/30 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-100/50 dark:border-amber-900/25 shadow-sm">
-                    <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider mb-1">설교 주제 / 본문 / 태그</h4>
+                    <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                        <h4 class="text-[9px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-wider">설교 주제 / 본문 / 태그</h4>
+                        ${obsidianUri ? `
+                            <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-[11px] font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                                <span>🟣</span> 옵시디언 원고 열기
+                            </a>
+                        ` : ''}
+                    </div>
                     <div id="sermonTitleArea" class="space-y-2 mt-2">
                         <div>
                             <span class="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 mr-1">제목:</span>
@@ -523,11 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="memoContainer" class="mb-4 bg-slate-50/40 dark:bg-[#0B0F19]/60 p-4 rounded-xl border border-slate-200/50 dark:border-slate-850/65">
                     <div class="flex items-center justify-between mb-2">
                         <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">메모 / 설교 요약</h4>
-                        ${obsidianUri ? `
-                            <a href="${obsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 text-[11px] font-black transition-all shadow-sm">
-                                <span>🟣</span> 옵시디언 원고 열기
-                            </a>
-                        ` : ''}
                     </div>
                     <div id="memoViewArea">
                         ${cleanMemoText ? `<p class="text-xs font-semibold text-slate-700 dark:text-slate-350 whitespace-pre-wrap leading-relaxed">${cleanMemoText}</p>` : (!obsidianUri ? '<p class="text-[11px] text-slate-400 dark:text-slate-550 italic">등록된 메모가 없습니다.</p>' : '')}

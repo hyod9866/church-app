@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:css": "npx @tailwindcss/cli -i ./public/css/input.css -o ./public/css/tailwind.min.css --minify",
     "vercel-build": "npm run build:css",
+    "sync:obsidian": "node sync_obsidian.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

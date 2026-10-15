@@ -45,6 +45,18 @@ function formatMeetingMemoContent(rawMemo) {
         text = text.replace(/\[obsidian:\s*.*?\]/g, '');
     }
 
+function getObsidianUri(sermon = '', memo = '') {
+    if (memo) {
+        const m = memo.match(/\[obsidian:\s*(.*?)\]/);
+        if (m) return m[1].trim();
+    }
+    if (sermon && sermon.trim()) {
+        const cleanName = sermon.replace(/\.md$/, '').trim();
+        return `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
+    }
+    return '';
+}
+
     text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
     text = text.replace(/\s+/g, ' ').trim();
 
@@ -1157,7 +1169,17 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                 <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
             </div>
             ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-xs font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold text-lg dark:text-slate-200">${church}</p></div>` : ''}
-            ${sermon ? `<div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30"><h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4><p class="font-bold text-lg dark:text-slate-100">${sermon}</p></div>` : ''}
+            ${sermon ? `
+                <div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30">
+                    <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                        <h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4>
+                        <a href="${getObsidianUri(sermon, memo)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                            <span class="text-xs">🟣</span> 옵시디언 원고 열기
+                        </a>
+                    </div>
+                    <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
+                </div>
+            ` : ''}
             ${sermonTags ? `
                 <div class="mb-4 flex flex-wrap gap-1.5">
                     ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
