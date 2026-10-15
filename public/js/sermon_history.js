@@ -847,8 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Convert Memo to Textarea
                     const memoViewArea = document.getElementById('memoViewArea');
                     if (memoViewArea) {
+                        const cleanEditMemo = (meeting.memo || '').replace(/\[obsidian:.*?\]/g, '').trim();
                         memoViewArea.innerHTML = `
-                            <textarea id="editMemo" class="w-full h-36 p-2.5 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white dark:bg-slate-800" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
+                            <textarea id="editMemo" class="w-full h-36 p-2.5 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white dark:bg-slate-800" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${cleanEditMemo}</textarea>
                             <div class="mt-2 text-right">
                                 <button type="button" id="openFullEditorBtn" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer">
                                     <span>⚙️</span> 출석/참석자 및 전체 일정 설정 열기

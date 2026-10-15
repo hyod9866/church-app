@@ -293,7 +293,15 @@ function injectEditorElements() {
                     </div>
                 </div>
                 <div id="sermonSection">
-                <div><label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">설교 제목</label><input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off"></div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">설교 제목</label>
+                        <a id="modalObsidianBtn" href="#" target="_blank" class="hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[11px] font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                            <span>🟣</span> 옵시디언 원고 열기
+                        </a>
+                    </div>
+                    <input type="text" id="meetingSermon" placeholder="설교 제목을 입력하세요..." class="w-full border border-slate-200 dark:border-slate-700/60 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl px-3 py-2 text-xs md:text-sm font-bold bg-amber-50/50 dark:bg-slate-800 shadow-sm outline-none transition duration-150 dark:text-slate-100 dark:focus:ring-blue-500/30" autocomplete="off">
+                </div>
                 <div class="grid grid-cols-2 gap-4 mt-3">
                     <div>
                         <label class="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">본문 성경</label>
@@ -2886,9 +2894,46 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
         }
     }
 
+    let cleanMemoForModal = memo || '';
+    let modalObsidianUri = '';
+
+    // 1. 메모 내 메타데이터 JSON 및 [obsidian:...] 링크 분리 추출
+    if (cleanMemoForModal.startsWith('{')) {
+        const firstLine = cleanMemoForModal.split(/\r?\n|\\n/)[0];
+        try {
+            if (firstLine.endsWith('}')) {
+                const parsed = JSON.parse(firstLine);
+                if (parsed.obsidian_uri) modalObsidianUri = parsed.obsidian_uri;
+                cleanMemoForModal = cleanMemoForModal.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
+            }
+        } catch(e) {}
+    }
+    const obsMatch = cleanMemoForModal.match(/\[obsidian:\s*(.*?)\]/);
+    if (obsMatch) {
+        if (!modalObsidianUri) modalObsidianUri = obsMatch[1].trim();
+        cleanMemoForModal = cleanMemoForModal.replace(/\[obsidian:\s*.*?\]/g, '').trim();
+    }
+    if (!modalObsidianUri && currentMeetingData && currentMeetingData.obsidian_uri) {
+        modalObsidianUri = currentMeetingData.obsidian_uri;
+    }
+    if (!modalObsidianUri && parsedSermonTitle) {
+        const cleanName = parsedSermonTitle.replace(/\.md$/, '').trim();
+        modalObsidianUri = `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
+    }
+
     document.getElementById('meetingSermon').value = parsedSermonTitle;
-    document.getElementById('meetingMemo').value = memo;
+    document.getElementById('meetingMemo').value = cleanMemoForModal;
     document.getElementById('deleteMeeting').classList.toggle('hidden', !id);
+
+    const modalObsidianBtn = document.getElementById('modalObsidianBtn');
+    if (modalObsidianBtn) {
+        if (modalObsidianUri) {
+            modalObsidianBtn.href = modalObsidianUri;
+            modalObsidianBtn.classList.remove('hidden');
+        } else {
+            modalObsidianBtn.classList.add('hidden');
+        }
+    }
 
     const sermonTagsField = document.getElementById('sermonTagsField');
     if (sermonTagsField) {
