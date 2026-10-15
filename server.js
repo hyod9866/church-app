@@ -5631,17 +5631,33 @@ app.post('/api/ai/analyze-all-sermons', express.json(), async (req, res) => {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
 
-        const { data: sermonMeetings, error } = await supabase
+        // 모임 현황 화면에서 선택한 모임 구분(type) 목록 — 비어 있으면 전체 설교 분석
+        const scopeTypes = Array.isArray(req.body?.types)
+            ? req.body.types.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
+            : [];
+        const isScoped = scopeTypes.length > 0;
+
+        let sermonQuery = supabase
             .from('meetings')
             .select('id, title, date, type, sermon_title, memo')
             .not('sermon_title', 'is', null)
-            .neq('sermon_title', '')
-            .order('date', { ascending: false })
-            .limit(30);
+            .neq('sermon_title', '');
+        if (isScoped) sermonQuery = sermonQuery.in('type', scopeTypes);
 
-        if (error || !sermonMeetings || sermonMeetings.length === 0) {
-            return res.status(404).json({ error: '분석할 설교 기록이 없습니다.' });
+        const { data: rawSermonMeetings, error } = await sermonQuery
+            .order('date', { ascending: false })
+            .limit(isScoped ? 60 : 40);
+
+        // "(미선부 오전)"처럼 괄호 안 메모만 있고 실제 설교 제목이 없는 자리표시 항목은 분석에서 제외
+        const sermonMeetings = (rawSermonMeetings || [])
+            .filter(m => (m.sermon_title || '').replace(/\([^)]*\)/g, '').trim().length > 0)
+            .slice(0, 30);
+
+        if (error || sermonMeetings.length === 0) {
+            return res.status(404).json({ error: isScoped ? '선택한 모임에 분석할 설교 기록이 없습니다.' : '분석할 설교 기록이 없습니다.' });
         }
+
+        const scopeLabel = scopeTypes.map(t => t === '설교' ? '내부설교' : t).join(', ');
 
         const sermonListText = sermonMeetings.map((m, idx) => {
             let bible = '';
@@ -5653,11 +5669,17 @@ app.post('/api/ai/analyze-all-sermons', express.json(), async (req, res) => {
                     tags = meta.tags || '';
                 } catch(e) {}
             }
-            return `${idx + 1}. [${m.date}] ${m.sermon_title} (구분: ${m.type || '설교'}, 본문: ${bible || '미지정'}, 태그: ${tags || '없음'})`;
+            return `${idx + 1}. [${m.date}] ${m.sermon_title} (모임: ${m.title || '-'}, 구분: ${m.type || '설교'}, 본문: ${bible || '미지정'}, 태그: ${tags || '없음'})`;
         }).join('\n');
 
+        const scopeIntro = isScoped
+            ? `아래는 강효근 전도사님이 [${scopeLabel}] 모임에서 전하신 설교 목록 총 ${sermonMeetings.length}편입니다.
+이 분석은 반드시 해당 모임(${scopeLabel})의 성격과 대상(예: 구역모임=구역 식구들, 조모임=자매님들, 형제모임=형제님들, 청년모임=청년들, 임원모임=교구 임원/일꾼 등)을 고려하여,
+이 모임의 설교 흐름과 그 모임 구성원들에게 맞춘 시너지·향후 제안을 작성해 주세요.`
+            : `아래는 강효근 전도사님이 최근 전하신 설교 목록 총 ${sermonMeetings.length}편입니다.`;
+
         const prompt = `당신은 깊은 영성과 성경적 통찰을 갖춘 목회 사역 분석가이자 설교 멘토 AI입니다.
-아래는 강효근 전도사님이 최근 전하신 설교 목록 총 ${sermonMeetings.length}편입니다:
+${scopeIntro}
 
 ${sermonListText}
 

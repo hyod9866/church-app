@@ -98,6 +98,33 @@ function renderKeywordFilters() {
         };
         container.appendChild(btn);
     });
+
+    updateMeetingScopeLabels();
+}
+
+// 선택된 모임 표시용 텍스트
+function getSelectedMeetingScopeText() {
+    if (selectedMeetingTypes.size === 0) return '';
+    return [...selectedMeetingTypes].map(t => t === '설교' ? '내부설교' : t).join(', ');
+}
+
+// 모임 선택 상태를 각 섹션 라벨(선택 요약, 모임 현황, AI 버튼)에 반영
+function updateMeetingScopeLabels() {
+    const scopeText = getSelectedMeetingScopeText();
+    const scopedCount = selectedMeetingTypes.size === 0
+        ? currentSermons.length
+        : currentSermons.filter(s => selectedMeetingTypes.has(s.type)).length;
+
+    const summaryEl = document.getElementById('selectedMeetingSummary');
+    if (summaryEl) summaryEl.textContent = scopeText ? `선택: ${scopeText} · ${scopedCount}건` : `전체 모임 · ${scopedCount}건`;
+
+    const tableScopeEl = document.getElementById('meetingTableScopeLabel');
+    if (tableScopeEl) tableScopeEl.textContent = scopeText ? `— ${scopeText}` : '';
+
+    const btnLabel = document.getElementById('analyzeAllSermonsBtnLabel');
+    if (btnLabel) btnLabel.textContent = scopeText
+        ? (selectedMeetingTypes.size === 1 ? `${scopeText} 설교 AI 분석` : `선택 모임(${selectedMeetingTypes.size}개) 설교 AI 분석`)
+        : '전체 설교 흐름 AI 종합 분석';
 }
 
 // 필터링된 데이터를 바탕으로 키워드 재집계 및 워드클라우드 갱신
@@ -1737,10 +1764,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeAllModalBtn) closeAllModalBtn.onclick = closeAllModal;
     if (allBackdrop) allBackdrop.onclick = closeAllModal;
 
+    const allLoadingOriginalHtml = allLoading ? allLoading.innerHTML : '';
+
     if (analyzeAllBtn) {
         analyzeAllBtn.addEventListener('click', async () => {
             if (!allModal) return;
+            const scopeTypes = [...selectedMeetingTypes];
+            const scopeText = getSelectedMeetingScopeText();
+
+            const titleEl = document.getElementById('aiAllModalTitle');
+            const subEl = document.getElementById('aiAllModalSubtitle');
+            if (titleEl) titleEl.textContent = scopeText ? `${scopeText} 설교 AI 분석` : '전체 설교 흐름 AI 종합 분석';
+            if (subEl) subEl.textContent = scopeText ? `선택한 모임(${scopeText})에서 전하신 설교 분석` : '최근 전하신 설교 전수 분석';
+
             allModal.classList.remove('hidden');
+            allLoading.innerHTML = allLoadingOriginalHtml;
             allLoading.classList.remove('hidden');
             allResult.classList.add('hidden');
 
@@ -1751,7 +1789,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'Content-Type': 'application/json',
                         'x-gemini-key': savedKey
-                    }
+                    },
+                    body: JSON.stringify({ types: scopeTypes })
                 });
                 const data = await res.json();
                 if (!res.ok || !data.success) {
