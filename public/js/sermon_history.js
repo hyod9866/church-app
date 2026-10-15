@@ -628,42 +628,6 @@ document.addEventListener('DOMContentLoaded', () => {
             newEditBtn.addEventListener('click', async () => {
                 if (!currentMeetingId) return;
 
-                // Slide open the editor container based on viewport size
-                if (panelsContainer) {
-                    panelsContainer.classList.remove('hidden');
-                    setTimeout(() => {
-                        if (isLargeScreen()) {
-                            panelsContainer.classList.remove('translate-x-full');
-                            panelsContainer.classList.add('translate-x-0');
-                        } else {
-                            panelsContainer.classList.remove('translate-y-full');
-                            panelsContainer.classList.add('translate-y-0');
-                        }
-                    }, 10);
-                }
-
-                window.openGlobalMeetingEditor(currentMeetingId, () => {
-                    loadSermons().then(() => {
-                        showMeetingDetail(currentMeetingId);
-                    });
-                }, () => {
-                    if (panelsContainer) {
-                        if (isLargeScreen()) {
-                            panelsContainer.classList.remove('translate-x-0');
-                            panelsContainer.classList.add('translate-x-full');
-                        } else {
-                            panelsContainer.classList.remove('translate-y-0');
-                            panelsContainer.classList.add('translate-y-full');
-                        }
-                        setTimeout(() => {
-                            panelsContainer.classList.add('hidden');
-                        }, 300);
-                    }
-                    if (desktopDetailAnchor) desktopDetailAnchor.classList.add('hidden');
-                    if (desktopPlaceholder) desktopPlaceholder.classList.remove('hidden');
-                    loadSermons();
-                });
-                return;
                 const meeting = allSermons.find(m => m.id == currentMeetingId);
                 if (!meeting) return;
 
@@ -675,7 +639,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     activeElements.editBtn.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all text-white py-2.5 rounded-xl font-bold text-xs shadow-md';
                     if (activeElements.cancelBtn) activeElements.cancelBtn.classList.remove('hidden');
 
-                    // Convert Sermon Title to Input in the body area
+                    // Convert Meeting Title to Input
+                    if (activeElements.title) {
+                        activeElements.title.innerHTML = `
+                            <input type="text" id="editMeetingTitle" class="w-full bg-white/20 text-white placeholder-white/60 border border-white/30 rounded-lg px-2.5 py-1 text-sm md:text-base font-black focus:outline-none focus:ring-2 focus:ring-white/40" value="${meeting.title || ''}" placeholder="모임 제목">
+                        `;
+                    }
+
+                    // Convert Date & Time to Inputs
+                    if (activeElements.date) {
+                        activeElements.date.innerHTML = `
+                            <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <input type="date" id="editMeetingDate" class="bg-white/20 text-white border border-white/30 rounded-md px-1.5 py-0.5 text-[10px] font-bold focus:outline-none" value="${meeting.date || ''}">
+                                <input type="time" id="editMeetingStartTime" class="bg-white/20 text-white border border-white/30 rounded-md px-1 py-0.5 text-[10px] font-bold focus:outline-none" value="${meeting.start_time || ''}">
+                                <span class="text-white text-xs">~</span>
+                                <input type="time" id="editMeetingEndTime" class="bg-white/20 text-white border border-white/30 rounded-md px-1 py-0.5 text-[10px] font-bold focus:outline-none" value="${meeting.end_time || ''}">
+                                <span class="text-blue-100 font-bold text-[10px] ml-1">${meeting.type}</span>
+                            </div>
+                        `;
+                    }
+
+                    // Convert Sermon Title, Bible, Tags to Inputs
                     const sermonTitleArea = document.getElementById('sermonTitleArea');
                     if (sermonTitleArea) {
                         const bibleOptions = ['창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기', '사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야', '에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가', '에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔', '하박국', '스바냐', '학개', '스가랴', '말라기', '마태복음', '마가복음', '누가복음', '요한복음', '사도행전', '로마서', '고린도전서', '고린도후서', '갈라디아서', '에베소서', '빌립보서', '골로새서', '데살로니가전서', '데살로니가후서', '디모데전서', '디모데후서', '디도서', '빌레몬서', '히브리서', '야고보서', '베드로전서', '베드로후서', '요한1서', '요한2서', '요한3서', '유다서', '요한계시록'];
@@ -827,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             tagsContainer.onclick = (e) => {
                                 if (e.target === tagsContainer || e.target === document.getElementById('editSermonTagBadgesList')) {
-                                    tagsInput.focus();
+                                tagsInput.focus();
                                 }
                             };
                             
@@ -864,21 +848,59 @@ document.addEventListener('DOMContentLoaded', () => {
                     const memoViewArea = document.getElementById('memoViewArea');
                     if (memoViewArea) {
                         memoViewArea.innerHTML = `
-                            <textarea id="editMemo" class="w-full h-40 p-2.5 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white dark:bg-slate-800" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
+                            <textarea id="editMemo" class="w-full h-36 p-2.5 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-white dark:bg-slate-800" placeholder="설교 요약 또는 모임 메모를 입력해 주세요.">${meeting.memo || ''}</textarea>
+                            <div class="mt-2 text-right">
+                                <button type="button" id="openFullEditorBtn" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer">
+                                    <span>⚙️</span> 출석/참석자 및 전체 일정 설정 열기
+                                </button>
+                            </div>
                         `;
+
+                        const fullEditorBtn = document.getElementById('openFullEditorBtn');
+                        if (fullEditorBtn) {
+                            fullEditorBtn.onclick = () => {
+                                exitEditMode();
+                                showMeetingDetail(currentMeetingId);
+                                if (panelsContainer) {
+                                    panelsContainer.classList.remove('hidden');
+                                    setTimeout(() => {
+                                        if (isLargeScreen()) {
+                                            panelsContainer.classList.remove('translate-x-full');
+                                            panelsContainer.classList.add('translate-x-0');
+                                        } else {
+                                            panelsContainer.classList.remove('translate-y-full');
+                                            panelsContainer.classList.add('translate-y-0');
+                                        }
+                                    }, 10);
+                                }
+                                window.openGlobalMeetingEditor(currentMeetingId, () => {
+                                    loadSermons().then(() => showMeetingDetail(currentMeetingId));
+                                }, () => {
+                                    loadSermons();
+                                });
+                            };
+                        }
                     }
                 } else {
                     // Save changes
+                    const editMeetingTitle = document.getElementById('editMeetingTitle');
+                    const editMeetingDate = document.getElementById('editMeetingDate');
+                    const editMeetingStartTime = document.getElementById('editMeetingStartTime');
+                    const editMeetingEndTime = document.getElementById('editMeetingEndTime');
                     const editSermonTitle = document.getElementById('editSermonTitle');
                     const editMemo = document.getElementById('editMemo');
                     const editChurch = document.getElementById('editChurch');
                     const editSermonBible = document.getElementById('editSermonBible');
                     const editSermonTags = document.getElementById('editSermonTags');
 
+                    const newTitle = editMeetingTitle ? editMeetingTitle.value.trim() : meeting.title;
+                    const newDate = editMeetingDate ? editMeetingDate.value : meeting.date;
+                    const newStartTime = editMeetingStartTime ? editMeetingStartTime.value : meeting.start_time;
+                    const newEndTime = editMeetingEndTime ? editMeetingEndTime.value : meeting.end_time;
                     const newSermonTitle = editSermonTitle ? editSermonTitle.value.trim() : '';
                     const newMemo = editMemo ? editMemo.value.trim() : '';
                     const newChurch = editChurch ? editChurch.value.trim() : '';
-                    const newSermonBible = editSermonBible ? editSermonBible.value : '';
+                    const newSermonBible = editSermonBible ? editSermonBible.value.trim() : '';
                     
                     if (editSermonTags) {
                         const remaining = editSermonTags.value.replace(/[#,\s]/g, '').trim();
@@ -888,21 +910,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const newSermonTags = editSermonTagsList.map(t => `#${t}`).join(' ');
 
-                    if ((meeting.type === '설교' || meeting.type === '외부설교') && !newSermonTitle) {
-                        alert('설교 주제를 입력해 주세요.');
+                    if (!newTitle) {
+                        alert('모임 제목을 입력해 주세요.');
                         return;
                     }
 
                     const updatedData = {
-                        title: meeting.title,
-                        date: meeting.date,
+                        title: newTitle,
+                        date: newDate,
                         end_date: meeting.end_date,
                         type: meeting.type,
                         sermon_title: newSermonTitle,
                         memo: newMemo,
                         church: meeting.type === '외부설교' ? newChurch : meeting.church,
-                        start_time: meeting.start_time,
-                        end_time: meeting.end_time,
+                        start_time: newStartTime || null,
+                        end_time: newEndTime || null,
                         sermon_bible: newSermonBible,
                         sermon_tags: newSermonTags
                     };
@@ -922,13 +944,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         meeting.title = updatedData.title;
+                        meeting.date = updatedData.date;
+                        meeting.start_time = updatedData.start_time;
+                        meeting.end_time = updatedData.end_time;
                         meeting.sermon_title = updatedData.sermon_title;
                         meeting.memo = updatedData.memo;
                         meeting.church = updatedData.church;
+                        meeting.sermon_bible = updatedData.sermon_bible;
+                        meeting.sermon_tags = updatedData.sermon_tags;
 
                         exitEditMode();
+                        await loadSermons();
                         showMeetingDetail(currentMeetingId);
-                        applyFilters();
 
                     } catch (error) {
                         console.error('Error updating meeting:', error);

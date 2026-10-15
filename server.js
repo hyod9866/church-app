@@ -3092,9 +3092,20 @@ app.put('/api/meetings/:id', async (req, res) => {
   const { title, date, end_date, type, sermon_title, memo, church, start_time, end_time, sermon_bible, sermon_tags } = req.body;
   try {
     let finalMemo = memo || '';
+    if (finalMemo.startsWith('{')) {
+        const firstLine = finalMemo.split(/\r?\n|\\n/)[0];
+        try {
+            if (firstLine.endsWith('}')) {
+                const parsed = JSON.parse(firstLine);
+                if (parsed.bible !== undefined || parsed.tags !== undefined) {
+                    finalMemo = finalMemo.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
+                }
+            }
+        } catch(e) {}
+    }
     if (sermon_bible || sermon_tags) {
         const meta = { bible: sermon_bible || '', tags: sermon_tags || '' };
-        finalMemo = JSON.stringify(meta) + '\\n\\n' + finalMemo;
+        finalMemo = JSON.stringify(meta) + '\n\n' + finalMemo;
     }
 
     const { error } = await supabase
