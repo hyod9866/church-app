@@ -4631,7 +4631,7 @@ app.get('/api/sermon-stats', async (req, res) => {
         const allMeetings = await fetchAllRows((from, to) =>
             supabase
                 .from('meetings')
-                .select('id, date, title, type, sermon_title, memo, start_time, end_time, attendance(count)')
+                .select('id, date, title, type, sermon_title, memo, church, start_time, end_time, leader_church_snapshot, leader_parish_snapshot, attendance(count)')
                 .eq('attendance.is_present', 1)
                 .order('date', { ascending: false })
                 .order('id', { ascending: false })
@@ -4654,6 +4654,7 @@ app.get('/api/sermon-stats', async (req, res) => {
             const title = (meeting.sermon_title || '').trim();
             let sermon_bible = '';
             let sermon_tags = '';
+            let obsidian_uri = '';
             let cleanMemo = meeting.memo || '';
             
             if (cleanMemo.startsWith('{')) {
@@ -4661,22 +4662,36 @@ app.get('/api/sermon-stats', async (req, res) => {
                 try {
                     if (firstLine.endsWith('}')) {
                         const meta = JSON.parse(firstLine);
-                        if (meta.bible !== undefined || meta.tags !== undefined) {
+                        if (meta.bible !== undefined || meta.tags !== undefined || meta.obsidian_uri !== undefined) {
                             sermon_bible = meta.bible || '';
                             sermon_tags = meta.tags || '';
+                            obsidian_uri = meta.obsidian_uri || '';
+                            cleanMemo = cleanMemo.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
                         }
                     }
                 } catch(e) {}
             }
 
+            const obsMatch = cleanMemo.match(/\[obsidian:\s*(.*?)\]/);
+            if (obsMatch) {
+                if (!obsidian_uri) obsidian_uri = obsMatch[1].trim();
+                cleanMemo = cleanMemo.replace(/\[obsidian:\s*.*?\]/g, '').trim();
+            }
+
             matchedSermons.push({
                 id: meeting.id,
                 date: meeting.date,
+                title: meeting.title || '',
                 meeting_title: meeting.title || '',
                 type: meeting.type,
+                church: meeting.church || '',
+                memo: cleanMemo,
                 sermon_title: title,
                 sermon_bible: sermon_bible || '',
                 sermon_tags: sermon_tags || '',
+                obsidian_uri: obsidian_uri || '',
+                leader_church_snapshot: meeting.leader_church_snapshot || null,
+                leader_parish_snapshot: meeting.leader_parish_snapshot || null,
                 start_time: meeting.start_time,
                 end_time: meeting.end_time,
                 attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0

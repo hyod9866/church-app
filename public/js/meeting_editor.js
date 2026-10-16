@@ -3024,4 +3024,287 @@ function initSermonTags() {
 }
 initSermonTags();
 
+// =========================================================================
+// 달력 화면(index.html)과 모임 현황(meeting_dashboard.html) 공통 상세 패널 렌더러
+// =========================================================================
+function buildLeadChipsShared(leadTarget, size) {
+    const raw = (leadTarget || '').trim();
+    if (!raw) return '';
+    const px = size === 'md' ? 'text-[10px] px-2' : 'text-[9px] px-1.5';
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    return tokens.map(tok => {
+        if (tok.startsWith('@')) {
+            const name = tok.slice(1).trim();
+            if (!name) return '';
+            if (name === '구원받음') {
+                return `<span class="${px} py-0.5 rounded border font-black bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-pink-900/50">🩷 ${name}</span>`;
+            }
+            const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<span class="${px} py-0.5 rounded border font-black cursor-pointer hover:underline bg-amber-50 dark:bg-amber-955/20 text-amber-800 dark:text-amber-350 border-amber-200/80 dark:border-amber-900/50" onclick="event.stopPropagation(); if (typeof openMemberHistoryModalByName === 'function') openMemberHistoryModalByName('${safe}');">🤝 ${name}</span>`;
+        }
+        const name = tok.startsWith('#') ? tok.slice(1).trim() : tok.trim();
+        if (!name) return '';
+        return `<span class="${px} py-0.5 rounded border font-bold bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-450 border-slate-200 dark:border-slate-700/60">#${name}</span>`;
+    }).filter(Boolean).join(' ');
+}
+if (!window.buildLeadChips) window.buildLeadChips = buildLeadChipsShared;
+
+function getObsidianUriShared(sermon = '', memo = '', explicitUri = '') {
+    if (explicitUri && typeof explicitUri === 'string' && explicitUri.trim()) {
+        return explicitUri.trim();
+    }
+    if (memo && typeof memo === 'string') {
+        if (memo.trim().startsWith('{')) {
+            const firstLine = memo.trim().split(/\r?\n|\\n/)[0];
+            try {
+                if (firstLine.endsWith('}')) {
+                    const meta = JSON.parse(firstLine);
+                    if (meta.obsidian_uri) return meta.obsidian_uri.trim();
+                }
+            } catch (e) {}
+        }
+        const m = memo.match(/\[obsidian:\s*(.*?)\]/);
+        if (m) return m[1].trim();
+    }
+    if (sermon && typeof sermon === 'string' && sermon.trim()) {
+        const cleanName = sermon.replace(/\.md$/, '').trim();
+        // 단순 괄호 구분태그만 있는 경우(예: "(미선부 오전)")는 원고 파일명이 아니므로 제외
+        if (!/^\([^)]+\)$/.test(cleanName)) {
+            return `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
+        }
+    }
+    return '';
+}
+window.getObsidianUri = getObsidianUriShared;
+
+function formatMeetingMemoContentShared(rawMemo) {
+    if (!rawMemo) return '';
+    let text = rawMemo.trim();
+
+    if (text.startsWith('__RECURRING__:')) {
+        text = text.split(/\r?\n/).slice(1).join('\n').trim();
+    }
+
+    // JSON 형식 메타데이터({"bible":...,"tags":...})는 화면 메모에 노출하지 않고 제거
+    if (text.startsWith('{')) {
+        const firstLine = text.split(/\r?\n|\\n/)[0];
+        try {
+            if (firstLine.endsWith('}')) {
+                JSON.parse(firstLine);
+                text = text.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '').trim();
+            }
+        } catch (e) {}
+    }
+
+    let leadTarget = '';
+    let method = '';
+
+    const leadMatches = [...text.matchAll(/\[lead:\s*(.*?)\]/g)];
+    if (leadMatches.length > 0) {
+        leadTarget = leadMatches.map(m => m[1].trim()).filter(Boolean).join(' ');
+        text = text.replace(/\[lead:\s*.*?\]/g, '');
+    }
+
+    const methodMatches = [...text.matchAll(/\[method:\s*(.*?)\]/g)];
+    if (methodMatches.length > 0) {
+        method = methodMatches[methodMatches.length - 1][1].trim();
+        text = text.replace(/\[method:\s*.*?\]/g, '');
+    }
+
+    // [obsidian:...] 딥링크는 설교 카드 상단 버튼에 표시되므로 메모 본문에서는 제거
+    text = text.replace(/\[obsidian:\s*.*?\]/g, '');
+    text = text.replace(/\[(대면상담|전화상담|성도|전도대상)\]/g, '');
+    text = text.trim();
+
+    let leadChipsHtml = '';
+    if (leadTarget) {
+        leadChipsHtml = (window.buildLeadChips || buildLeadChipsShared)(leadTarget, 'md');
+    }
+
+    let methodChipHtml = '';
+    if (method && method !== '대면') {
+        methodChipHtml = `<span class="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200/60 dark:border-amber-700/40">${method}</span>`;
+    }
+
+    if (!leadChipsHtml && !methodChipHtml && !text) return '';
+
+    return `
+        <div class="mb-4">
+            <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                메모
+            </h4>
+            <div class="space-y-2">
+                ${(leadChipsHtml || methodChipHtml) ? `
+                    <div class="flex flex-wrap gap-1.5 items-center">
+                        ${methodChipHtml}
+                        ${leadChipsHtml}
+                    </div>
+                ` : ''}
+                ${text ? `<p class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed pl-3 border-l-2 border-slate-300 dark:border-slate-600">${text}</p>` : ''}
+            </div>
+        </div>
+    `;
+}
+window.formatMeetingMemoContent = formatMeetingMemoContentShared;
+
+function formatTestimonySnapshotShared(rawSnapshot, memberStatus) {
+    if (!rawSnapshot) return '';
+    let text = rawSnapshot.trim().replace(/^\[상담\]/g, '').trim();
+
+    const tagMatches = text.match(/#\S+/g) || [];
+    const uniqueTags = Array.from(new Set(tagMatches));
+
+    let cleanContent = text.replace(/#\S+/g, '').trim();
+    cleanContent = cleanContent.replace(/\s+/g, ' ');
+
+    const isEv = memberStatus === 'evangelism';
+    const tagBgClass = isEv
+        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200/60 dark:border-orange-700/40'
+        : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-700/40';
+
+    let tagsHtml = '';
+    if (uniqueTags.length > 0) {
+        tagsHtml = `<div class="flex flex-wrap gap-1 mb-2">${uniqueTags.map(t =>
+            `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${tagBgClass}">${t}</span>`
+        ).join('')}</div>`;
+    }
+
+    return `
+        ${tagsHtml}
+        ${cleanContent ? `<p class="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-200 pl-3 border-l-2 border-indigo-500 dark:border-indigo-400 leading-relaxed">${cleanContent}</p>` : ''}
+    `;
+}
+window.formatTestimonySnapshot = formatTestimonySnapshotShared;
+
+window.renderUnifiedMeetingDetailHTML = function({
+    type = '',
+    memo = '',
+    church = '',
+    sermon = '',
+    sermonBible = '',
+    sermonTags = '',
+    obsidianUri = '',
+    presentList = [],
+    absenteesList = [],
+    testimonyList = []
+}) {
+    const typeStr = type || '';
+    const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
+
+    // 메모 안에 JSON 메타데이터가 아직 분리되지 않은 경우 안전하게 추출
+    let resolvedBible = sermonBible || '';
+    let resolvedTags = sermonTags || '';
+    let resolvedObsidianUri = obsidianUri || '';
+    let cleanMemo = memo || '';
+
+    if (cleanMemo.trim().startsWith('{')) {
+        const firstLine = cleanMemo.trim().split(/\r?\n|\\n/)[0];
+        try {
+            if (firstLine.endsWith('}')) {
+                const meta = JSON.parse(firstLine);
+                if (!resolvedBible && meta.bible) resolvedBible = meta.bible;
+                if (!resolvedTags && meta.tags) resolvedTags = meta.tags;
+                if (!resolvedObsidianUri && meta.obsidian_uri) resolvedObsidianUri = meta.obsidian_uri;
+                cleanMemo = cleanMemo.trim().substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
+            }
+        } catch (e) {}
+    }
+
+    const finalObsidianUri = getObsidianUriShared(sermon, memo, resolvedObsidianUri);
+
+    if (typeStr === '교회행사') {
+        const displayMemo = cleanMemo.replace(/\[obsidian:\s*.*?\]/g, '').trim();
+        if (displayMemo) {
+            return `
+                <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
+                    <h4 class="text-xs font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        행사 메모 / 안내 사항
+                    </h4>
+                    <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${displayMemo}</p>
+                </div>
+            `;
+        }
+        return `
+            <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
+                <p class="text-sm text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
+            </div>
+        `;
+    }
+
+    let absentHtml = '';
+    if (absenteesList && absenteesList.length > 0) {
+        absentHtml = `
+            <div class="mt-6 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800/80">
+                <h4 class="text-xs font-black text-gray-400 dark:text-slate-500 mb-2 uppercase tracking-wider">미참석자 (${absenteesList.length}명)</h4>
+                <div class="flex flex-wrap gap-1">
+                    ${absenteesList.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name || '성도'}</span>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    let testimonyHtml = '';
+    if (testimonyList && testimonyList.length > 0) {
+        const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${testimonyList.length}명)`;
+        testimonyHtml = `
+            <div class="mt-6 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800/80">
+                <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
+                <div class="space-y-3">
+                    ${testimonyList.map(a => `
+                        <div class="p-3 bg-blue-50/70 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                            <div class="font-bold text-blue-800 dark:text-blue-300 text-sm mb-1">${a.members?.name || a.name || '성도'}</div>
+                            ${formatTestimonySnapshotShared(a.testimony_snapshot, a.member_status)}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="mb-4 bg-white dark:bg-[#1e293b] p-4.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+            <span class="font-bold text-lg dark:text-slate-200">총 참석</span>
+            <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${presentList.length}명</span>
+        </div>
+        ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-xs font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold text-lg dark:text-slate-200">${church}</p></div>` : ''}
+        ${sermon ? `
+            <div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30">
+                <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4>
+                        ${resolvedBible ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 rounded text-[11px] font-bold border border-yellow-300 dark:border-yellow-700/60">📖 ${resolvedBible}</span>` : ''}
+                    </div>
+                    ${finalObsidianUri ? `
+                    <a href="${finalObsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
+                        <span class="text-xs">🟣</span> 옵시디언 원고 열기
+                    </a>
+                    ` : ''}
+                </div>
+                <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
+            </div>
+        ` : ''}
+        ${(resolvedTags && typeof resolvedTags === 'string') ? `
+            <div class="mb-4 flex flex-wrap gap-1.5">
+                ${resolvedTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
+            </div>
+        ` : ''}
+        ${formatMeetingMemoContentShared(cleanMemo)}
+
+        ${isCounselingType ? '' : `
+        <div class="mb-4">
+            <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
+            <div class="flex flex-wrap gap-1">
+                ${presentList.length > 0 ? presentList.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.members?.name || a.name || '성도'}</span>`).join('') : '<span class="text-xs text-slate-400">참석자가 없습니다.</span>'}
+            </div>
+        </div>
+        `}
+
+        ${absentHtml}
+        ${testimonyHtml}
+    `;
+};
+
 })();
+

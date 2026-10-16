@@ -1105,7 +1105,7 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
         const pWithTestimony = p.filter(a => a && a.testimony_snapshot && a.testimony_snapshot.trim());
         
         // 미참석자 계산 로직
-        let absentHtml = '';
+        let absenteesList = [];
         const typeStr = type || '';
         if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
             try {
@@ -1154,107 +1154,25 @@ async function showMeetingDetail(id, date, title, type, sermon, memo, church = '
                     }
 
                     const presentIds = p.map(a => a.member_id);
-                    const absentees = allTargets.filter(m => m && !presentIds.includes(m.id));
-
-                    if (absentees.length > 0) {
-                        absentHtml = `
-                            <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
-                                <h4 class="text-xs font-black text-gray-400 dark:text-slate-550 mb-2 uppercase tracking-wider">미참석자 (${absentees.length}명)</h4>
-                                <div class="flex flex-wrap gap-1">
-                                    ${absentees.map(m => `<span class="px-2.5 py-1 bg-gray-100 dark:bg-slate-800/40 text-gray-500 dark:text-slate-400 rounded text-xs font-bold">${m.name || '성도'}</span>`).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
+                    absenteesList = allTargets.filter(m => m && !presentIds.includes(m.id));
                 }
             } catch (targetErr) {
                 console.warn('미참석자 집계 실패:', targetErr);
             }
         }
 
-        // 간증 섹션 — 상담 기록은 "간증"이 아니라 상담 내용 그 자체이므로 상담 내용으로 표시
-        let testimonyHtml = '';
-        const isCounselingType = (typeStr === '상담' || typeStr === '개인상담');
-        if (pWithTestimony.length > 0) {
-            const testimonySectionTitle = isCounselingType ? '상담 내용' : `간증 (${pWithTestimony.length}명)`;
-            testimonyHtml = `
-                <div class="mt-6 pt-4 border-t border-dashed dark:border-slate-800/80">
-                    <h4 class="text-xs font-black text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wider">${testimonySectionTitle}</h4>
-                    <div class="space-y-3">
-                        ${pWithTestimony.map(a => `
-                            <div class="p-3 bg-blue-50/70 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                <div class="font-bold text-blue-800 dark:text-blue-300 text-sm mb-1">${a.name || '성도'}</div>
-                                ${typeof formatTestimonySnapshot === 'function' ? formatTestimonySnapshot(a.testimony_snapshot, a.member_status) : (a.testimony_snapshot || '')}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        let detailHTML = '';
-        if (typeStr === '교회행사') {
-            if (memo && memo.trim()) {
-                detailHTML = `
-                    <div class="mb-4 bg-teal-50/50 dark:bg-teal-950/10 p-4.5 rounded-xl border border-teal-100/70 dark:border-teal-900/30 shadow-sm">
-                        <h4 class="text-xs font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-teal-600 dark:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            행사 메모 / 안내 사항
-                        </h4>
-                        <p class="text-base text-slate-800 dark:text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed">${memo}</p>
-                    </div>
-                `;
-            } else {
-                detailHTML = `
-                    <div class="mb-4 bg-slate-50/50 dark:bg-slate-900/40 p-4.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
-                        <p class="text-sm text-slate-400 italic py-2">등록된 행사 메모가 없습니다.</p>
-                    </div>
-                `;
-            }
-        } else {
-            const finalObsidianUri = obsidianUri || (typeof getObsidianUri === 'function' ? getObsidianUri(sermon, memo) : '');
-            detailHTML = `
-                <div class="mb-4 bg-white dark:bg-[#1e293b] p-4.5 rounded-xl shadow-sm border dark:border-slate-800/80 flex justify-between items-center">
-                    <span class="font-bold text-lg dark:text-slate-200">총 참석</span>
-                    <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${p.length}명</span>
-                </div>
-                ${church ? `<div class="mb-4 bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30"><h4 class="text-xs font-black text-blue-700 dark:text-blue-400">외부 교회</h4><p class="font-bold text-lg dark:text-slate-200">${church}</p></div>` : ''}
-                ${sermon ? `
-                    <div class="mb-4 bg-yellow-50 dark:bg-amber-950/20 p-4 rounded-xl border border-yellow-200 dark:border-amber-900/30">
-                        <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-                            <div class="flex items-center gap-2">
-                                <h4 class="text-xs font-black text-yellow-700 dark:text-amber-400">설교</h4>
-                                ${sermonBible ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 rounded text-[11px] font-bold border border-yellow-300 dark:border-yellow-700/60">📖 ${sermonBible}</span>` : ''}
-                            </div>
-                            ${finalObsidianUri ? `
-                            <a href="${finalObsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
-                                <span class="text-xs">🟣</span> 옵시디언 원고 열기
-                            </a>
-                            ` : ''}
-                        </div>
-                        <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
-                    </div>
-                ` : ''}
-                ${(sermonTags && typeof sermonTags === 'string') ? `
-                    <div class="mb-4 flex flex-wrap gap-1.5">
-                        ${sermonTags.split(/[,\s#]+/).map(t => t.trim()).filter(t => t.length > 0).map(t => `<span class="px-2 py-1 bg-amber-100/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 dark:border dark:border-amber-900/30 rounded-lg text-xs font-bold">#${t}</span>`).join('')}
-                    </div>
-                ` : ''}
-                ${typeof formatMeetingMemoContent === 'function' ? formatMeetingMemoContent(memo) : ''}
-
-                ${isCounselingType ? '' : `
-                <div class="mb-4">
-                    <h4 class="text-xs font-black text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wider">참석자</h4>
-                    <div class="flex flex-wrap gap-1">
-                        ${p.length > 0 ? p.map(a => `<span class="px-2.5 py-1.5 bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 dark:border dark:border-blue-900/30 rounded text-xs font-bold">${a.name || '성도'}</span>`).join('') : '<span class="text-xs text-slate-400">참석자가 없습니다.</span>'}
-                    </div>
-                </div>
-                `}
-
-                ${absentHtml}
-                ${testimonyHtml}
-            `;
-        }
+        const detailHTML = window.renderUnifiedMeetingDetailHTML({
+            type: typeStr,
+            memo,
+            church,
+            sermon,
+            sermonBible,
+            sermonTags,
+            obsidianUri,
+            presentList: p,
+            absenteesList,
+            testimonyList: pWithTestimony
+        });
 
         if (detailContentEl) {
             detailContentEl.innerHTML = detailHTML;
