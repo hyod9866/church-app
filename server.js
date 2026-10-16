@@ -5201,12 +5201,74 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
 });
 
 // ==========================================
+// Gemini API 키 조회 및 DB 동기화 헬퍼 (PC & 모바일/Vercel 공통)
+// ==========================================
+let cachedDbGeminiKey = '';
+async function resolveGeminiApiKey(req) {
+    const clientKey = (req.headers['x-gemini-key'] || req.body?.geminiApiKey || '').trim();
+    const envKey = (process.env.GEMINI_API_KEY || '').trim();
+
+    // 1. 클라이언트에서 새 API 키를 직접 입력해 보낸 경우 DB에도 저장해 기기 간 공유
+    if (clientKey && clientKey !== cachedDbGeminiKey) {
+        cachedDbGeminiKey = clientKey;
+        try {
+            const { data: existing } = await supabase
+                .from('member_records')
+                .select('id')
+                .eq('status', 'SYSTEM_GEMINI_KEY')
+                .order('id', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            if (existing?.id) {
+                await supabase.from('member_records').update({ remark: clientKey }).eq('id', existing.id);
+            } else {
+                await supabase.from('member_records').insert({
+                    member_id: 289,
+                    date: '2026-01-01',
+                    status: 'SYSTEM_GEMINI_KEY',
+                    remark: clientKey
+                });
+            }
+        } catch (e) {
+            console.warn('Gemini key DB sync error:', e.message);
+        }
+        return clientKey;
+    }
+
+    // 2. 서버 환경변수(.env)에 키가 있는 경우
+    if (envKey) return envKey;
+
+    // 3. 클라이언트 헤더/바디 키 또는 메모리 캐시가 있는 경우
+    if (clientKey) return clientKey;
+    if (cachedDbGeminiKey) return cachedDbGeminiKey;
+
+    // 4. 모바일/Vercel 등 환경변수가 없는 경우 Supabase DB에 저장된 시스템 키 조회
+    try {
+        const { data } = await supabase
+            .from('member_records')
+            .select('remark')
+            .eq('status', 'SYSTEM_GEMINI_KEY')
+            .order('id', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (data?.remark) {
+            cachedDbGeminiKey = data.remark.trim();
+            return cachedDbGeminiKey;
+        }
+    } catch (e) {
+        console.warn('Gemini key DB lookup error:', e.message);
+    }
+
+    return '';
+}
+
+// ==========================================
 // Google Gemini AI 설교문 심층 분석 API
 // ==========================================
 app.post('/api/ai/analyze-sermon', express.json(), async (req, res) => {
     try {
         const { meetingId, sermonTitle, obsidianUri, memo, bible } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        const apiKey = await resolveGeminiApiKey(req);
         if (!apiKey) {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
@@ -5343,7 +5405,7 @@ ${cleanText}
 app.post('/api/ai/assistant', express.json(), async (req, res) => {
     try {
         const { message, history = [], clientDate, clientTime } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        const apiKey = await resolveGeminiApiKey(req);
         if (!apiKey) {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
@@ -5641,7 +5703,7 @@ ${historyContext}사용자의 현재 요청: "${message}"
 // ==========================================
 app.post('/api/ai/analyze-all-sermons', express.json(), async (req, res) => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        const apiKey = await resolveGeminiApiKey(req);
         if (!apiKey) {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
