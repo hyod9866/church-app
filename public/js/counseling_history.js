@@ -79,7 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let filterMemberCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     let filterEvangelismCategory = null; // '봉사회' | '어머니회' | '청년회' | '은장회' | '모름'
     let filterCounselingMethod = null; // '대면' | '전화'
+    let filterParish = null;         // 'in' | 'out' (소속교구 vs 교구외)
+    let filterCategoryAny = null;    // '봉사회' | '어머니회' | '청년회' | '은장회' (소속회 통합)
+    let filterGuwon = false;         // true = @구원받음 태그 보유자
     let filterYear = ''; // '' = 전체 년도, 'YYYY' = 해당 연도
+    let currentFilteredData = [];    // 현재 화면에 필터링된 상담 대상자 목록 (AI 분석 연동용)
 
     // 선택된 연도로 데이터를 좁힌다. year가 ''(전체)면 원본 그대로 반환.
     // year가 지정되면 각 인물의 all_sessions를 해당 연도 세션만 남기고,
@@ -194,6 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filterChurch === 'other' && isSeoul) return false;
             }
 
+            // 5-1. 소속교구 vs 교구외 필터
+            if (filterParish) {
+                const p = s.parish || '';
+                const inParish = !!p && !p.includes('정보없음') && p !== '교구 미지정';
+                if (filterParish === 'in' && !inParish) return false;
+                if (filterParish === 'out' && inParish) return false;
+            }
+
             // 6. 소속회 필터 (성도)
             if (filterMemberCategory) {
                 if (!isMember) return false;
@@ -210,17 +222,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (normCat !== filterEvangelismCategory) return false;
             }
 
+            // 7-1. 소속회 통합 필터 (상단 셀렉 버튼)
+            if (filterCategoryAny) {
+                const cat = s.category || '모름';
+                const normCat = ['봉사회', '어머니회', '청년회', '은장회'].includes(cat) ? cat : '모름';
+                if (normCat !== filterCategoryAny) return false;
+            }
+
             // 8. 대면 vs 전화상담 유형 필터 (최근 상담 기록의 유형 기준)
             if (filterCounselingMethod) {
                 const sessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
-                // 만약 월별 필터가 켜져 있으면 해당 월에 진행된 세션 중 해당 유형이 있는지 검사하고,
-                // 그렇지 않으면 전체 세션 중 하나라도 해당 유형이 있는지 검사합니다.
                 const hasMatchingMethod = sessions.some(sess => {
                     const matchesMonth = !filterYearMonth || (sess.date && sess.date.startsWith(filterYearMonth));
                     const matchesMethod = sess.counseling_method === filterCounselingMethod;
                     return matchesMonth && matchesMethod;
                 });
                 if (!hasMatchingMethod) return false;
+            }
+
+            // 8-1. @구원받음 필터
+            if (filterGuwon) {
+                const sessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
+                const hasGuwon = sessions.some(sess => sess.lead_target && sess.lead_target.includes('@구원받음'));
+                if (!hasGuwon) return false;
             }
 
             // 9. 텍스트 검색 쿼리 필터
@@ -232,14 +256,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const positionMatch = (s.position || '').toLowerCase().includes(query);
                 const categoryMatch = (s.category || '').toLowerCase().includes(query);
                 const districtTextMatch = (s.district || '').toLowerCase().includes(query);
-                // 인도대상(@이름) / 모임·특징(#태그) 검색 — 전체 상담 세션의 lead_target 대상
-                // @, # 접두사와 무관하게 매칭되도록 원문을 그대로 훑는다 ("@홍길동".includes("홍길동") = true)
                 const searchSessions = Array.isArray(s.all_sessions) ? s.all_sessions : [];
                 const leadMatch = searchSessions.some(sess => (sess.lead_target || '').toLowerCase().includes(query));
                 if (!nameMatch && !dateMatch && !contentMatch && !tagsMatch && !positionMatch && !categoryMatch && !districtTextMatch && !leadMatch) return false;
             }
             return true;
         });
+
+        currentFilteredData = filtered;
+        if (typeof renderTargetSelectorChips === 'function') {
+            renderTargetSelectorChips(base, filtered);
+        }
 
         // 필터링된 데이터를 바탕으로 대시보드 통계 및 상담주제 업데이트 (차트 제외)
         updateDashboardStatisticsOnly(filtered);
@@ -804,6 +831,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flex flex-col items-end gap-1.5 shrink-0 ml-4">
                         <div class="text-xs font-bold text-gray-400">누적 상담 <span class="text-indigo-600 dark:text-indigo-400 font-black">${member.counseling_count}</span>회</div>
                         <div class="flex flex-col gap-1">
+                            <button onclick="analyzeMemberCounselingAi(${member.id})"
+                                    class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-black shadow-sm transition-all whitespace-nowrap flex items-center justify-center gap-1 cursor-pointer">
+                                <span>✨</span> AI 상담 분석
+                            </button>
                             <button onclick="openNewCounselingWithMember('${member.name}', ${member.id}, '${member.category || ''}', '${member.bs || ''}')"
                                     class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-colors whitespace-nowrap">
                                 추가 상담 등록
@@ -3164,4 +3195,424 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ==========================================
+    // 🗂️ 상단 상담 대상 선택 버튼 & ✨ AI 심층 분석 연동
+    // ==========================================
+    function clearAllRatioBarShadows() {
+        const allBarIds = [
+            'memberRatioBar', 'targetRatioBar',
+            'memberBrotherRatioBar', 'memberSisterRatioBar',
+            'evangelismMaleRatioBar', 'evangelismFemaleRatioBar',
+            'seoulChurchRatioBar', 'otherChurchRatioBar',
+            'memberBongsaRatioBar', 'memberEomeoniRatioBar', 'memberCheongnyeonRatioBar', 'memberEunjangRatioBar', 'memberUnknownRatioBar',
+            'evangelismBongsaRatioBar', 'evangelismEomeoniRatioBar', 'evangelismCheongnyeonRatioBar', 'evangelismEunjangRatioBar', 'evangelismUnknownRatioBar',
+            'methodFaceRatioBar', 'methodPhoneRatioBar'
+        ];
+        allBarIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.boxShadow = 'none';
+                el.style.zIndex = '1';
+            }
+        });
+    }
+
+    function hasAnyActiveTargetFilter() {
+        return !!(
+            filterMemberStatus ||
+            filterMemberGender ||
+            filterEvangelismGender ||
+            filterChurch ||
+            filterParish ||
+            filterMemberCategory ||
+            filterEvangelismCategory ||
+            filterCategoryAny ||
+            filterCounselingMethod ||
+            filterGuwon ||
+            filterYearMonth
+        );
+    }
+
+    function getCurrentTargetSummaryLabel() {
+        const labels = [];
+        if (filterYearMonth) labels.push(`${filterYearMonth}월`);
+        if (filterMemberGender === 'B') labels.push('형제(성도)');
+        else if (filterMemberGender === 'S') labels.push('자매(성도)');
+        else if (filterEvangelismGender === 'B') labels.push('전도상담(남)');
+        else if (filterEvangelismGender === 'S') labels.push('전도상담(여)');
+        else if (filterMemberStatus === 'member') labels.push('성도 상담');
+        else if (filterMemberStatus === 'evangelism') labels.push('전도 상담');
+
+        if (filterChurch === 'seoul') labels.push('소속교회(서울중앙)');
+        else if (filterChurch === 'other') labels.push('타교회/모름');
+
+        if (filterParish === 'in') labels.push('소속교구');
+        else if (filterParish === 'out') labels.push('교구외');
+
+        if (filterCategoryAny) labels.push(filterCategoryAny);
+        else if (filterMemberCategory) labels.push(`성도·${filterMemberCategory}`);
+        else if (filterEvangelismCategory) labels.push(`전도·${filterEvangelismCategory}`);
+
+        if (filterCounselingMethod) labels.push(`${filterCounselingMethod}상담`);
+        if (filterGuwon) labels.push('🩷구원받음');
+
+        return labels.length > 0 ? labels.join(' · ') : '전체 상담';
+    }
+
+    function renderTargetSelectorChips(baseData, filteredData) {
+        const container = document.getElementById('counselingTargetChipsContainer');
+        const summaryEl = document.getElementById('selectedCounselingTargetSummary');
+        const aiBtnLabel = document.getElementById('analyzeCounselingAiBtnLabel');
+        if (!container) return;
+
+        const list = Array.isArray(baseData) ? baseData : [];
+        const isInParish = (s) => {
+            const p = s.parish || '';
+            return !!p && !p.includes('정보없음') && p !== '교구 미지정';
+        };
+        const normCat = (s) => {
+            const c = s.category || '모름';
+            return ['봉사회', '어머니회', '청년회', '은장회'].includes(c) ? c : '모름';
+        };
+        const hasMethod = (s, m) => (Array.isArray(s.all_sessions) ? s.all_sessions : []).some(sess => sess.counseling_method === m);
+        const hasGuwonTag = (s) => (Array.isArray(s.all_sessions) ? s.all_sessions : []).some(sess => sess.lead_target && sess.lead_target.includes('@구원받음'));
+
+        const counts = {
+            all: list.length,
+            member: list.filter(s => s.member_status !== 'evangelism').length,
+            evangelism: list.filter(s => s.member_status === 'evangelism').length,
+            brother: list.filter(s => s.member_status !== 'evangelism' && s.bs === 'B').length,
+            sister: list.filter(s => s.member_status !== 'evangelism' && s.bs === 'S').length,
+            evMale: list.filter(s => s.member_status === 'evangelism' && s.bs === 'B').length,
+            evFemale: list.filter(s => s.member_status === 'evangelism' && s.bs === 'S').length,
+            seoul: list.filter(s => s.church === '서울중앙교회').length,
+            otherChurch: list.filter(s => s.church !== '서울중앙교회').length,
+            parishIn: list.filter(isInParish).length,
+            parishOut: list.filter(s => !isInParish(s)).length,
+            bongsa: list.filter(s => normCat(s) === '봉사회').length,
+            eomeoni: list.filter(s => normCat(s) === '어머니회').length,
+            cheongnyeon: list.filter(s => normCat(s) === '청년회').length,
+            eunjang: list.filter(s => normCat(s) === '은장회').length,
+            face: list.filter(s => hasMethod(s, '대면')).length,
+            phone: list.filter(s => hasMethod(s, '전화')).length,
+            guwon: list.filter(hasGuwonTag).length
+        };
+
+        const isAllActive = !hasAnyActiveTargetFilter();
+
+        const chipDefs = [
+            { key: 'all', label: '전체', count: counts.all, active: isAllActive, color: 'indigo' },
+            { divider: true },
+            { key: 'status_member', label: '성도 상담', count: counts.member, active: filterMemberStatus === 'member' && !filterMemberGender, color: 'blue' },
+            { key: 'status_evangelism', label: '전도 상담', count: counts.evangelism, active: filterMemberStatus === 'evangelism' && !filterEvangelismGender, color: 'amber' },
+            { divider: true },
+            { key: 'gender_brother', label: '형제', count: counts.brother, active: filterMemberGender === 'B', color: 'blue' },
+            { key: 'gender_sister', label: '자매', count: counts.sister, active: filterMemberGender === 'S', color: 'pink' },
+            { key: 'gender_ev_male', label: '전도(남)', count: counts.evMale, active: filterEvangelismGender === 'B', color: 'sky' },
+            { key: 'gender_ev_female', label: '전도(여)', count: counts.evFemale, active: filterEvangelismGender === 'S', color: 'rose' },
+            { divider: true },
+            { key: 'church_seoul', label: '소속교회', count: counts.seoul, active: filterChurch === 'seoul', color: 'indigo' },
+            { key: 'church_other', label: '타교회/모름', count: counts.otherChurch, active: filterChurch === 'other', color: 'teal' },
+            { key: 'parish_in', label: '소속교구', count: counts.parishIn, active: filterParish === 'in', color: 'violet' },
+            { key: 'parish_out', label: '교구외', count: counts.parishOut, active: filterParish === 'out', color: 'slate' },
+            { divider: true },
+            { key: 'cat_봉사회', label: '봉사회', count: counts.bongsa, active: filterCategoryAny === '봉사회', color: 'blue' },
+            { key: 'cat_어머니회', label: '어머니회', count: counts.eomeoni, active: filterCategoryAny === '어머니회', color: 'rose' },
+            { key: 'cat_청년회', label: '청년회', count: counts.cheongnyeon, active: filterCategoryAny === '청년회', color: 'emerald' },
+            { key: 'cat_은장회', label: '은장회', count: counts.eunjang, active: filterCategoryAny === '은장회', color: 'amber' },
+            { divider: true },
+            { key: 'method_대면', label: '🤝 대면상담', count: counts.face, active: filterCounselingMethod === '대면', color: 'emerald' },
+            { key: 'method_전화', label: '📞 전화상담', count: counts.phone, active: filterCounselingMethod === '전화', color: 'indigo' },
+            { key: 'guwon', label: '🩷 구원받음', count: counts.guwon, active: filterGuwon, color: 'pink' }
+        ];
+
+        container.innerHTML = chipDefs.map(def => {
+            if (def.divider) {
+                return `<span class="h-4 w-px bg-slate-200 dark:bg-slate-700/80 mx-0.5 hidden sm:inline-block"></span>`;
+            }
+            const activeCls = def.active
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/25 dark:bg-indigo-500 dark:border-indigo-400'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90 dark:bg-slate-800/70 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-700/70';
+            const badgeCls = def.active
+                ? 'text-indigo-100 font-extrabold'
+                : 'text-slate-400 dark:text-slate-500 font-bold';
+            return `
+                <button type="button" data-target-chip="${def.key}"
+                    class="px-2.5 py-1.5 rounded-xl text-[11px] font-black border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${activeCls}">
+                    <span>${def.label}</span>
+                    <span class="text-[10px] ${badgeCls}">(${def.count})</span>
+                </button>
+            `;
+        }).join('');
+
+        // 클릭 이벤트 바인딩
+        container.querySelectorAll('[data-target-chip]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.getAttribute('data-target-chip');
+                if (key === 'all') {
+                    filterMemberStatus = null;
+                    filterMemberGender = null;
+                    filterEvangelismGender = null;
+                    filterChurch = null;
+                    filterParish = null;
+                    filterMemberCategory = null;
+                    filterEvangelismCategory = null;
+                    filterCategoryAny = null;
+                    filterCounselingMethod = null;
+                    filterGuwon = false;
+                    filterYearMonth = null;
+                    clearAllRatioBarShadows();
+                } else if (key === 'status_member') {
+                    const next = (filterMemberStatus === 'member' && !filterMemberGender) ? null : 'member';
+                    filterMemberStatus = next;
+                    filterMemberGender = null;
+                    filterEvangelismGender = null;
+                } else if (key === 'status_evangelism') {
+                    const next = (filterMemberStatus === 'evangelism' && !filterEvangelismGender) ? null : 'evangelism';
+                    filterMemberStatus = next;
+                    filterMemberGender = null;
+                    filterEvangelismGender = null;
+                } else if (key === 'gender_brother') {
+                    const isSame = filterMemberGender === 'B';
+                    filterMemberGender = isSame ? null : 'B';
+                    filterEvangelismGender = null;
+                    filterMemberStatus = isSame ? null : 'member';
+                } else if (key === 'gender_sister') {
+                    const isSame = filterMemberGender === 'S';
+                    filterMemberGender = isSame ? null : 'S';
+                    filterEvangelismGender = null;
+                    filterMemberStatus = isSame ? null : 'member';
+                } else if (key === 'gender_ev_male') {
+                    const isSame = filterEvangelismGender === 'B';
+                    filterEvangelismGender = isSame ? null : 'B';
+                    filterMemberGender = null;
+                    filterMemberStatus = isSame ? null : 'evangelism';
+                } else if (key === 'gender_ev_female') {
+                    const isSame = filterEvangelismGender === 'S';
+                    filterEvangelismGender = isSame ? null : 'S';
+                    filterMemberGender = null;
+                    filterMemberStatus = isSame ? null : 'evangelism';
+                } else if (key === 'church_seoul') {
+                    filterChurch = filterChurch === 'seoul' ? null : 'seoul';
+                } else if (key === 'church_other') {
+                    filterChurch = filterChurch === 'other' ? null : 'other';
+                } else if (key === 'parish_in') {
+                    filterParish = filterParish === 'in' ? null : 'in';
+                } else if (key === 'parish_out') {
+                    filterParish = filterParish === 'out' ? null : 'out';
+                } else if (key.startsWith('cat_')) {
+                    const catVal = key.replace('cat_', '');
+                    filterCategoryAny = filterCategoryAny === catVal ? null : catVal;
+                    filterMemberCategory = null;
+                    filterEvangelismCategory = null;
+                } else if (key === 'method_대면') {
+                    filterCounselingMethod = filterCounselingMethod === '대면' ? null : '대면';
+                } else if (key === 'method_전화') {
+                    filterCounselingMethod = filterCounselingMethod === '전화' ? null : '전화';
+                } else if (key === 'guwon') {
+                    filterGuwon = !filterGuwon;
+                }
+                applyFilters();
+            });
+        });
+
+        // 요약 배지 및 AI 버튼 라벨 업데이트
+        const targetLabel = getCurrentTargetSummaryLabel();
+        const totalSessionsCount = (filteredData || []).reduce((acc, m) => acc + (Array.isArray(m.all_sessions) ? m.all_sessions.length : 0), 0);
+        if (summaryEl) {
+            summaryEl.textContent = `${targetLabel} (${(filteredData || []).length}명 / ${totalSessionsCount}건)`;
+        }
+        if (aiBtnLabel) {
+            aiBtnLabel.textContent = isAllActive
+                ? '전체 상담 흐름 AI 종합 분석'
+                : `[${targetLabel}] AI 맞춤 분석`;
+        }
+    }
+
+    // AI 상담 심층 분석 모달 제어 및 API 호출
+    const aiCounselModal = document.getElementById('aiCounselingAnalysisModal');
+    const closeAiCounselBtn = document.getElementById('closeAiCounselingModalBtn');
+    const aiCounselBackdrop = document.getElementById('aiCounselingModalBackdrop');
+    const analyzeCounselingAiBtn = document.getElementById('analyzeCounselingAiBtn');
+
+    function closeAiCounselingModal() {
+        if (aiCounselModal) aiCounselModal.classList.add('hidden');
+    }
+    if (closeAiCounselBtn) closeAiCounselBtn.addEventListener('click', closeAiCounselingModal);
+    if (aiCounselBackdrop) aiCounselBackdrop.addEventListener('click', closeAiCounselingModal);
+
+    async function runAiCounselingAnalysis(targetMembers, customTargetLabel) {
+        const membersList = Array.isArray(targetMembers) ? targetMembers : [];
+        if (membersList.length === 0) {
+            alert('선택한 대상에 분석할 상담 이력이 없습니다.');
+            return;
+        }
+
+        // 모든 상담 세션 수집 (최신순 정렬)
+        const allRecords = [];
+        const tagCounts = {};
+        let memberPersonCount = 0;
+        let evangelismPersonCount = 0;
+
+        membersList.forEach(m => {
+            const isEv = m.member_status === 'evangelism';
+            if (isEv) evangelismPersonCount++;
+            else memberPersonCount++;
+
+            const sessions = Array.isArray(m.all_sessions) ? m.all_sessions : [];
+            sessions.forEach(s => {
+                if (s.tags) {
+                    s.tags.split(/\s+/).filter(t => t.startsWith('#')).forEach(t => {
+                        const cleanTag = t.substring(1);
+                        if (cleanTag) tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
+                    });
+                }
+                allRecords.push({
+                    name: m.name || '익명',
+                    position: m.position || '',
+                    category: m.category || '',
+                    bs: m.bs || '',
+                    church: m.church || '',
+                    parish: m.parish || '',
+                    district: m.district || '',
+                    member_status: s.member_status || m.member_status || 'member',
+                    date: s.date || '',
+                    method: s.counseling_method || '대면',
+                    tags: s.tags || '',
+                    lead_target: s.lead_target || '',
+                    content: s.content || '',
+                    remark: cleanSystemTags(s.remark_memo || '')
+                });
+            });
+        });
+
+        if (allRecords.length === 0) {
+            alert('분석할 상담 세션 기록이 없습니다.');
+            return;
+        }
+
+        allRecords.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const topTagsStr = Object.entries(tagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([t, c]) => `#${t}(${c}건)`)
+            .join(', ');
+
+        const targetLabel = customTargetLabel || getCurrentTargetSummaryLabel();
+        const yearLabel = filterYear ? `${filterYear}년` : '전체 년도';
+
+        // 모달 열기 및 로딩 표시
+        const titleEl = document.getElementById('aiCounselModalTitle');
+        const subtitleEl = document.getElementById('aiCounselModalSubtitle');
+        const loadingState = document.getElementById('aiCounselLoadingState');
+        const loadingTitle = document.getElementById('aiCounselLoadingTitle');
+        const resultContainer = document.getElementById('aiCounselResultContainer');
+
+        if (titleEl) titleEl.textContent = `[${targetLabel}] AI 심층 분석`;
+        if (subtitleEl) subtitleEl.textContent = `${yearLabel} · 대상 ${membersList.length}명 · 상담 기록 총 ${allRecords.length}건 분석`;
+        if (loadingTitle) loadingTitle.textContent = `[${targetLabel}] 상담 기록(${Math.min(allRecords.length, 60)}건)을 AI가 심층 분석하고 있습니다...`;
+        if (loadingState) loadingState.classList.remove('hidden');
+        if (resultContainer) resultContainer.classList.add('hidden');
+        if (aiCounselModal) aiCounselModal.classList.remove('hidden');
+
+        try {
+            let storedKey = localStorage.getItem('GEMINI_API_KEY') || '';
+            const res = await fetch('/api/ai/analyze-counseling', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(storedKey ? { 'x-gemini-key': storedKey } : {})
+                },
+                body: JSON.stringify({
+                    targetLabel,
+                    yearLabel,
+                    stats: {
+                        personCount: membersList.length,
+                        sessionCount: allRecords.length,
+                        memberCount: memberPersonCount,
+                        evangelismCount: evangelismPersonCount,
+                        topTags: topTagsStr
+                    },
+                    records: allRecords.slice(0, 60)
+                })
+            });
+
+            if (res.status === 401) {
+                const inputKey = prompt('Google Gemini API 키를 입력해 주세요 (한 번 입력하면 서버와 기기에 자동 저장됩니다):');
+                if (inputKey && inputKey.trim()) {
+                    localStorage.setItem('GEMINI_API_KEY', inputKey.trim());
+                    return runAiCounselingAnalysis(targetMembers, customTargetLabel);
+                }
+                closeAiCounselingModal();
+                return;
+            }
+
+            const data = await res.json();
+            if (!res.ok || !data.success || !data.analysis) {
+                throw new Error(data.error || 'AI 분석 결과를 불러오지 못했습니다.');
+            }
+
+            const a = data.analysis;
+            const summaryP = document.getElementById('aiCounselSummary');
+            const patternsDiv = document.getElementById('aiCounselPatterns');
+            const diagnosisP = document.getElementById('aiCounselDiagnosis');
+            const prioritiesUl = document.getElementById('aiCounselPriorities');
+            const strategiesUl = document.getElementById('aiCounselStrategies');
+            const scripturesUl = document.getElementById('aiCounselScriptures');
+            const encouragementP = document.getElementById('aiCounselEncouragement');
+
+            if (summaryP) summaryP.textContent = a.overall_summary || '-';
+            if (patternsDiv) {
+                const patterns = Array.isArray(a.key_patterns) ? a.key_patterns : [];
+                patternsDiv.innerHTML = patterns.map((p, idx) => `
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                        <div class="text-xs font-black text-blue-700 dark:text-blue-300 mb-0.5">${idx + 1}. ${p.title || '주요 패턴'}</div>
+                        <div class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${p.description || ''}</div>
+                    </div>
+                `).join('');
+            }
+            if (diagnosisP) diagnosisP.textContent = a.spiritual_diagnosis || '-';
+            if (prioritiesUl) {
+                prioritiesUl.innerHTML = (Array.isArray(a.care_priorities) ? a.care_priorities : [])
+                    .map(item => `<li>${item}</li>`).join('');
+            }
+            if (strategiesUl) {
+                strategiesUl.innerHTML = (Array.isArray(a.action_strategies) ? a.action_strategies : [])
+                    .map(item => `<li>${item}</li>`).join('');
+            }
+            if (scripturesUl) {
+                scripturesUl.innerHTML = (Array.isArray(a.recommended_scriptures) ? a.recommended_scriptures : [])
+                    .map(item => `<li>${item}</li>`).join('');
+            }
+            if (encouragementP) encouragementP.textContent = a.encouragement || '-';
+
+            if (loadingState) loadingState.classList.add('hidden');
+            if (resultContainer) resultContainer.classList.remove('hidden');
+        } catch (err) {
+            console.error('AI Counseling Analysis Error:', err);
+            alert('상담 AI 분석 중 오류가 발생했습니다: ' + err.message);
+            closeAiCounselingModal();
+        }
+    }
+
+    if (analyzeCounselingAiBtn) {
+        analyzeCounselingAiBtn.addEventListener('click', () => {
+            runAiCounselingAnalysis(currentFilteredData, getCurrentTargetSummaryLabel());
+        });
+    }
+
+    // 개별 대상자 카드에서 [✨ AI 상담 분석] 클릭 시
+    window.analyzeMemberCounselingAi = function(memberId) {
+        const scoped = scopeDataByYear(allStatus, filterYear);
+        const found = scoped.find(m => Number(m.id) === Number(memberId)) || (allStatus || []).find(m => Number(m.id) === Number(memberId));
+        if (!found) {
+            alert('대상자 상담 정보를 찾을 수 없습니다.');
+            return;
+        }
+        const statusStr = found.member_status === 'evangelism' ? '전도대상' : '성도';
+        runAiCounselingAnalysis([found], `${found.name} (${statusStr}) 개인 상담`);
+    };
 });
+

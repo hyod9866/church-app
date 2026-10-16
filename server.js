@@ -5824,13 +5824,120 @@ ${sermonListText}
 });
 
 // ==========================================
+// Google Gemini AI 상담 기록 심층/종합 분석 API
+// ==========================================
+app.post('/api/ai/analyze-counseling', express.json({ limit: '5mb' }), async (req, res) => {
+    try {
+        const apiKey = await resolveGeminiApiKey(req);
+        if (!apiKey) {
+            return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
+        }
+
+        const {
+            targetLabel = '전체 상담',
+            yearLabel = '전체 년도',
+            stats = {},
+            records = []
+        } = req.body || {};
+
+        if (!Array.isArray(records) || records.length === 0) {
+            return res.status(404).json({ error: '선택한 대상에 분석할 상담 기록이 없습니다.' });
+        }
+
+        const recordsText = records.slice(0, 60).map((r, idx) => {
+            const statusStr = r.member_status === 'evangelism' ? '전도대상' : '성도';
+            const genderStr = r.bs === 'B' ? (r.member_status === 'evangelism' ? '남자' : '형제') : (r.bs === 'S' ? (r.member_status === 'evangelism' ? '여자' : '자매') : '');
+            const infoParts = [statusStr, r.church, r.parish, r.district, r.category, genderStr, r.position].filter(Boolean).join('/');
+            return `${idx + 1}. [${r.date || '날짜미상'}] ${r.name || '익명'}(${infoParts}) | 방식:${r.method || '대면'} | 태그:${r.tags || '없음'}${r.lead_target ? ' | 인도/특징:' + r.lead_target : ''}\n   내용: ${r.content || '(내용 없음)'}${r.remark ? '\n   비고: ' + r.remark : ''}`;
+        }).join('\n\n');
+
+        const prompt = `당신은 한국 복음주의 교회의 목회 상담 및 전도 사역 분석 전문 AI입니다.
+사용자는 강효근 전도사님(관리자)입니다.
+
+[분석 대상 범위]: ${targetLabel} (${yearLabel})
+[집계 요약]: 대상 인원 ${stats.personCount || 0}명 / 총 상담 건수 ${stats.sessionCount || records.length}건 (성도 ${stats.memberCount || 0}명, 전도대상 ${stats.evangelismCount || 0}명)
+${stats.topTags ? `[주요 상담 태그]: ${stats.topTags}` : ''}
+
+[상담 기록 데이터 (최근 ${Math.min(records.length, 60)}건)]:
+${recordsText}
+
+위 [${targetLabel}] 상담 기록들을 면밀히 읽고, 선택된 대상 집단(또는 개인)의 특성에 맞추어 목회적·영적 통찰과 실제적인 후속 상담/돌봄 전략을 담은 종합 분석 리포트를 작성해 주세요.
+
+반드시 마크다운 코드블록(\`\`\`json) 없이 순수 JSON 형식으로만 응답해 주세요:
+{
+  "overall_summary": "선택한 대상(${targetLabel})의 전반적인 상담 흐름과 영적·마음 상태를 진단하는 2~3문장의 핵심 총평",
+  "key_patterns": [
+    { "title": "핵심 상담 주제/패턴 1", "description": "상담 기록에서 나타나는 구체적인 고민 양상과 특징 설명" },
+    { "title": "핵심 상담 주제/패턴 2", "description": "구체적인 고민 양상과 특징 설명" },
+    { "title": "핵심 상담 주제/패턴 3", "description": "구체적인 고민 양상과 특징 설명" }
+  ],
+  "spiritual_diagnosis": "대상자들의 신앙 단계(구원 확신 여부, 말씀 수용도, 교회 정착 및 교제 상태, 삶의 애로사항 등)에 대한 심층 진단",
+  "care_priorities": [
+    "우선적인 후속 상담·심방·기도가 필요한 중점 돌봄 포인트 1 (구체적 사례나 성도 유형 언급)",
+    "중점 돌봄 포인트 2",
+    "중점 돌봄 포인트 3"
+  ],
+  "action_strategies": [
+    "향후 이 대상자들과의 상담·모임·전도에서 적용할 수 있는 구체적 목회 전략 1",
+    "구체적 목회 및 코칭 전략 2",
+    "구체적 목회 및 코칭 전략 3"
+  ],
+  "recommended_scriptures": [
+    "이 대상자들에게 상담 시 권면하거나 함께 나누기 좋은 추천 성경 구절과 이유 1",
+    "추천 성경 구절과 이유 2"
+  ],
+  "encouragement": "한 영혼을 귀히 여기며 상담 사역을 감당하시는 전도사님을 향한 따뜻한 격려와 축복의 메시지"
+}`;
+
+        const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
+        let analysis = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const resJson = await apiRes.json();
+                const textPart = resJson.candidates?.[0]?.content?.parts?.find(p => p.text);
+                if (textPart && textPart.text) {
+                    let outText = textPart.text.trim();
+                    outText = outText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    analysis = JSON.parse(outText);
+                    break;
+                }
+            } catch (e) {
+                console.warn(`Analyze counseling model ${modelName} failed:`, e.message);
+            }
+        }
+
+        if (!analysis) {
+            return res.status(500).json({ error: '상담 AI 분석 리포트 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+        }
+
+        res.json({
+            success: true,
+            targetLabel,
+            yearLabel,
+            analyzedCount: records.length,
+            analysis
+        });
+    } catch (err) {
+        console.error('Analyze counseling error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // Google Gemini AI 상담/사역 보조 API
 // ==========================================
 const uploadAudio = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 app.post('/api/ai/parse-counseling', uploadAudio.single('audio'), async (req, res) => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || req.body.geminiApiKey;
+        const apiKey = await resolveGeminiApiKey(req);
         if (!apiKey) {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
         }
