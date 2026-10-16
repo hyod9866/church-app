@@ -20,6 +20,7 @@
         container.innerHTML = `
             <!-- Floating Action Button -->
             <button id="aiAssistantFab" type="button" aria-label="AI 사역 비서 열기"
+                style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;"
                 class="fixed bottom-6 right-6 z-[9999] w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 text-white shadow-2xl flex items-center justify-center hover:scale-108 active:scale-95 transition-all duration-200 group cursor-pointer focus:outline-none ring-4 ring-purple-400/30">
                 <span class="text-2xl md:text-3xl filter drop-shadow animate-pulse">✨</span>
                 <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white dark:border-slate-900 rounded-full"></span>
@@ -31,6 +32,7 @@
 
             <!-- Chat Modal Box -->
             <div id="aiAssistantModal"
+                style="position: fixed; bottom: 6rem; right: 1.25rem; z-index: 9999; width: min(94vw, 420px); height: min(82vh, 600px);"
                 class="fixed bottom-24 right-4 sm:right-6 w-[94vw] max-w-[420px] h-[600px] max-h-[82vh] bg-white dark:bg-[#131B2E] rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 flex flex-col overflow-hidden z-[9999] transition-all duration-300 transform scale-95 opacity-0 pointer-events-none">
                 
                 <!-- Modal Header -->
