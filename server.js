@@ -5479,6 +5479,12 @@ app.get('/api/obsidian/sermons', (req, res) => {
 app.post('/api/obsidian/sync', express.json(), async (req, res) => {
     try {
         const sermons = scanObsidianSermons();
+        if (!sermons || sermons.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: '로컬 PC의 옵시디언 보관함 폴더에 접근할 수 없습니다. 원고 동기화는 볼트 폴더가 있는 로컬 PC 환경에서 실행해 주세요. 기존 링크는 안전하게 보존되었습니다.'
+            });
+        }
         
         // 전체 모임 목록 조회 (1000건 초과 대비 fetchAllRows 사용)
         const allMeetings = await fetchAllRows((from, to) =>

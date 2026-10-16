@@ -3115,6 +3115,16 @@ function getObsidianUriShared(sermon = '', memo = '', explicitUri = '') {
         const m = memo.match(/\[obsidian:\s*(.*?)\]/);
         if (m) return m[1].trim();
     }
+    // 설교 제목 자체가 옵시디언 파일명 형식(성경번호/축약어/장절 또는 구분코드 mcs/mssm/mss/ms/nbs 포함)인 경우 폴백 지원
+    if (sermon && typeof sermon === 'string' && sermon.trim()) {
+        const cleanName = sermon.replace(/\.md$/i, '').trim();
+        const isObsidianPattern = /^\d{1,2}\s+[가-힣]+/.test(cleanName) || /\b(mcs|mssm|mss|ms|nbs)\b/i.test(cleanName);
+        if (isObsidianPattern && !/^\([^)]+\)$/.test(cleanName)) {
+            // 부제나 괄호 태그(예: "(새신자말씀)", "(시설부)") 제거 후 원고 파일명으로 연결
+            const fileNameOnly = cleanName.replace(/\s*\([^)]*\)$/, '').trim();
+            return `obsidian://open?vault=KHG&file=${encodeURIComponent(fileNameOnly)}`;
+        }
+    }
     return '';
 }
 window.getObsidianUri = getObsidianUriShared;
