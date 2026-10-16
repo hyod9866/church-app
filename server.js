@@ -3935,18 +3935,73 @@ app.post('/api/counseling', async (req, res) => {
   }
 });
 
-// PUT /api/counseling/:sessionId — 상담 세션 수정
+// PUT /api/counseling/:sessionId — 상담 세션 수정 (및 심방/일반모임 → 개인상담 전환 지원)
 app.put('/api/counseling/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
-  const { date, start_time, end_time, content, tags, remark_memo, lead_target, counseling_method, member_status, member_id, is_salvation_checked, is_assign_checked, church, parish, district } = req.body;
+  const { name, date, start_time, end_time, content, tags, remark_memo, lead_target, counseling_method, category, bs, member_status, member_id, is_salvation_checked, is_assign_checked, church, parish, district } = req.body;
 
   try {
     let fullContent = '';
     if (tags && tags.trim()) fullContent = tags.trim() + '\n';
     fullContent += content ? content.trim() : '';
 
-    const memberId = member_id ? parseInt(member_id) : null;
+    let memberId = member_id ? parseInt(member_id, 10) : null;
+
+    // member_id가 없이 이름만 넘어온 경우(예: 심방 제목만 있던 일정을 개인상담으로 전환한 경우) 성도 조회 또는 생성
+    if (!memberId && name && name.trim()) {
+      const cleanName = name.trim();
+      if (cleanName === '익명') {
+        const { data: newMem, error: insErr } = await supabase
+          .from('members')
+          .insert({
+            name: '익명',
+            church: church ? church.trim() : '교회정보없음',
+            parish: parish ? parish.trim() : '교구정보없음',
+            district: district ? district.trim() : '구역정보없음',
+            category: category || '모름',
+            bs: bs || 'S',
+            status: 'active',
+            member_status: member_status || 'member'
+          })
+          .select('id')
+          .single();
+        if (!insErr && newMem) memberId = newMem.id;
+      } else {
+        const { data: existingMem } = await supabase
+          .from('members')
+          .select('id')
+          .eq('name', cleanName)
+          .eq('status', 'active');
+        if (existingMem && existingMem.length > 0) {
+          memberId = existingMem[0].id;
+        } else {
+          const { data: newMem, error: insErr } = await supabase
+            .from('members')
+            .insert({
+              name: cleanName,
+              church: church ? church.trim() : '교회정보없음',
+              parish: parish ? parish.trim() : '교구정보없음',
+              district: district ? district.trim() : '구역정보없음',
+              category: category || '모름',
+              bs: bs || 'S',
+              status: 'active',
+              member_status: member_status || 'member'
+            })
+            .select('id')
+            .single();
+          if (!insErr && newMem) memberId = newMem.id;
+        }
+      }
+    }
+
     if (memberId) {
+      const memberUpdates = {};
+      if (category) memberUpdates.category = category;
+      if (bs) memberUpdates.bs = bs;
+      if (Object.keys(memberUpdates).length > 0) {
+        await supabase.from('members').update(memberUpdates).eq('id', memberId);
+      }
+
       if (is_salvation_checked) {
         await supabase.from('member_records').insert({ member_id: memberId, date, status: 'SALVATION', remark: '구원받음' });
         await supabase
@@ -3966,12 +4021,11 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
           
         await syncMemberProfileFromRecords(memberId);
       } else if (!is_salvation_checked && member_status) {
-        const { data: updRes, error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId).select();
+        const { error: updErr } = await supabase.from('members').update({ member_status }).eq('id', memberId);
         if (updErr) {
           console.error('Error updating member status in PUT:', updErr);
           throw updErr;
         }
-        console.log('Successfully updated member status in PUT:', updRes);
       }
     }
 
@@ -3979,18 +4033,52 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       // meetings + attendance 방식
       const meetingId = sessionId.replace('m_', '');
 
-      // [2026-09-01] 수정 시에도 시간 값을 함께 갱신 (등록 때와 동일한 이유)
-      const meetUpdate = { date, start_time: start_time || null, end_time: end_time || null };
+      // 심방 등 다른 모임에서 개인상담으로 변경하는 경우에도 type='상담', title='OOO 개인상담', sermon_title=null로 정확히 전환
+      let resolvedName = (name || '').trim();
+      if (!resolvedName && memberId) {
+        const { data: memRow } = await supabase.from('members').select('name').eq('id', memberId).maybeSingle();
+        if (memRow?.name) resolvedName = memRow.name;
+      }
+
+      const meetUpdate = {
+        type: '상담',
+        date,
+        start_time: start_time || null,
+        end_time: end_time || null,
+        sermon_title: null
+      };
+      if (resolvedName) {
+        meetUpdate.title = `${resolvedName} 개인상담`;
+      }
+
       const finalLead = lead_target ? lead_target.trim() : '';
       const finalMethod = counseling_method === '전화' ? '전화' : '대면';
       const finalMemo = `[lead:${finalLead}] [method:${finalMethod}] ${(remark_memo || '').trim()}`;
       meetUpdate.memo = finalMemo;
-      await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
+
+      const { error: meetUpdErr } = await supabase.from('meetings').update(meetUpdate).eq('id', meetingId);
+      if (meetUpdErr) throw meetUpdErr;
+
       if (memberId) {
+        // 기존에 다른 성도 출석 행이 있으면 정리 후 대상 성도 출석/상담내용 보장
+        await supabase.from('attendance').delete().eq('meeting_id', meetingId).neq('member_id', memberId);
         const { data: existing } = await supabase.from('attendance')
           .select('id').eq('meeting_id', meetingId).eq('member_id', memberId).maybeSingle();
         if (existing) {
-          await supabase.from('attendance').update({ testimony_snapshot: fullContent || null }).eq('id', existing.id);
+          await supabase.from('attendance').update({
+            is_present: 1,
+            testimony_snapshot: fullContent || null
+          }).eq('id', existing.id);
+        } else {
+          const { data: memInfo } = await supabase.from('members').select('district, category').eq('id', memberId).maybeSingle();
+          await supabase.from('attendance').insert({
+            meeting_id: meetingId,
+            member_id: memberId,
+            is_present: 1,
+            testimony_snapshot: fullContent || null,
+            district_snapshot: district || memInfo?.district || null,
+            category_snapshot: category || memInfo?.category || null
+          });
         }
       }
     } else if (sessionId.startsWith('r_')) {
@@ -4004,7 +4092,7 @@ app.put('/api/counseling/:sessionId', async (req, res) => {
       await supabase.from('member_records').update({ date, remark: remarkText }).eq('id', recordId);
     }
 
-    res.json({ success: true });
+    res.json({ success: true, member_id: memberId });
   } catch (err) {
     console.error('PUT /api/counseling/:sessionId error:', err);
     res.status(500).json({ error: err.message });
@@ -4646,9 +4734,15 @@ app.get('/api/sermon-stats', async (req, res) => {
             return m.type === '설교' || m.type === '외부설교' || (m.sermon_title && m.sermon_title.trim() !== '');
         });
 
+        // 로컬 옵시디언 설교 스캔 (원고 존재 여부 검증 및 자동 매핑용)
+        const obsidianSermons = scanObsidianSermons();
+        const hasLocalVault = fs.existsSync(OBSIDIAN_SERMON_DIR);
+        const validObsidianUris = new Set(obsidianSermons.map(s => s.obsidianUri));
+
         let bibleBooksCount = {};
         let keywordsCount = {};
         let matchedSermons = [];
+        let obsidianMatchesCount = 0;
 
         meetings.forEach(meeting => {
             const title = (meeting.sermon_title || '').trim();
@@ -4678,6 +4772,40 @@ app.get('/api/sermon-stats', async (req, res) => {
                 cleanMemo = cleanMemo.replace(/\[obsidian:\s*.*?\]/g, '').trim();
             }
 
+            // 로컬 볼트가 있는 환경에서 기존 obsidian_uri가 실제 파일과 맞지 않으면 초기화 후 재탐색
+            if (hasLocalVault && obsidian_uri && !validObsidianUris.has(obsidian_uri)) {
+                obsidian_uri = '';
+            }
+
+            // obsidian_uri가 아직 없거나 재탐색이 필요한 경우 스마트 매칭 시도
+            if (!obsidian_uri && obsidianSermons.length > 0 && (title || meeting.title)) {
+                const candidateMeeting = {
+                    ...meeting,
+                    sermon_bible,
+                    sermon_tags
+                };
+                let bestSermon = null;
+                let bestScore = 0;
+                for (const s of obsidianSermons) {
+                    const { score } = scoreObsidianMatch(s, candidateMeeting);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestSermon = s;
+                    }
+                }
+                if (bestScore >= 45 && bestSermon) {
+                    obsidian_uri = bestSermon.obsidianUri;
+                    if (!sermon_bible && bestSermon.bible) {
+                        sermon_bible = bestSermon.bibleBook || bestSermon.bible;
+                    }
+                    if (!sermon_tags && bestSermon.tags && bestSermon.tags.length > 0) {
+                        sermon_tags = bestSermon.tags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ');
+                    }
+                }
+            }
+
+            if (obsidian_uri) obsidianMatchesCount++;
+
             matchedSermons.push({
                 id: meeting.id,
                 date: meeting.date,
@@ -4697,9 +4825,13 @@ app.get('/api/sermon-stats', async (req, res) => {
                 attendee_count: meeting.attendance && meeting.attendance.length > 0 ? meeting.attendance[0].count : 0
             });
 
-            // Bible Counting
+            // Bible Counting (장절이 포함된 경우에도 표준 성경 권명으로 집계)
             if (sermon_bible) {
-                bibleBooksCount[sermon_bible] = (bibleBooksCount[sermon_bible] || 0) + 1;
+                const parsedRef = parseBibleReference(sermon_bible);
+                const bookKey = parsedRef ? parsedRef.book : sermon_bible.split(/\s+/)[0].trim();
+                if (bookKey) {
+                    bibleBooksCount[bookKey] = (bibleBooksCount[bookKey] || 0) + 1;
+                }
             }
 
             // Keyword Extraction: Only from explicit tags
@@ -4731,7 +4863,7 @@ app.get('/api/sermon-stats', async (req, res) => {
             topKeywords,
             bibleDist,
             totalAnalyzed: meetings.length,
-            obsidianMatches: 0
+            obsidianMatches: obsidianMatchesCount
         });
     } catch (err) {
         console.error('Sermon stats error:', err);
@@ -4748,7 +4880,25 @@ const OBSIDIAN_VAULT_NAME = 'KHG';
 
 // ==========================================
 // 옵시디언(Obsidian) 성경/설교 스마트 매칭 엔진
+// 제목 규칙: [01~66 성경번호] [성경축약어] [장_절 (_는 콜론)] [구분코드: mcs|mssm|mss|ms|nbs] [설교제목] [기타: 날짜/모임/교회]
 // ==========================================
+const BIBLE_BOOK_NUM_MAP = {
+    1: '창세기', 2: '출애굽기', 3: '레위기', 4: '민수기', 5: '신명기',
+    6: '여호수아', 7: '사사기', 8: '룻기', 9: '사무엘상', 10: '사무엘하',
+    11: '열왕기상', 12: '열왕기하', 13: '역대상', 14: '역대하', 15: '에스라',
+    16: '느헤미야', 17: '에스더', 18: '욥기', 19: '시편', 20: '잠언',
+    21: '전도서', 22: '아가', 23: '이사야', 24: '예레미야', 25: '예레미야애가',
+    26: '에스겔', 27: '다니엘', 28: '호세아', 29: '요엘', 30: '아모스',
+    31: '오바댜', 32: '요나', 33: '미가', 34: '나훔', 35: '하박국',
+    36: '스바냐', 37: '학개', 38: '스가랴', 39: '말라기',
+    40: '마태복음', 41: '마가복음', 42: '누가복음', 43: '요한복음', 44: '사도행전',
+    45: '로마서', 46: '고린도전서', 47: '고린도후서', 48: '갈라디아서', 49: '에베소서',
+    50: '빌립보서', 51: '골로새서', 52: '데살로니가전서', 53: '데살로니가후서',
+    54: '디모데전서', 55: '디모데후서', 56: '디도서', 57: '빌레몬서', 58: '히브리서',
+    59: '야고보서', 60: '베드로전서', 61: '베드로후서', 62: '요한1서', 63: '요한2서',
+    64: '요한3서', 65: '유다서', 66: '요한계시록'
+};
+
 const BIBLE_BOOK_MAP = {
     '창': '창세기', '창세': '창세기', '창세기': '창세기',
     '출': '출애굽기', '출애': '출애굽기', '출애굽기': '출애굽기',
@@ -4766,7 +4916,7 @@ const BIBLE_BOOK_MAP = {
     '대하': '역대하', '역대하': '역대하',
     '스': '에스라', '에스라': '에스라',
     '느': '느헤미야', '느헤미야': '느헤미야',
-    '에': '에스더', '에스더': '에스더',
+    '에': '에스더', '더': '에스더', '에스더': '에스더',
     '욥': '욥기', '욥기': '욥기',
     '시': '시편', '시편': '시편',
     '잠': '잠언', '잠언': '잠언',
@@ -4785,7 +4935,7 @@ const BIBLE_BOOK_MAP = {
     '미': '미가', '미가': '미가',
     '나': '나훔', '나훔': '나훔',
     '합': '하박국', '하박국': '하박국',
-    '습': '스바냐', '습': '스바냐', '스바냐': '스바냐',
+    '습': '스바냐', '스바냐': '스바냐',
     '학': '학개', '학개': '학개',
     '슥': '스가랴', '스가랴': '스가랴',
     '말': '말라기', '말라기': '말라기',
@@ -4812,31 +4962,187 @@ const BIBLE_BOOK_MAP = {
     '벧전': '베드로전서', '베드로전서': '베드로전서',
     '벧후': '베드로후서', '베드로후서': '베드로후서',
     '요일': '요한1서', '요한일서': '요한1서', '요한1서': '요한1서',
+    '요이': '요한2서', '요한이서': '요한2서', '요한2서': '요한2서',
+    '요삼': '요한3서', '요한삼서': '요한3서', '요한3서': '요한3서',
+    '유': '유다서', '유다': '유다서', '유다서': '유다서',
     '계': '요한계시록', '계시록': '요한계시록', '요한계시록': '요한계시록'
 };
 
 function parseBibleReference(text) {
     if (!text) return null;
-    const m = text.match(/(?:^|[^\w가-힣])(\d{1,2}\s+)?([가-힣]{1,5})\s*(\d{1,3})(?:[_:장](\d{1,3}(?:[~\-]\d{1,3})?))?/);
-    if (!m) return null;
-    const stdBook = BIBLE_BOOK_MAP[m[2]];
-    if (!stdBook) return null;
+    const str = String(text).trim();
+
+    // 1) "[01~66 번호] [성경축약어] [장_절]" 또는 "[성경축약어]_[장-절]" 형태 파싱
+    const m = str.match(/(?:^|[^\w가-힣])(?:(0?[1-9]|[1-5]\d|6[0-6])[\s_]+)?([가-힣]{1,5})[\s_]*(\d{1,3})(?:[_:\-장]\s*(\d{1,3}(?:[~\-]\d{1,3})?))?/);
+    if (m) {
+        const num = m[1] ? parseInt(m[1], 10) : null;
+        const stdBook = BIBLE_BOOK_MAP[m[2]] || (num ? BIBLE_BOOK_NUM_MAP[num] : null);
+        if (stdBook) {
+            const ch = parseInt(m[3], 10);
+            const vs = m[4] ? m[4].replace(/_/g, ':') : '';
+            return {
+                bookNum: num,
+                book: stdBook,
+                chapter: ch,
+                verse: vs,
+                formatted: `${stdBook} ${ch}${vs ? ':' + vs : '장'}`
+            };
+        }
+    }
+
+    // 2) 장절 없이 성경 이름만 단독으로 적힌 경우 (예: "시편", "출애굽기", "골로새서")
+    for (const [abbr, fullBook] of Object.entries(BIBLE_BOOK_MAP)) {
+        if (str === fullBook || str === abbr || str.startsWith(fullBook + ' ')) {
+            return {
+                bookNum: null,
+                book: fullBook,
+                chapter: null,
+                verse: '',
+                formatted: fullBook
+            };
+        }
+    }
+    return null;
+}
+
+// 옵시디언 파일명 정밀 파서
+// 형식: [성경번호 01~66] [성경축약어] [장_절] [구분코드: mcs|mssm|mss|ms|nbs] [설교제목] [기타: 날짜, 모임명, 교회명]
+function parseObsidianFilename(rawFilename) {
+    const base = String(rawFilename || '').replace(/\.md$/i, '').trim();
+    let rest = base;
+
+    let bookNum = null;
+    let bookName = '';
+    let chapter = null;
+    let verse = '';
+    let bibleFormatted = '';
+    let categoryCode = ''; // mcs(소그룹), mssm(주일말씀), mss(교회학교), ms, nbs
+
+    // 1. 앞부분: [번호] [성경축약어] [장_절 (복수 구절 포함)] 추출
+    const headMatch = rest.match(/^(?:(0?[1-9]|[1-5]\d|6[0-6])[\s_]+)?([가-힣]{1,5})[\s_]+(\d{1,3}(?:[_\-:]\d{1,3}(?:[~\-]\d{1,3})?)?(?:\s*,\s*\d{1,3}(?:[_\-:]\d{1,3}(?:[~\-]\d{1,3})?)?)*)\s*(.*)$/);
+    if (headMatch) {
+        bookNum = headMatch[1] ? parseInt(headMatch[1], 10) : null;
+        const abbr = headMatch[2];
+        bookName = BIBLE_BOOK_MAP[abbr] || (bookNum ? BIBLE_BOOK_NUM_MAP[bookNum] : '');
+        const chVerseRaw = headMatch[3].trim();
+        rest = headMatch[4].trim();
+
+        const firstCv = chVerseRaw.match(/^(\d{1,3})(?:[_\-:](\d{1,3}(?:[~\-]\d{1,3})?))?/);
+        if (firstCv) {
+            chapter = parseInt(firstCv[1], 10);
+            verse = firstCv[2] || '';
+        }
+        const normalizedCv = chVerseRaw.replace(/_/g, ':');
+        if (bookName) {
+            bibleFormatted = `${bookName} ${normalizedCv}`;
+        }
+    } else {
+        const fallbackB = parseBibleReference(base);
+        if (fallbackB) {
+            bookNum = fallbackB.bookNum;
+            bookName = fallbackB.book;
+            chapter = fallbackB.chapter;
+            verse = fallbackB.verse;
+            bibleFormatted = fallbackB.formatted;
+        }
+    }
+
+    // 2. 제목별 구분 코드 추출 (mcs, mssm, mss, ms, nbs)
+    const codeMatch = rest.match(/^(mssm|mcs|mss|nbs|ms)\b\s*(.*)$/i);
+    if (codeMatch) {
+        categoryCode = codeMatch[1].toLowerCase();
+        rest = codeMatch[2].trim();
+    } else {
+        const inlineCode = base.match(/\b(mssm|mcs|mss|nbs|ms)\b/i);
+        if (inlineCode) categoryCode = inlineCode[1].toLowerCase();
+    }
+
+    // 3. 날짜 및 연월 추출 (YYYY.MM.DD / YYMMDD / YYYY.MM)
+    let fullDate = '';
+    let yearMonth = '';
+    const fullDateMatch = rest.match(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/);
+    if (fullDateMatch) {
+        fullDate = `${fullDateMatch[1]}-${fullDateMatch[2].padStart(2, '0')}-${fullDateMatch[3].padStart(2, '0')}`;
+        yearMonth = fullDate.slice(0, 7);
+    } else {
+        const sixDigitMatch = rest.match(/(?:^|\s)(2\d)(\d{2})(\d{2})(?:\s|$)/);
+        if (sixDigitMatch) {
+            const yy = parseInt(sixDigitMatch[1], 10);
+            const mm = parseInt(sixDigitMatch[2], 10);
+            const dd = parseInt(sixDigitMatch[3], 10);
+            if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+                fullDate = `20${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+                yearMonth = fullDate.slice(0, 7);
+            }
+        }
+        if (!yearMonth) {
+            const ymMatch = rest.match(/(202\d)[\.\-_](\d{1,2})(?!\d)/);
+            if (ymMatch) {
+                yearMonth = `${ymMatch[1]}-${ymMatch[2].padStart(2, '0')}`;
+            }
+        }
+    }
+
+    // 4. 파일명 내 교회명 / 구역번호 / 모임 힌트 추출
+    let churchHint = '';
+    const churchMatch = rest.match(/([가-힣]{2,10}교회)/);
+    if (churchMatch) churchHint = churchMatch[1];
+
+    let districtHint = '';
+    const distMatch = rest.match(/\b(5\d{2})\s*(구역모임|조모임|구역|조)?/);
+    if (distMatch) districtHint = distMatch[1];
+
+    let meetingHint = '';
+    const meetHintMatch = rest.match(/(교구전체모임|전체조모임|교구임원모임|임원모임|구역모임|조모임|형제모임|청년모임|주일말씀|주일설교|수요말씀|고믿음\s*공과|공과|미선부|중고등부|청년부|시설부)/);
+    if (meetHintMatch) meetingHint = meetHintMatch[1].replace(/\s+/g, '');
+
+    // 5. 순수 설교 제목(coreTitle) 정제 (뒤쪽 날짜·모임명·교회명 제거)
+    let coreTitle = rest
+        .replace(/(202\d)[\.\-_]\d{1,2}[\.\-_]\d{1,2}/g, ' ')
+        .replace(/(202\d)[\.\-_]\d{1,2}(?!\d)/g, ' ')
+        .replace(/(?:^|\s)2\d{5}(?:\s|$)/g, ' ')
+        .replace(/\b5\d{2}\s*(구역모임|조모임|구역|조)?/g, ' ')
+        .replace(/[가-힣]{2,10}교회\s*(주일말씀|주일설교|수요말씀)?/g, ' ')
+        .replace(/(교구전체모임|전체조모임|교구임원모임|임원모임|구역모임|조모임|형제모임|청년모임|주일말씀|주일설교|수요말씀|고믿음\s*공과|공과)/g, ' ')
+        .replace(/[\.\s]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!coreTitle) coreTitle = rest.trim() || base;
+
     return {
-        book: stdBook,
-        chapter: parseInt(m[3], 10),
-        verse: m[4] ? m[4].replace(/_/g, ':') : '',
-        formatted: `${stdBook} ${m[3]}${m[4] ? ':' + m[4].replace(/_/g, ':') : '장'}`
+        bookNum,
+        bookName,
+        chapter,
+        verse,
+        bibleFormatted,
+        categoryCode,
+        coreTitle,
+        fullDate,
+        yearMonth,
+        churchHint,
+        districtHint,
+        meetingHint
     };
+}
+
+function normalizeTitleForCompare(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/\([^)]*\)/g, ' ') // (중고등부), (미선부 오전) 등 괄호 부제 제거
+        .replace(/[^\w가-힣]/g, '')
+        .toLowerCase();
 }
 
 function extractKeywords(str) {
     if (!str) return [];
     const clean = str
         .replace(/202\d[\.\-_]\d{1,2}[\.\-_]\d{1,2}/g, ' ')
-        .replace(/\b(mssm|mcs|mss|주일설교|외부설교|조모임|구역모임|전체|교회|주일|설교|말씀)\b/gi, ' ')
+        .replace(/202\d[\.\-_]\d{1,2}/g, ' ')
+        .replace(/\b(mssm|mcs|mss|nbs|ms|주일설교|주일말씀|외부설교|조모임|구역모임|교구임원모임|임원모임|전체|교회|주일|설교|말씀|공과|고믿음|미선부|중고등부)\b/gi, ' ')
         .replace(/[0-9_\-\.\:\(\)\[\]#~,]/g, ' ');
     const tokens = clean.split(/\s+/).map(t => t.trim()).filter(t => t.length >= 2);
-    const stopWords = new Set(['대한', '정리', '가지', '의미', '어떻게', '생각', '우리', '오늘', '통해', '하라', '하라']);
+    const stopWords = new Set(['대한', '정리', '가지', '의미', '어떻게', '생각', '우리', '오늘', '통해', '하라']);
     return tokens.filter(t => !stopWords.has(t));
 }
 
@@ -4844,11 +5150,89 @@ function scoreObsidianMatch(sermon, meeting) {
     let score = 0;
     const reasons = [];
 
-    // 1. 성경 본문 일치 (최대 45점)
+    // 모임 메모 내 bible 메타데이터도 추출
+    let meetingBibleStr = meeting.sermon_bible || '';
+    if (!meetingBibleStr && meeting.memo && String(meeting.memo).trim().startsWith('{')) {
+        try {
+            const firstLine = String(meeting.memo).trim().split(/\r?\n|\\n/)[0];
+            if (firstLine.endsWith('}')) {
+                const parsed = JSON.parse(firstLine);
+                if (parsed.bible) meetingBibleStr = parsed.bible;
+            }
+        } catch (e) {}
+    }
+
+    // 0. 성경 본문 충돌 검사 (모임에 성경이 명시되어 있는데 원고 성경과 다르면 매칭 제외)
     const sBible = parseBibleReference(sermon.bible || sermon.filename);
-    const mBible = parseBibleReference((meeting.sermon_bible || '') + ' ' + (meeting.sermon_title || '') + ' ' + (meeting.title || ''));
+    const mBibleFromField = parseBibleReference(meetingBibleStr + ' ' + (meeting.sermon_title || ''));
+    if (sBible && mBibleFromField && sBible.book && mBibleFromField.book && sBible.book !== mBibleFromField.book) {
+        return { score: 0, reasons: ['성경 본문 불일치'] };
+    }
+
+    // 1. 순수 설교 제목(coreTitle) 일치도 (최대 60점)
+    let titleMatchScore = 0;
+    const sCoreNorm = normalizeTitleForCompare(sermon.coreTitle || sermon.title);
+    const mSermonNorm = normalizeTitleForCompare(meeting.sermon_title || '');
+    const sFullNorm = normalizeTitleForCompare(sermon.filename ? sermon.filename.replace(/\.md$/i, '') : '');
+
+    if (mSermonNorm && mSermonNorm.length >= 2) {
+        if (sFullNorm && mSermonNorm.includes(sFullNorm)) {
+            titleMatchScore = 60;
+            score += 60;
+            reasons.push(`원고파일명 직접포함(+60)`);
+        } else if (sCoreNorm && sCoreNorm.length >= 2) {
+            if (sCoreNorm === mSermonNorm) {
+                titleMatchScore = 60;
+                score += 60;
+                reasons.push(`설교제목 완전일치(+60)`);
+            } else if (sCoreNorm.length >= 4 && mSermonNorm.length >= 4 && (sCoreNorm.includes(mSermonNorm) || mSermonNorm.includes(sCoreNorm))) {
+                titleMatchScore = 45;
+                score += 45;
+                reasons.push(`설교제목 핵심포함(+45)`);
+            }
+        }
+    }
+
+    // 2. 설교 제목 키워드 일치 (최대 35점 - 모임의 설교 제목 키워드 기준)
+    const sKeywords = extractKeywords(sermon.coreTitle || sermon.title || sermon.filename);
+    const mSermonKeywords = extractKeywords(meeting.sermon_title || '');
+    if (sKeywords.length > 0 && mSermonKeywords.length > 0) {
+        let matchCount = 0;
+        for (const sk of sKeywords) {
+            if (mSermonKeywords.some(mk => mk === sk || (mk.length >= 2 && sk.length >= 2 && (mk.includes(sk) || sk.includes(mk))))) {
+                matchCount++;
+            }
+        }
+        if (matchCount > 0) {
+            const kwScore = Math.min(35, matchCount * 15);
+            titleMatchScore = Math.max(titleMatchScore, kwScore);
+            if (score < 60) {
+                score += kwScore;
+                reasons.push(`제목 키워드 ${matchCount}개 일치(+${kwScore})`);
+            }
+        }
+    }
+
+    // 모임에 설교 제목이 이미 입력되어 있는데, 원고 제목/키워드와 전혀 일치하지 않는 경우:
+    // 날짜와 성경 본문이 동시에 정확히 일치하는 경우가 아니면 다른 설교이므로 매칭 제외
+    if (mSermonNorm.length >= 2 && titleMatchScore === 0) {
+        const isSameDateAndBible = (sermon.date && meeting.date && sermon.date === meeting.date) &&
+                                   (sBible && mBibleFromField && sBible.book === mBibleFromField.book);
+        if (!isSameDateAndBible) {
+            return { score: 0, reasons: ['설교제목 불일치'] };
+        }
+    }
+    // 모임에 설교 제목이 아예 없는 경우: 날짜가 정확히 일치하지 않으면 자동 매칭하지 않음
+    if (mSermonNorm.length < 2) {
+        if (!sermon.date || !meeting.date || sermon.date !== meeting.date) {
+            return { score: 0, reasons: ['설교제목 미입력 및 날짜 불일치'] };
+        }
+    }
+
+    // 3. 성경 본문(번호/축약어/장_절) 일치 (최대 45점)
+    const mBible = mBibleFromField || parseBibleReference(meeting.title || '');
     if (sBible && mBible && sBible.book === mBible.book) {
-        if (sBible.chapter === mBible.chapter) {
+        if (sBible.chapter && mBible.chapter && sBible.chapter === mBible.chapter) {
             score += 45;
             reasons.push(`성경 ${sBible.book} ${sBible.chapter}장 일치(+45)`);
         } else {
@@ -4857,17 +5241,39 @@ function scoreObsidianMatch(sermon, meeting) {
         }
     }
 
-    // 2. 교회명 일치 (최대 30점)
-    if (sermon.church) {
-        const cleanChurch = sermon.church.replace(/교회$/, '').trim();
+    // 4. 제목별 구분 코드(mcs / mssm / mss / nbs)와 모임 성격 일치 (최대 15점)
+    const code = (sermon.categoryCode || '').toLowerCase();
+    const mType = (meeting.type || '').trim();
+    const mTitleAndSermon = `${meeting.title || ''} ${meeting.sermon_title || ''}`;
+    if (code === 'mcs') {
+        if (/구역모임|조모임|전체조모임|교구전체모임|교구임원모임|형제모임|청년모임/.test(mType)) {
+            score += 12;
+            reasons.push(`소그룹설교(mcs) 구분 일치(+12)`);
+        }
+    } else if (code === 'mssm' || code === 'ms') {
+        if (mType === '외부설교' || (mType === '설교' && /주일|수요/.test(mTitleAndSermon))) {
+            score += 12;
+            reasons.push(`주일/대예배말씀(${code}) 구분 일치(+12)`);
+        }
+    } else if (code === 'mss') {
+        if (mType === '설교' || /중고등부|미선부|청년부|공과|교회학교|고믿음/.test(mTitleAndSermon)) {
+            score += 15;
+            reasons.push(`교회학교말씀(mss) 구분 일치(+15)`);
+        }
+    }
+
+    // 5. 교회명 일치 (최대 30점)
+    const sChurchRaw = sermon.church || sermon.churchHint || '';
+    if (sChurchRaw) {
+        const cleanChurch = sChurchRaw.replace(/교회.*$/, '').trim();
         const mChurch = (meeting.church || '') + ' ' + (meeting.title || '');
-        if (cleanChurch && mChurch.includes(cleanChurch)) {
+        if (cleanChurch && cleanChurch.length >= 2 && mChurch.includes(cleanChurch)) {
             score += 30;
             reasons.push(`교회명(${cleanChurch}) 일치(+30)`);
         }
     }
 
-    // 3. 날짜 일치도 (최대 35점)
+    // 6. 날짜 및 연월 일치도 (최대 35점)
     if (sermon.date && meeting.date) {
         if (sermon.date === meeting.date) {
             score += 35;
@@ -4876,38 +5282,31 @@ function scoreObsidianMatch(sermon, meeting) {
             const diffDays = Math.abs((new Date(sermon.date) - new Date(meeting.date)) / (1000 * 60 * 60 * 24));
             if (diffDays <= 4) {
                 score += 20;
-                reasons.push(`날짜 근접(±${diffDays}일)(+20)`);
+                reasons.push(`날짜 근접(±${Math.round(diffDays)}일)(+20)`);
             } else if (diffDays <= 7) {
-                score += 10;
-                reasons.push(`날짜 근접(±${diffDays}일)(+10)`);
+                score += 12;
+                reasons.push(`날짜 근접(±${Math.round(diffDays)}일)(+12)`);
+            } else if (diffDays <= 20 && code === 'mcs') {
+                score += 8;
+                reasons.push(`동일월 소그룹 순회설교(+8)`);
             }
         }
+    } else if (sermon.yearMonth && meeting.date && meeting.date.startsWith(sermon.yearMonth)) {
+        score += 12;
+        reasons.push(`연월(${sermon.yearMonth}) 일치(+12)`);
     }
 
-    // 4. 설교 제목 키워드 일치 (최대 40점)
-    const sKeywords = extractKeywords(sermon.title || sermon.filename);
-    const mKeywords = extractKeywords((meeting.sermon_title || '') + ' ' + (meeting.title || ''));
-    if (sKeywords.length > 0 && mKeywords.length > 0) {
-        let matchCount = 0;
-        for (const sk of sKeywords) {
-            if (mKeywords.some(mk => mk.includes(sk) || sk.includes(mk))) {
-                matchCount++;
-            }
-        }
-        if (matchCount > 0) {
-            const kwScore = Math.min(40, matchCount * 20);
-            score += kwScore;
-            reasons.push(`제목 키워드 ${matchCount}개 일치(+${kwScore})`);
-        }
+    // 7. 모임 구분 및 구역번호 힌트 일치 (최대 15점)
+    const sTypeText = `${sermon.type || ''} ${sermon.filename || ''} ${sermon.district || ''} ${sermon.meetingHint || ''}`;
+    const mTypeText = `${meeting.type || ''} ${meeting.title || ''} ${meeting.sermon_title || ''}`;
+    if (sermon.districtHint && mTypeText.includes(sermon.districtHint)) {
+        score += 10;
+        reasons.push(`구역/조 번호(${sermon.districtHint}) 일치(+10)`);
     }
-
-    // 5. 모임 구분 (조모임, 구역모임, 청년모임, 외부설교 등) (최대 15점)
-    const sType = (sermon.type || '') + ' ' + (sermon.filename || '');
-    const mType = (meeting.type || '') + ' ' + (meeting.title || '');
-    ['조모임', '구역모임', '청년모임', '외부설교', '주일설교', '임원모임'].forEach(t => {
-        if (sType.includes(t) && mType.includes(t)) {
-            score += 15;
-            reasons.push(`모임구분(${t}) 일치(+15)`);
+    ['조모임', '구역모임', '청년모임', '형제모임', '외부설교', '주일설교', '임원모임', '중고등부', '미선부'].forEach(t => {
+        if (sTypeText.includes(t) && mTypeText.includes(t)) {
+            score += 10;
+            reasons.push(`모임구분(${t}) 일치(+10)`);
         }
     });
 
@@ -4965,30 +5364,33 @@ function scanObsidianSermons() {
             }
 
             const base = path.basename(file, '.md');
+            const fnParsed = parseObsidianFilename(base);
             
-            // 1. 날짜 추출 (프론트매터 -> 파일명 순서)
+            // 1. 날짜 추출 (프론트매터 -> 파일명 정밀 파서 순서)
             let date = meta['날짜'] || '';
             if (typeof date === 'string') {
                 const dm = date.match(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/);
                 if (dm) date = `${dm[1]}-${dm[2].padStart(2, '0')}-${dm[3].padStart(2, '0')}`;
+                else date = '';
             }
-            if (!date) {
-                const m = base.match(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/);
-                if (m) date = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+            if (!date && fnParsed.fullDate) {
+                date = fnParsed.fullDate;
             }
 
             // 2. 본문 및 제목 파싱
             let bible = meta['본문'] || '';
-            const parsedB = parseBibleReference(bible || base);
+            const parsedB = parseBibleReference(bible) || (fnParsed.bookName ? {
+                book: fnParsed.bookName,
+                chapter: fnParsed.chapter,
+                verse: fnParsed.verse,
+                formatted: fnParsed.bibleFormatted || fnParsed.bookName
+            } : parseBibleReference(base));
+
             if (parsedB) {
                 bible = parsedB.formatted;
             }
 
-            let title = base;
-            const titleMatch = base.match(/^(\d+\s+)?([가-힣]+)\s*(\d+[\d_\-~:]*)(\s+[a-z]+)?\s*(.*)$/i);
-            if (titleMatch && titleMatch[5]) {
-                title = titleMatch[5].replace(/\.(202\d)[\.\-_].*$/, '').replace(/\.md$/, '').trim();
-            }
+            const title = fnParsed.coreTitle || base;
 
             // 3. 태그
             let tags = [];
@@ -4999,12 +5401,17 @@ function scanObsidianSermons() {
             // 4. 설교 성격 / 모임 타입
             let type = meta['성격'] || '';
             if (Array.isArray(type)) type = type.join(', ');
+            if (!type && fnParsed.categoryCode) {
+                if (fnParsed.categoryCode === 'mcs') type = fnParsed.meetingHint || '소그룹설교';
+                else if (fnParsed.categoryCode === 'mssm') type = '주일말씀';
+                else if (fnParsed.categoryCode === 'mss') type = '교회학교';
+            }
 
             // 5. 비고 (교회명 등)
-            let church = meta['비고'] || '';
+            let church = meta['비고'] || fnParsed.churchHint || '';
 
             // 6. 구역/조
-            let district = meta['조,구역'] || '';
+            let district = meta['조,구역'] || (fnParsed.districtHint ? `${fnParsed.districtHint}${fnParsed.meetingHint || ''}` : '');
             if (Array.isArray(district)) district = district.join(', ');
 
             // 옵시디언 딥링크 URI
@@ -5012,8 +5419,7 @@ function scanObsidianSermons() {
             const relPath = path.relative(vaultRoot, file).replace(/\\/g, '/');
             const obsidianUri = `obsidian://open?vault=${encodeURIComponent(OBSIDIAN_VAULT_NAME)}&file=${encodeURIComponent(relPath)}`;
 
-            // 목사님이 '비고', '성격', '날짜' 등에 동일 설교를 여러 번 한 이력을 기록해 둔 경우 지원:
-            // 예: "비고: 2026-06-11 582조모임, 2026-08-09 청주오송교회" 또는 날짜 배열
+            // 목사님이 '비고', '성격', '날짜' 등에 동일 설교를 여러 번 한 이력을 기록해 둔 경우 지원
             const extraDates = [];
             const remarksText = String(church || '') + ' ' + String(type || '');
             const allDateMatches = [...remarksText.matchAll(/(202\d)[\.\-_](\d{1,2})[\.\-_](\d{1,2})/g)];
@@ -5022,7 +5428,6 @@ function scanObsidianSermons() {
                 if (!extraDates.includes(parsedD)) extraDates.push(parsedD);
             }
 
-            // 기본 엔트리
             const entryDates = extraDates.length > 0 ? extraDates : [date || null];
 
             for (const d of entryDates) {
@@ -5031,12 +5436,20 @@ function scanObsidianSermons() {
                     filename: path.basename(file),
                     obsidianUri,
                     date: d,
+                    yearMonth: d ? d.slice(0, 7) : fnParsed.yearMonth,
                     title: title || base,
+                    coreTitle: fnParsed.coreTitle || title || base,
+                    bookNum: fnParsed.bookNum,
+                    bibleBook: parsedB ? parsedB.book : fnParsed.bookName,
                     bible: bible || '',
+                    categoryCode: fnParsed.categoryCode || '',
                     tags: tags.map(t => String(t).trim()).filter(Boolean),
                     type: type || '설교',
                     church: church || '',
-                    district: district || ''
+                    churchHint: fnParsed.churchHint || '',
+                    district: district || '',
+                    districtHint: fnParsed.districtHint || '',
+                    meetingHint: fnParsed.meetingHint || ''
                 });
             }
         } catch (err) {
@@ -5067,127 +5480,108 @@ app.post('/api/obsidian/sync', express.json(), async (req, res) => {
     try {
         const sermons = scanObsidianSermons();
         
-        // 전체 모임 목록 조회
-        const { data: allMeetings, error: meetErr } = await supabase
-            .from('meetings')
-            .select('id, title, sermon_title, memo, date, church, type');
-        if (meetErr) throw meetErr;
+        // 전체 모임 목록 조회 (1000건 초과 대비 fetchAllRows 사용)
+        const allMeetings = await fetchAllRows((from, to) =>
+            supabase
+                .from('meetings')
+                .select('id, title, sermon_title, memo, date, church, type')
+                .range(from, to)
+        );
 
         let syncedCount = 0;
         let createdCount = 0;
         let updatedCount = 0;
         const syncLogs = [];
+        const matchedSermonFiles = new Set();
 
-        for (const s of sermons) {
-            // 다중 키값 점수 기반 최적 매칭 검색
-            let bestMeeting = null;
+        const excludedTypes = new Set(['구원기념일', '교회행사', '심방', '상담', '개인상담']);
+        const validObsidianUris = new Set(sermons.map(s => s.obsidianUri));
+
+        // 1단계: 기존 모임들(581/582/583 구역·조모임 등 동일 원고 다회 설교 포함)을 기준으로 최적 옵시디언 원고 매핑
+        for (const m of allMeetings) {
+            if (excludedTypes.has(m.type)) continue;
+
+            // 기존 메모 파싱
+            let cleanMemo = m.memo || '';
+            let existingBible = '';
+            let existingTags = '';
+            let existingObsUri = '';
+
+            if (cleanMemo.startsWith('{')) {
+                const firstLine = cleanMemo.split(/\r?\n|\\n/)[0];
+                try {
+                    if (firstLine.endsWith('}')) {
+                        const meta = JSON.parse(firstLine);
+                        existingBible = meta.bible || '';
+                        existingTags = meta.tags || '';
+                        existingObsUri = meta.obsidian_uri || '';
+                        cleanMemo = cleanMemo.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
+                    }
+                } catch(e) {}
+            }
+            cleanMemo = cleanMemo.replace(/\[obsidian:.*?\]/g, '').trim();
+
+            const mWithMeta = { ...m, sermon_bible: existingBible, sermon_tags: existingTags };
+            let bestSermon = null;
             let highestScore = 0;
             let bestReasons = [];
 
-            for (const m of allMeetings) {
-                const { score, reasons } = scoreObsidianMatch(s, m);
+            for (const s of sermons) {
+                const { score, reasons } = scoreObsidianMatch(s, mWithMeta);
                 if (score > highestScore) {
                     highestScore = score;
-                    bestMeeting = m;
+                    bestSermon = s;
                     bestReasons = reasons;
                 }
             }
 
-            // 매칭 임계치: 40점 이상이면 확실한 매칭으로 인정
-            const existing = (highestScore >= 40) ? bestMeeting : null;
-
-            const sermonTagsStr = s.tags.length > 0 ? s.tags.map(t => `#${t}`).join(' ') : '';
-            
-            if (existing) {
-                // 기존 모임 업데이트
-                let cleanMemo = existing.memo || '';
-                
-                // 기존 memo에서 첫 줄 메타 JSON 및 [obsidian:...] 제거
-                if (cleanMemo.startsWith('{')) {
-                    const firstLine = cleanMemo.split(/\r?\n|\\n/)[0];
-                    try {
-                        if (firstLine.endsWith('}')) {
-                            cleanMemo = cleanMemo.substring(firstLine.length).replace(/^(\r?\n|\\n)+/, '');
-                        }
-                    } catch(e) {}
-                }
-                cleanMemo = cleanMemo.replace(/\[obsidian:.*?\]/g, '').trim();
+            if (highestScore >= 45 && bestSermon) {
+                matchedSermonFiles.add(bestSermon.filename);
+                const sermonTagsStr = existingTags || (bestSermon.tags.length > 0 ? bestSermon.tags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ') : '');
+                const finalBible = existingBible || bestSermon.bibleBook || bestSermon.bible || '';
 
                 const memoMeta = {
-                    bible: s.bible || '',
+                    bible: finalBible,
                     tags: sermonTagsStr,
-                    obsidian_uri: s.obsidianUri,
-                    obsidian_file: s.filename
+                    obsidian_uri: bestSermon.obsidianUri,
+                    obsidian_file: bestSermon.filename
                 };
-                // 메모 앞머리에만 메타 JSON을 저장하고 [obsidian:...] 텍스트는 본문에 삽입하지 않음
                 const updatedMemo = cleanMemo ? `${JSON.stringify(memoMeta)}\n\n${cleanMemo}` : JSON.stringify(memoMeta);
 
                 await supabase
                     .from('meetings')
                     .update({
-                        sermon_title: existing.sermon_title || s.title,
+                        sermon_title: m.sermon_title || bestSermon.coreTitle || bestSermon.title,
                         memo: updatedMemo
                     })
-                    .eq('id', existing.id);
+                    .eq('id', m.id);
 
                 updatedCount++;
                 syncedCount++;
                 syncLogs.push({
-                    file: s.filename,
-                    meetingId: existing.id,
+                    file: bestSermon.filename,
+                    meetingId: m.id,
+                    meetingTitle: m.title,
                     action: 'updated',
                     score: highestScore,
                     reasons: bestReasons
                 });
-            } else if (s.date && /^\d{4}-\d{2}-\d{2}$/.test(s.date)) {
-                // 매칭된 모임이 없고 날짜가 있는 경우 새 모임 생성
-                const memoMeta = {
-                    bible: s.bible || '',
-                    tags: sermonTagsStr,
-                    obsidian_uri: s.obsidianUri,
-                    obsidian_file: s.filename
-                };
-                const finalMemo = JSON.stringify(memoMeta);
-
-                let meetingType = '설교';
-                if (s.type.includes('외부') || s.church) meetingType = '외부설교';
-                else if (s.type.includes('구역')) meetingType = '구역모임';
-                else if (s.type.includes('조')) meetingType = '조모임';
-                else if (s.type.includes('임원')) meetingType = '교구임원모임';
-                else if (s.type.includes('청년')) meetingType = '청년모임';
-                else if (s.type.includes('형제')) meetingType = '형제모임';
-
-                let meetingTitle = s.title;
-                if (s.district) meetingTitle = `${s.district} ${s.title}`;
-                else if (s.type) meetingTitle = `${s.type} - ${s.title}`;
-
-                const { data: newRow } = await supabase
-                    .from('meetings')
-                    .insert({
-                        title: meetingTitle,
-                        date: s.date,
-                        type: meetingType,
-                        sermon_title: s.title,
-                        memo: finalMemo,
-                        church: s.church || null
-                    })
-                    .select('id')
-                    .single();
-
-                createdCount++;
-                syncedCount++;
-                syncLogs.push({
-                    file: s.filename,
-                    meetingId: newRow?.id,
-                    action: 'created',
-                    score: 0,
-                    reasons: ['새 일정 생성']
-                });
+            } else if (existingObsUri) {
+                // 매칭되는 옵시디언 설교 원고가 없는 모임에 남아있던 잘못된 링크를 정리하여 회색 원고 버튼으로 표시되게 함
+                const memoMeta = (existingBible || existingTags)
+                    ? JSON.stringify({ bible: existingBible, tags: existingTags })
+                    : '';
+                const updatedMemo = memoMeta
+                    ? (cleanMemo ? `${memoMeta}\n\n${cleanMemo}` : memoMeta)
+                    : cleanMemo;
+                await supabase.from('meetings').update({ memo: updatedMemo }).eq('id', m.id);
             }
         }
 
         res.json({
             success: true,
+            totalFiles: sermons.length,
+            matchedCount: syncedCount,
             totalScanned: sermons.length,
             syncedCount,
             createdCount,

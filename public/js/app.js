@@ -1674,6 +1674,21 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
             if (defaultAttSec2) defaultAttSec2.classList.add('hidden');
             const memoField2 = document.getElementById('memoField');
             if (memoField2) memoField2.classList.add('hidden');
+
+            // 심방 등에서 개인상담으로 전환 시 이름/내용 자동 보정
+            const nameEl = document.getElementById('modalCounselingName');
+            if (nameEl && !nameEl.value) {
+                const rawTitle = (document.getElementById('meetingTitle')?.value || '').trim();
+                const extractedName = rawTitle.replace(/\s*(개인상담|상담|심방)\s*$/, '').trim();
+                if (extractedName && extractedName !== '심방' && extractedName !== '개인상담' && extractedName !== '상담') {
+                    nameEl.value = extractedName;
+                }
+            }
+            const contentEl = document.getElementById('modalCounselingContent');
+            const memoVal = (document.getElementById('meetingMemo')?.value || '').trim();
+            if (contentEl && !contentEl.value && memoVal) {
+                contentEl.value = memoVal;
+            }
             return;
         } else {
             if (counselingPanel) counselingPanel.classList.add('hidden');

@@ -1673,17 +1673,43 @@ async function refreshAttendanceList() {
         if (defaultAttSec2) defaultAttSec2.classList.add('hidden');
         const memoField2 = document.getElementById('memoField');
         if (memoField2) memoField2.classList.add('hidden');
-        // 기존 상담 수정 시 attendance 데이터 로드
+        // 기존 상담 또는 심방 -> 개인상담 전환 시 데이터 로드/복원
         if (currentMeetingId) {
             try {
                 const aRes = await fetch(`/api/meetings/${currentMeetingId}/attendance`);
                 const att = await aRes.json();
-                if (att.length > 0) {
-                    const person = att[0];
-                    const nameEl = document.getElementById('modalCounselingName');
-                    const memberIdEl = document.getElementById('modalCounselingMemberId');
+                const nameEl = document.getElementById('modalCounselingName');
+                const memberIdEl = document.getElementById('modalCounselingMemberId');
+                let person = att.length > 0 ? att[0] : null;
+
+                // 출석 기록이 없지만 UI의 추가 참석자(extraAttendees)나 제목("OOO 심방")에 이름이 있는 경우 자동 추출
+                if (!person && Array.isArray(extraAttendees) && extraAttendees.length > 0) {
+                    person = extraAttendees[0];
+                }
+                if (!person) {
+                    const rawTitle = (document.getElementById('meetingTitle')?.value || '').trim();
+                    const extractedName = rawTitle.replace(/\s*(개인상담|상담|심방)\s*$/, '').trim();
+                    if (extractedName && extractedName !== '심방' && extractedName !== '개인상담' && extractedName !== '상담') {
+                        person = { name: extractedName };
+                        try {
+                            const mRes = await fetch(`/api/members/search?q=${encodeURIComponent(extractedName)}`);
+                            if (mRes.ok) {
+                                const mList = await mRes.json();
+                                const exact = mList.find(m => m.name === extractedName) || mList[0];
+                                if (exact) {
+                                    person.member_id = exact.id;
+                                    person.category = exact.category;
+                                    person.bs = exact.bs;
+                                    person.member_status = (exact.status === 'evangelism' || exact.category === '전도대상') ? 'evangelism' : 'member';
+                                }
+                            }
+                        } catch (ignore) {}
+                    }
+                }
+
+                if (person) {
                     if (nameEl && !nameEl.value) nameEl.value = person.name || '';
-                    if (memberIdEl && !memberIdEl.value) memberIdEl.value = person.member_id || '';
+                    if (memberIdEl && !memberIdEl.value) memberIdEl.value = person.member_id || person.id || '';
 
                     // 익명 체크박스 복원
                     const isAnon = person.name === '익명';
@@ -1754,8 +1780,13 @@ async function refreshAttendanceList() {
 
                     updateModalPresetTags(val);
 
-                    // testimony_snapshot: "태그들\n내용" 형식으로 저장됨
-                    const snap = person.testimony_snapshot || '';
+                    // testimony_snapshot: "태그들\n내용" 또는 "[설교] ... [상담] ..." 형식으로 저장됨
+                    let snap = (person.testimony_snapshot || '').trim();
+                    if (snap.includes('[상담]')) {
+                        snap = snap.split('[상담]').pop().trim();
+                    } else if (snap.startsWith('[설교]')) {
+                        snap = snap.replace(/^\[설교\]\s*/, '').trim();
+                    }
                     const firstNL = snap.indexOf('\n');
                     let loadedTags = '', loadedContent = '';
                     if (firstNL > -1 && snap.substring(0, firstNL).includes('#')) {
@@ -1764,17 +1795,20 @@ async function refreshAttendanceList() {
                     } else {
                         loadedContent = snap;
                     }
+                    const memoVal = (document.getElementById('meetingMemo')?.value || '').trim();
                     const contentEl = document.getElementById('modalCounselingContent');
-                    if (contentEl && !contentEl.value) contentEl.value = loadedContent;
+                    if (contentEl && !contentEl.value) {
+                        // 심방에서 개인상담으로 변경 시: 간증 스냅샷이 비어있고 메모가 있으면 메모를 상담내용으로 자동 채움
+                        contentEl.value = loadedContent || memoVal || '';
+                    }
                     if (loadedTags) {
                         document.getElementById('modalCounselingTags').value = loadedTags;
                         renderModalCounselTags();
                     }
-                    // 메모 = remark
+                    // 메모 = remark (단, 상담내용으로 이미 복사된 경우는 중복 방지)
                     const remarkEl = document.getElementById('modalCounselingRemark');
-                    if (remarkEl && !remarkEl.value) {
-                        const memoEl = document.getElementById('meetingMemo');
-                        if (memoEl) remarkEl.value = memoEl.value || '';
+                    if (remarkEl && !remarkEl.value && loadedContent && memoVal) {
+                        remarkEl.value = memoVal;
                     }
                 }
             } catch(e) { console.warn('counseling load err', e); }
@@ -1788,6 +1822,20 @@ async function refreshAttendanceList() {
     if (recurrenceSection) recurrenceSection.classList.remove('hidden');
     if (sermonSectionEl) sermonSectionEl.classList.remove('hidden');
     if (extraAttendeesSection) extraAttendeesSection.classList.remove('hidden');
+
+    // 개인상담 -> 심방으로 전환 시 제목 자동 보정 ("OOO 개인상담" -> "OOO 심방")
+    if (currentType === '심방') {
+        const titleInputEl = document.getElementById('meetingTitle');
+        const cNameVal = (document.getElementById('modalCounselingName')?.value || '').trim();
+        if (titleInputEl) {
+            const curTitle = (titleInputEl.value || '').trim();
+            if (!curTitle && cNameVal) {
+                titleInputEl.value = `${cNameVal} 심방`;
+            } else if (/(개인상담|상담)$/.test(curTitle)) {
+                titleInputEl.value = curTitle.replace(/\s*(개인상담|상담)$/, ' 심방').trim();
+            }
+        }
+    }
 
     let targetParams = new URLSearchParams({ status: 'active' });
     
@@ -2220,7 +2268,6 @@ async function handleSaveCounseling() {
 
     if (!finalName) return alert('상담 대상자 이름을 입력하세요.');
     if (!date) return alert('날짜를 입력하세요.');
-    if (!content) return alert('상담 내용을 입력하세요.');
 
     const saveBtn = document.getElementById('saveMeeting');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
@@ -2244,6 +2291,7 @@ async function handleSaveCounseling() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    name: finalName,
                     date,
                     start_time: startTime || null,
                     end_time: endTime || null,
@@ -2289,10 +2337,15 @@ async function handleSaveCounseling() {
             if (!res.ok) throw new Error('저장 실패');
         }
 
-        // 저장 후 모달 닫기 및 캘린더 새로고침
+        // 저장 후 모달 및 상세 패널 닫기, 캘린더 새로고침
         document.getElementById('meetingModal').classList.add('hidden');
+        const panelsCont = document.getElementById('meetingPanelsContainer');
+        if (panelsCont) panelsCont.classList.add('hidden');
+        const detailPanelEl = document.getElementById('meetingDetailPanel');
+        if (detailPanelEl) detailPanelEl.classList.add('hidden');
         if (typeof editorSaveCallback === 'function') editorSaveCallback();
         if (typeof window.refetchEvents === 'function') window.refetchEvents();
+        if (typeof calendar !== 'undefined' && calendar && typeof calendar.refetchEvents === 'function') calendar.refetchEvents();
     } catch(err) {
         console.error('counseling save error', err);
         alert('상담 저장 중 오류가 발생했습니다.');
@@ -2916,10 +2969,6 @@ async function openMeetingModal(id, date, title = '', type = '', sermon = '', me
     if (!modalObsidianUri && currentMeetingData && currentMeetingData.obsidian_uri) {
         modalObsidianUri = currentMeetingData.obsidian_uri;
     }
-    if (!modalObsidianUri && parsedSermonTitle) {
-        const cleanName = parsedSermonTitle.replace(/\.md$/, '').trim();
-        modalObsidianUri = `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
-    }
 
     document.getElementById('meetingSermon').value = parsedSermonTitle;
     document.getElementById('meetingMemo').value = cleanMemoForModal;
@@ -3065,13 +3114,6 @@ function getObsidianUriShared(sermon = '', memo = '', explicitUri = '') {
         }
         const m = memo.match(/\[obsidian:\s*(.*?)\]/);
         if (m) return m[1].trim();
-    }
-    if (sermon && typeof sermon === 'string' && sermon.trim()) {
-        const cleanName = sermon.replace(/\.md$/, '').trim();
-        // 단순 괄호 구분태그만 있는 경우(예: "(미선부 오전)")는 원고 파일명이 아니므로 제외
-        if (!/^\([^)]+\)$/.test(cleanName)) {
-            return `obsidian://open?vault=KHG&file=${encodeURIComponent(cleanName)}`;
-        }
     }
     return '';
 }
@@ -3280,7 +3322,11 @@ window.renderUnifiedMeetingDetailHTML = function({
                     <a href="${finalObsidianUri}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800/80 text-xs font-black transition-all shadow-sm" title="내 PC의 옵시디언 앱에서 설교 원고 열기">
                         <span class="text-xs">🟣</span> 옵시디언 원고 열기
                     </a>
-                    ` : ''}
+                    ` : `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700/60 text-xs font-bold cursor-not-allowed select-none" title="연결된 옵시디언 설교 원고가 없습니다">
+                        <span class="text-xs opacity-60">⚪</span> 옵시디언 원고 없음
+                    </span>
+                    `}
                 </div>
                 <p class="font-bold text-lg dark:text-slate-100">${sermon}</p>
             </div>

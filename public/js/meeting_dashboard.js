@@ -198,6 +198,19 @@ function updateWordCloud() {
 // [2026-09-28] 성경 본문 분포 차트를 "설교 키워드 클라우드"의 모임 구분 필터(칩)와 연동한다.
 // updateWordCloud()와 동일한 기준(selectedMeetingTypes)으로 currentSermons를 걸러
 // 각 설교의 sermon_bible(본문)을 다시 집계 — 본문을 안 쓴 설교는 자연히 집계에서 빠진다.
+function extractBibleBookOnly(rawBible) {
+    if (!rawBible || typeof rawBible !== 'string') return '';
+    const cleaned = rawBible.trim();
+    if (!cleaned) return '';
+    const allBooks = [...OLD_TESTAMENT_BOOKS, ...NEW_TESTAMENT_BOOKS];
+    for (const b of allBooks) {
+        if (cleaned === b || cleaned.startsWith(b + ' ') || cleaned.startsWith(b + ':') || cleaned.startsWith(b)) {
+            return b;
+        }
+    }
+    return cleaned.split(/\s+/)[0];
+}
+
 function updateBibleChart() {
     const filteredSermons = selectedMeetingTypes.size === 0
         ? currentSermons
@@ -205,7 +218,7 @@ function updateBibleChart() {
 
     const bibleBooksCount = {};
     filteredSermons.forEach(s => {
-        const book = (s.sermon_bible || '').trim();
+        const book = extractBibleBookOnly(s.sermon_bible);
         if (book) bibleBooksCount[book] = (bibleBooksCount[book] || 0) + 1;
     });
 
@@ -335,7 +348,7 @@ function renderSermonTable(sermons = currentSermons) {
 
         const attendeeText = s.attendee_count ? `${s.attendee_count}명` : '-';
         const attendeeClass = s.attendee_count ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 font-medium';
-        const obsidianLink = s.obsidian_uri || (typeof getObsidianUri === 'function' ? getObsidianUri(s.sermon_title, s.memo) : '');
+        const obsidianLink = s.obsidian_uri || (typeof getObsidianUri === 'function' ? getObsidianUri(s.sermon_title, s.memo, s.obsidian_uri) : '');
         const hasSermon = !!(s.sermon_title && s.sermon_title.trim());
 
         tr.onclick = () => {
@@ -355,7 +368,11 @@ function renderSermonTable(sermons = currentSermons) {
                         <a href="${obsidianLink}" target="_blank" class="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:hover:bg-purple-900/80 dark:text-purple-300 font-bold text-[11px] border border-purple-200/80 dark:border-purple-800/60 transition shadow-sm" title="옵시디언에서 설교 원고 열기">
                             🟣 원고
                         </a>
-                    ` : ''}
+                    ` : `
+                        <span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-400 dark:bg-slate-800/60 dark:text-slate-500 font-bold text-[11px] border border-slate-200/80 dark:border-slate-700/60 cursor-not-allowed select-none" title="연결된 옵시디언 설교 원고가 없습니다">
+                            ⚪ 원고
+                        </span>
+                    `}
                     ${hasSermon ? `
                         <button type="button" class="open-ai-sermon-btn px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer" data-id="${s.id}">
                             ✨ AI 분석
@@ -1617,7 +1634,7 @@ function renderBibleCharts(bibleDist) {
                     if (elements.length > 0) {
                         const index = elements[0].index;
                         const clickedBook = labels[index];
-                        const related = currentSermons.filter(s => s.sermon_bible === clickedBook);
+                        const related = currentSermons.filter(s => extractBibleBookOnly(s.sermon_bible) === clickedBook);
                         openBibleModal(clickedBook, related);
                     }
                 }
