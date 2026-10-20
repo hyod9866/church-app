@@ -3192,15 +3192,29 @@ app.delete('/api/members/:id', async (req, res) => {
 });
 
 app.patch('/api/members/:id', async (req, res) => {
-  const { visitation_note } = req.body;
+  const allowed = [
+    'testimony', 'visitation_note', 'phone', 'address', 'category', 'district',
+    'status', 'member_status', 'salvation_date', 'position', 'church_service',
+    'marital_status', 'family_relation'
+  ];
+  const updatePayload = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      updatePayload[key] = req.body[key];
+    }
+  }
+  if (Object.keys(updatePayload).length === 0) {
+    return res.status(400).json({ error: '수정할 데이터가 없습니다.' });
+  }
   try {
     const { error } = await supabase
       .from('members')
-      .update({ visitation_note })
+      .update(updatePayload)
       .eq('id', req.params.id);
     if (error) throw error;
     res.json({ status: 'success' });
   } catch (err) {
+    console.error('PATCH /api/members/:id error:', err);
     res.status(500).json({ error: err.message });
   }
 });

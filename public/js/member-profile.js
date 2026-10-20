@@ -53,10 +53,15 @@ window.calculateAge = calculateAge;
 window.sortFamilyRelations = sortFamilyRelations;
 window.getDC = getDC;
 
+let currentProfileMember = null;
+
 // ---- 프로필 헤더 카드 렌더링 ---------------------------------------
 // member, family: /api/members/:id/history 응답의 member/family
 // calculatedPosArray: 현재 직분 배열, finalCalculatedSvc: 봉사 내역 문자열
 window.renderMemberProfileHeader = function(member, family, calculatedPosArray, finalCalculatedSvc) {
+    currentProfileMember = member;
+    window.currentProfileMember = member;
+    try { window.currentMemberData = member; } catch(e) {}
     calculatedPosArray = calculatedPosArray || [];
 
     const fEnt = sortFamilyRelations((member.family_relation || '').split(',').map(s => s.trim()).filter(s => s));
@@ -177,35 +182,48 @@ window.toggleTestimonyEdit = function(isEdit) {
         viewMode.classList.remove('hidden');
         editMode.classList.add('hidden');
         editBtn.classList.remove('hidden');
-        document.getElementById('testimonyTextarea').value = currentMemberData.testimony || '';
+        const currentVal = currentProfileMember?.testimony ?? (typeof currentMemberData !== 'undefined' && currentMemberData ? currentMemberData.testimony : '');
+        document.getElementById('testimonyTextarea').value = currentVal || '';
     }
 };
 
 window.saveTestimonyDirect = async function(id) {
+    const saveBtn = document.querySelector('#testimonyEditMode button[onclick*="saveTestimonyDirect"]');
+    const origText = saveBtn ? saveBtn.textContent : '저장';
     try {
-        const text = document.getElementById('testimonyTextarea').value;
-        const updatedData = { ...currentMemberData, testimony: text };
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
+        const text = (document.getElementById('testimonyTextarea')?.value || '').trim();
 
+        // PATCH /api/members/:id 로 testimony 필드 부분 업데이트
         const response = await fetch(`/api/members/${id}`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
+            body: JSON.stringify({ testimony: text })
         });
 
         if (response.ok) {
-            currentMemberData = updatedData;
+            if (currentProfileMember) currentProfileMember.testimony = text;
+            try {
+                if (typeof currentMemberData !== 'undefined' && currentMemberData) currentMemberData.testimony = text;
+                if (window.currentMemberData) window.currentMemberData.testimony = text;
+            } catch(e) {}
+
             document.getElementById('testimonyViewMode').textContent = text || '내용 없음';
             window.toggleTestimonyEdit(false);
+
             // 페이지마다 목록 새로고침 함수 이름이 다르므로 있는 것만 호출
             if (typeof window.loadMemberList === 'function') window.loadMemberList();
             else if (typeof window.loadData === 'function') window.loadData();
             else if (typeof window.loadStatus === 'function') window.loadStatus();
         } else {
-            alert('저장에 실패했습니다.');
+            const errData = await response.json().catch(() => ({}));
+            alert('저장에 실패했습니다: ' + (errData.error || response.statusText));
         }
     } catch (e) {
-        console.error(e);
-        alert('에러가 발생했습니다.');
+        console.error('saveTestimonyDirect error:', e);
+        alert('에러가 발생했습니다: ' + (e.message || ''));
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origText; }
     }
 };
 
