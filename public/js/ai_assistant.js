@@ -100,15 +100,16 @@
                 </div>
 
                 <!-- Input Area Footer -->
-                <div class="p-3 bg-white dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                <div class="p-3 bg-white dark:bg-[#131B2E] border-t border-slate-100 dark:border-slate-800 flex items-end gap-2">
                     <button id="aiAssistantMicBtn" type="button" title="음성으로 말하기"
-                        class="p-2.5 rounded-2xl bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-600 dark:bg-slate-800 dark:hover:bg-purple-950/40 dark:text-slate-300 dark:hover:text-purple-300 transition-all cursor-pointer focus:outline-none">
+                        class="p-2.5 rounded-2xl bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-600 dark:bg-slate-800 dark:hover:bg-purple-950/40 dark:text-slate-300 dark:hover:text-purple-300 transition-all cursor-pointer focus:outline-none shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                     </button>
-                    <input type="text" id="aiAssistantInput" placeholder="일정 등록, 결석자 조회, 질문 입력..."
-                        class="flex-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl px-3.5 py-2.5 text-xs md:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition">
+                    <textarea id="aiAssistantInput" rows="1" placeholder="일정 등록(여러 건 가능), 결석자 조회, 질문 입력..."
+                        style="max-height: 110px;"
+                        class="flex-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl px-3.5 py-2.5 text-xs md:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition resize-none overflow-y-auto leading-snug"></textarea>
                     <button id="aiAssistantSendBtn" type="button" title="전송"
-                        class="p-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white shadow-md active:scale-95 transition-all cursor-pointer focus:outline-none">
+                        class="p-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white shadow-md active:scale-95 transition-all cursor-pointer focus:outline-none shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                     </button>
                 </div>
@@ -134,8 +135,28 @@
 
         let isModalOpen = false;
         let isRecording = false;
+        let isSending = false;
         let recognition = null;
         let chatHistory = [];
+
+        const resizeInput = () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+        };
+
+        const getKstTodayStr = () => {
+            try {
+                return new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Asia/Seoul',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).format(new Date());
+            } catch (e) {
+                const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+                return kst.toISOString().split('T')[0];
+            }
+        };
 
         // 모달 열기/닫기 토글
         const toggleModal = () => {
@@ -157,6 +178,7 @@
         // 추천 칩 클릭 이벤트
         containerClickHandler(messages, (promptText) => {
             input.value = promptText;
+            resizeInput();
             sendMessage();
         });
 
@@ -170,9 +192,14 @@
 
         // 텍스트 전송
         const sendMessage = async () => {
+            if (isSending) return;
             const text = input.value.trim();
             if (!text) return;
             input.value = '';
+            resizeInput();
+            isSending = true;
+            sendBtn.disabled = true;
+            sendBtn.classList.add('opacity-50');
 
             // 사용자 메시지 렌더링
             appendUserMessage(text);
@@ -184,7 +211,7 @@
 
             try {
                 const savedKey = localStorage.getItem('GEMINI_API_KEY') || '';
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = getKstTodayStr();
 
                 const res = await fetch('/api/ai/assistant', {
                     method: 'POST',
@@ -194,7 +221,7 @@
                     },
                     body: JSON.stringify({
                         message: text,
-                        history: chatHistory.slice(-8),
+                        history: chatHistory.slice(-10),
                         clientDate: todayStr
                     })
                 });
@@ -213,24 +240,39 @@
                 // AI 메시지 렌더링
                 appendBotMessage(data.reply, data.action, data.resultMeta);
                 chatHistory.push({ role: 'user', text });
-                chatHistory.push({ role: 'model', text: data.reply });
+                const execNote = (Array.isArray(data.executionLogs) && data.executionLogs.length > 0)
+                    ? `\n[시스템 실행 요약: ${data.executionLogs.join(' | ')}]`
+                    : '';
+                chatHistory.push({ role: 'model', text: `${data.reply}${execNote}` });
 
-                // 만약 일정이 등록되거나 설교가 수정되었다면 FullCalendar 새로고침
-                if ((data.action === 'CREATE_MEETING' || data.action === 'UPDATE_SERMON') && typeof calendar !== 'undefined' && calendar.refetchEvents) {
+                // 일정이 등록·수정·삭제되었다면 FullCalendar 새로고침
+                const meta = data.resultMeta || {};
+                const hasCalendarChanges = (meta.createdMeetings && meta.createdMeetings.length > 0)
+                    || !!meta.createdMeeting
+                    || (meta.updatedMeetings && meta.updatedMeetings.length > 0)
+                    || !!meta.updatedMeeting
+                    || (meta.deletedMeetings && meta.deletedMeetings.length > 0);
+                if (hasCalendarChanges && typeof calendar !== 'undefined' && calendar.refetchEvents) {
                     calendar.refetchEvents();
                 }
 
             } catch (err) {
                 removeLoadingMessage(loadingId);
                 appendBotMessage(`⚠️ 오류가 발생했습니다: ${err.message}`);
+            } finally {
+                isSending = false;
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('opacity-50');
             }
 
             scrollToBottom();
         };
 
         sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('input', resizeInput);
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
@@ -261,6 +303,7 @@
                     }
                 }
                 input.value = finalTranscript || interimTranscript;
+                resizeInput();
             };
 
             recognition.onerror = (event) => {
@@ -342,41 +385,73 @@
             const div = document.createElement('div');
             div.className = 'flex gap-2.5 items-start';
 
-            // 마크다운 줄바꿈 및 볼드 간단 파싱
+            // 마크다운 줄바꿈·볼드·인라인코드 간단 파싱
             let formattedReply = escapeHtml(replyText)
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[11px] font-mono">$1</code>')
                 .replace(/\n/g, '<br>');
 
-            let actionCardHtml = '';
+            const cardChunks = [];
+            const createdList = Array.isArray(meta?.createdMeetings) && meta.createdMeetings.length > 0
+                ? meta.createdMeetings
+                : (meta?.createdMeeting ? [meta.createdMeeting] : []);
+            const skippedList = Array.isArray(meta?.skippedMeetings) ? meta.skippedMeetings : [];
 
-            // 1. 일정 등록 완료 카드
-            if (action === 'CREATE_MEETING' && meta?.createdMeeting) {
-                const m = meta.createdMeeting;
-                actionCardHtml = `
+            // 1. 일정 등록 완료 카드 (단건 & 다건 일괄 지원)
+            if (createdList.length > 0 || skippedList.length > 0) {
+                cardChunks.push(`
                     <div class="mt-2.5 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-200">
-                        <div class="font-black text-sm flex items-center gap-1.5 mb-1 text-emerald-700 dark:text-emerald-300">
-                            <span>✅</span> 달력 일정 등록 완료
+                        <div class="font-black text-sm flex items-center gap-1.5 mb-1.5 text-emerald-700 dark:text-emerald-300">
+                            <span>✅</span> 달력 일정 등록 완료 (${createdList.length}건)
                         </div>
-                        <p class="font-bold text-slate-700 dark:text-slate-200">${m.title}</p>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">${m.date} ${m.start_time ? m.start_time : ''} ~ ${m.end_time ? m.end_time : ''}</p>
-                        <div class="mt-2">
+                        ${createdList.length > 0 ? `
+                            <div class="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                                ${createdList.map(m => `
+                                    <div class="p-2 bg-white/90 dark:bg-slate-800/80 rounded-lg border border-emerald-100 dark:border-emerald-900/40">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(m.title)}</span>
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold shrink-0">${escapeHtml(m.type || '')}</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(m.date)}${m.start_time ? ' ' + escapeHtml(m.start_time) : ''}${m.end_time ? ' ~ ' + escapeHtml(m.end_time) : ''}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-[11px] text-slate-500 dark:text-slate-400">신규 등록된 일정이 없습니다.</p>'}
+                        ${skippedList.length > 0 ? `
+                            <div class="mt-2 p-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-800 dark:text-amber-200">
+                                <p class="font-bold mb-1">⏭️ 중복으로 건너뛴 일정 (${skippedList.length}건)</p>
+                                <ul class="list-disc pl-4 space-y-0.5">
+                                    ${skippedList.map(s => `<li>${escapeHtml(s.date)} ${escapeHtml(s.title)} (${escapeHtml(s.reason || '중복')})</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        <div class="mt-2.5">
                             <a href="/" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shadow-sm">
                                 달력에서 확인하기 →
                             </a>
                         </div>
                     </div>
-                `;
+                `);
             }
-            // 1-2. 설교 제목 등록/수정 완료 카드
-            else if (action === 'UPDATE_SERMON' && meta?.updatedMeeting) {
-                const u = meta.updatedMeeting;
-                actionCardHtml = `
+
+            // 1-2. 모임/설교 수정 완료 카드 (단건 & 다건 지원)
+            const updatedList = Array.isArray(meta?.updatedMeetings) && meta.updatedMeetings.length > 0
+                ? meta.updatedMeetings
+                : (meta?.updatedMeeting ? [meta.updatedMeeting] : []);
+            if (updatedList.length > 0) {
+                cardChunks.push(`
                     <div class="mt-2.5 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/60 text-xs text-purple-900 dark:text-purple-200">
-                        <div class="font-black text-sm flex items-center gap-1.5 mb-1 text-purple-700 dark:text-purple-300">
-                            <span>🟣</span> 설교 제목 등록/수정 완료
+                        <div class="font-black text-sm flex items-center gap-1.5 mb-1.5 text-purple-700 dark:text-purple-300">
+                            <span>🟣</span> 일정·설교 수정 완료 (${updatedList.length}건)
                         </div>
-                        <p class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(u.title)} <span class="text-[11px] text-slate-500 font-normal">(${u.date})</span></p>
-                        <p class="text-xs font-black text-purple-600 dark:text-purple-400 mt-1">📖 설교: ${escapeHtml(u.sermon_title)}</p>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            ${updatedList.map(u => `
+                                <div class="p-2 bg-white/90 dark:bg-slate-800/80 rounded-lg border border-purple-100 dark:border-purple-900/40">
+                                    <p class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(u.title)} <span class="text-[11px] text-slate-500 font-normal">(${escapeHtml(u.date)})</span></p>
+                                    ${u.sermon_title ? `<p class="text-xs font-black text-purple-600 dark:text-purple-400 mt-0.5">📖 설교: ${escapeHtml(u.sermon_title)}</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
                         <div class="mt-2 flex gap-2">
                             <a href="/" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] transition shadow-sm">
                                 달력에서 확인하기 →
@@ -386,12 +461,26 @@
                             </a>
                         </div>
                     </div>
-                `;
+                `);
+            }
+
+            // 1-3. 모임 삭제 완료 카드
+            if (Array.isArray(meta?.deletedMeetings) && meta.deletedMeetings.length > 0) {
+                cardChunks.push(`
+                    <div class="mt-2.5 p-3 bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-800/60 text-xs text-rose-800 dark:text-rose-200">
+                        <div class="font-black text-xs flex items-center gap-1.5 mb-1.5 text-rose-700 dark:text-rose-300">
+                            <span>🗑️</span> 일정 삭제 완료 (${meta.deletedMeetings.length}건)
+                        </div>
+                        <ul class="list-disc pl-4 space-y-0.5 text-[11px]">
+                            ${meta.deletedMeetings.map(d => `<li>${escapeHtml(d.date || '')} ${escapeHtml(d.title || `ID ${d.id}`)}</li>`).join('')}
+                        </ul>
+                    </div>
+                `);
             }
 
             // 2. 결석 성도 명단 카드
-            else if (action === 'CHECK_ABSENTEES' && meta?.absentees && meta.absentees.length > 0) {
-                actionCardHtml = `
+            if (meta?.absentees && meta.absentees.length > 0) {
+                cardChunks.push(`
                     <div class="mt-2.5 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/60 text-xs">
                         <div class="font-black text-xs text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
                             <span>⚠️</span> 최근 결석 및 관심 필요 성도 (${meta.absentees.length}명)
@@ -400,11 +489,11 @@
                             ${meta.absentees.map(mem => `
                                 <div class="p-2 bg-white dark:bg-slate-800/80 rounded-lg border border-amber-100 dark:border-amber-900/40 flex justify-between items-center">
                                     <div>
-                                        <span class="font-bold text-slate-800 dark:text-slate-100">${mem.name}</span>
-                                        <span class="text-[10px] text-slate-400 ml-1">(${mem.district})</span>
+                                        <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(mem.name)}</span>
+                                        <span class="text-[10px] text-slate-400 ml-1">(${escapeHtml(mem.district)})</span>
                                     </div>
                                     <span class="text-[11px] font-bold text-rose-500">
-                                        최근 ${meta.meetingCount}회 중 ${mem.presentCount}회 출석
+                                        최근 ${escapeHtml(String(mem.checkedCount || meta.meetingCount))}회 중 ${escapeHtml(String(mem.presentCount))}회 출석
                                     </span>
                                 </div>
                             `).join('')}
@@ -415,21 +504,21 @@
                             </a>
                         </div>
                     </div>
-                `;
+                `);
             }
 
             // 3. 출석 통계 카드
-            else if (action === 'GET_STATS' && meta?.statsSummary && meta.statsSummary.length > 0) {
-                actionCardHtml = `
+            if (meta?.statsSummary && meta.statsSummary.length > 0) {
+                cardChunks.push(`
                     <div class="mt-2.5 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800/60 text-xs">
                         <div class="font-black text-xs text-blue-800 dark:text-blue-300 mb-2">
-                            📊 최근 5개 모임 출석 요약
+                            📊 최근 ${meta.statsSummary.length}개 모임 출석 요약
                         </div>
-                        <div class="space-y-1.5">
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                             ${meta.statsSummary.map(s => `
                                 <div class="p-2 bg-white dark:bg-slate-800/80 rounded-lg flex justify-between items-center text-[11px]">
-                                    <span class="font-bold text-slate-700 dark:text-slate-300 truncate max-w-[180px]">${s.date} ${s.title}</span>
-                                    <span class="font-black text-blue-600 dark:text-blue-400">${s.attendees}명 참석</span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-300 truncate max-w-[180px]">${escapeHtml(s.date)} ${escapeHtml(s.title)}</span>
+                                    <span class="font-black text-blue-600 dark:text-blue-400">${escapeHtml(String(s.attendees))}명 참석</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -439,30 +528,32 @@
                             </a>
                         </div>
                     </div>
-                `;
+                `);
             }
 
             // 4. 검색 결과 카드
-            else if (action === 'SEARCH_RECORDS' && meta?.searchResults && meta.searchResults.length > 0) {
-                actionCardHtml = `
+            if (meta?.searchResults && meta.searchResults.length > 0) {
+                cardChunks.push(`
                     <div class="mt-2.5 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/60 text-xs">
                         <div class="font-black text-xs text-purple-800 dark:text-purple-300 mb-2">
                             🔍 검색된 사역/설교 기록 (${meta.searchResults.length}건)
                         </div>
-                        <div class="space-y-1.5">
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                             ${meta.searchResults.map(r => `
                                 <div class="p-2 bg-white dark:bg-slate-800/80 rounded-lg border border-purple-100 dark:border-purple-900/30">
                                     <div class="flex justify-between items-center text-[10px] text-slate-400">
-                                        <span>${r.date}</span>
-                                        <span class="font-semibold text-purple-600 dark:text-purple-400">${r.type || '모임'}</span>
+                                        <span>${escapeHtml(r.date)}</span>
+                                        <span class="font-semibold text-purple-600 dark:text-purple-400">${escapeHtml(r.type || '모임')}</span>
                                     </div>
-                                    <p class="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">${r.sermon_title || r.title}</p>
+                                    <p class="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">${escapeHtml(r.sermon_title || r.title)}</p>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
-                `;
+                `);
             }
+
+            const actionCardHtml = cardChunks.join('');
 
             div.innerHTML = `
                 <div class="w-7 h-7 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">

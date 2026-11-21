@@ -3668,7 +3668,7 @@ app.get('/api/counseling', async (req, res) => {
 
 // 메모리 내 설정 캐시 (DB 생성 전 혹은 에러 발생 시 Fallback)
 const inMemorySettings = {
-  counseling_member_tags: ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'],
+  counseling_member_tags: ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼','신앙생활'],
   counseling_evangelism_tags: ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원']
 };
 
@@ -3677,22 +3677,39 @@ app.get('/api/settings/:key', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const { key } = req.params;
   try {
+    // 1. settings 테이블이 존재하는 경우 조회
     const { data, error } = await supabase
       .from('settings')
       .select('value')
       .eq('key', key)
       .maybeSingle();
 
-    if (error) {
-      console.warn(`[SETTINGS API] DB lookup failed for ${key}, fallback to memory:`, error.message);
-      return res.json({ value: inMemorySettings[key] || null });
-    }
-
-    if (data && data.value !== undefined && data.value !== null) {
+    if (!error && data && data.value !== undefined && data.value !== null) {
+      inMemorySettings[key] = data.value;
       return res.json({ value: data.value });
     }
 
-    // DB에 없으면 인메모리 기본값
+    // 2. settings 테이블이 없거나(PGRST205) 레코드가 없는 경우 member_records 시스템 레코드 조회
+    const settingStatus = 'SETTING_' + key;
+    const { data: recData, error: recErr } = await supabase
+      .from('member_records')
+      .select('remark')
+      .eq('status', settingStatus)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!recErr && recData?.remark) {
+      try {
+        const parsed = JSON.parse(recData.remark);
+        inMemorySettings[key] = parsed;
+        return res.json({ value: parsed });
+      } catch (parseErr) {
+        return res.json({ value: recData.remark });
+      }
+    }
+
+    // 3. DB에 없으면 인메모리 기본값
     return res.json({ value: inMemorySettings[key] || null });
   } catch (err) {
     console.error(`[SETTINGS API] Error GET /api/settings/${key}:`, err);
@@ -3709,25 +3726,54 @@ app.put('/api/settings/:key', express.json(), async (req, res) => {
     return res.status(400).json({ error: 'value field is required' });
   }
 
-  // 인메모리 캐시 갱신
+  // 1. 인메모리 캐시 갱신
   inMemorySettings[key] = value;
 
+  // 2. member_records에 영구 저장 (settings 테이블 미존재 시에도 Supabase에 영구 보존)
+  const settingStatus = 'SETTING_' + key;
+  const serialized = JSON.stringify(value);
+  let recSaved = false;
+
   try {
-    const { error } = await supabase
+    const { data: existing } = await supabase
+      .from('member_records')
+      .select('id')
+      .eq('status', settingStatus)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { error: updErr } = await supabase
+        .from('member_records')
+        .update({ remark: serialized })
+        .eq('id', existing.id);
+      if (!updErr) recSaved = true;
+    } else {
+      const { error: insErr } = await supabase
+        .from('member_records')
+        .insert({
+          member_id: 289,
+          date: '2026-01-01',
+          status: settingStatus,
+          remark: serialized
+        });
+      if (!insErr) recSaved = true;
+    }
+  } catch (recErr) {
+    console.warn(`[SETTINGS API] member_records save failed for ${key}:`, recErr.message);
+  }
+
+  // 3. settings 테이블에도 upsert 시도 (향후 테이블 생성 시 호환)
+  try {
+    await supabase
       .from('settings')
       .upsert({ key, value, updated_at: new Date().toISOString() });
-
-    if (error) {
-      console.warn(`[SETTINGS API] DB upsert failed for ${key}:`, error.message);
-      // DB 에러가 있더라도 메모리에는 저장했으므로 성공 응답(경고 포함) 반환
-      return res.json({ success: true, warning: 'DB 저장 실패, 세션 메모리에 저장됨', value });
-    }
-
-    return res.json({ success: true, value });
   } catch (err) {
-    console.error(`[SETTINGS API] Error PUT /api/settings/${key}:`, err);
-    return res.json({ success: true, warning: err.message, value });
+    // 무시 (member_records에 이미 보존됨)
   }
+
+  return res.json({ success: true, recSaved, value });
 });
 
 // GET /api/counseling/:memberId — 특정 성도의 상담 이력 전체 (날짜 역순)
@@ -5814,11 +5860,750 @@ ${cleanText}
 });
 
 // ==========================================
-// Google Gemini AI 상시 사역 비서 (스마트 어시스턴트) API
+// Google Gemini AI 상시 사역 비서 (스마트 어시스턴트) API (v2 - Function Calling & 다건 일괄 처리)
 // ==========================================
+let cachedAssistantGeminiModel = null;
+
+async function fetchAssistantLeaderProfile() {
+    const fallback = { church: '서울중앙교회', parish: '부곡교구', districts: ['581', '582', '583'] };
+    try {
+        let { data, error } = await supabase
+            .from('members')
+            .select('church, parish, district, managed_districts')
+            .eq('name', '강효근')
+            .single();
+
+        if (error && /managed_districts/i.test(error.message || '')) {
+            const retry = await supabase
+                .from('members')
+                .select('church, parish, district')
+                .eq('name', '강효근')
+                .single();
+            data = retry.data;
+            error = retry.error;
+        }
+        if (error || !data) return fallback;
+
+        let districts = String(data.managed_districts || '')
+            .split(/[,\s/]+/)
+            .map(s => s.replace(/[^0-9]/g, ''))
+            .filter(Boolean);
+
+        if (districts.length === 0 && data.parish) {
+            const { data: parishes } = await supabase.from('parishes').select('id, name');
+            const matched = (parishes || []).find(p => (p.name || '').trim() === data.parish.trim());
+            if (matched) {
+                const { data: ds } = await supabase.from('districts').select('name').eq('parish_id', matched.id);
+                districts = (ds || []).map(d => (d.name || '').replace(/[^0-9]/g, '')).filter(Boolean);
+            }
+        }
+
+        return {
+            church: data.church || fallback.church,
+            parish: data.parish || fallback.parish,
+            district: data.district || '',
+            districts: districts.length > 0 ? districts : fallback.districts
+        };
+    } catch (e) {
+        console.warn('fetchAssistantLeaderProfile failed:', e.message);
+        return fallback;
+    }
+}
+
+function normalizeAssistantMeetingType(rawType, rawTitle) {
+    const combined = `${rawType || ''} ${rawTitle || ''}`.trim();
+    const tCompact = (rawType || '').replace(/\s+/g, '');
+    const titleCompact = (rawTitle || '').replace(/\s+/g, '');
+
+    // 번호가 붙는 구역모임/조모임 우선 판별 (예: "581조 모임" -> "581조모임")
+    const numMatch = (tCompact.match(/(\d{2,4})(구역모임|조모임|구역|조)/))
+        || (titleCompact.match(/(\d{2,4})(구역모임|조모임|구역|조)/));
+    if (numMatch) {
+        const num = numMatch[1];
+        const kind = numMatch[2].includes('조') ? '조모임' : '구역모임';
+        return `${num}${kind}`;
+    }
+
+    const source = tCompact || titleCompact;
+    if (/전체조모임/.test(source)) return '전체조모임';
+    if (/교구전체모임|교구전체|전체모임/.test(source)) return '교구전체모임';
+    if (/교구형제모임|형제모임/.test(source)) return '교구형제모임';
+    if (/교구청년모임|청년모임|청년회/.test(source)) return '교구청년모임';
+    if (/교구임원모임|임원모임/.test(source)) return '교구임원모임';
+    if (/구역모임/.test(source)) return '구역모임';
+    if (/조모임/.test(source)) return '조모임';
+    if (/심방/.test(source)) return '심방';
+    if (/개인상담|상담/.test(source)) return '상담';
+    if (/외부설교/.test(source)) return '외부설교';
+    if (/내부설교|설교|주일말씀|수요말씀/.test(source)) return '설교';
+    if (/교회행사|행사|수련회|집회/.test(source)) return '교회행사';
+    if (/기타/.test(source)) return '기타';
+
+    if (/기도모임|기도회/.test(combined)) return '기타';
+    return (rawType || '').trim() || (rawTitle || '').trim() || '기타';
+}
+
+async function insertMeetingsWithSnapshotFallback(rows) {
+    if (!rows || rows.length === 0) return [];
+    let { data, error } = await supabase
+        .from('meetings')
+        .insert(rows)
+        .select('id, title, date, end_date, start_time, end_time, type, sermon_title, memo');
+
+    if (error && /leader_church_snapshot|leader_parish_snapshot/i.test(error.message || '')) {
+        const strippedRows = rows.map(r => {
+            const copy = { ...r };
+            delete copy.leader_church_snapshot;
+            delete copy.leader_parish_snapshot;
+            return copy;
+        });
+        const retry = await supabase
+            .from('meetings')
+            .insert(strippedRows)
+            .select('id, title, date, end_date, start_time, end_time, type, sermon_title, memo');
+        data = retry.data;
+        error = retry.error;
+    }
+
+    if (error) throw error;
+    return data || [];
+}
+
+const ASSISTANT_TOOL_DECLARATIONS = [
+    {
+        name: 'get_meetings',
+        description: '특정 기간(start_date ~ end_date)에 등록되어 있는 모든 모임·일정 목록을 DB에서 조회합니다. 달력 확인, 미등록 모임 파악, 특정 날짜의 모임 ID 찾기 등에 반드시 먼저 사용하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                start_date: { type: 'STRING', description: '조회 시작일 (YYYY-MM-DD)' },
+                end_date: { type: 'STRING', description: '조회 종료일 (YYYY-MM-DD)' },
+                type_filter: { type: 'STRING', description: '특정 모임 구분 필터 (선택, 부분 일치)' },
+                limit: { type: 'INTEGER', description: '최대 조회 건수 (기본 100)' }
+            },
+            required: ['start_date', 'end_date']
+        }
+    },
+    {
+        name: 'create_meetings',
+        description: '1개 이상의 새로운 모임이나 일정을 달력(DB)에 한 번에 일괄 등록합니다. 여러 개(예: 5개, 7개, 한 달치 등)를 등록할 때는 반드시 이 도구를 호출해 meetings 배열에 모두 담아 한 번에 등록하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                meetings: {
+                    type: 'ARRAY',
+                    description: '등록할 모임 객체들의 배열',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            title: { type: 'STRING', description: '모임 명칭 (예: "581조모임", "582구역모임", "교구전체모임", "기도모임")' },
+                            date: { type: 'STRING', description: '시작 날짜 (YYYY-MM-DD)' },
+                            end_date: { type: 'STRING', description: '종료 날짜 (YYYY-MM-DD, 당일이면 생략 가능)' },
+                            type: { type: 'STRING', description: '표준 모임 구분: "581구역모임", "581조모임", "교구전체모임", "교구형제모임", "전체조모임", "교구청년모임", "교구임원모임", "심방", "상담", "설교", "외부설교", "교회행사", "기타" 중 선택 (번호+모임명은 띄어쓰기 없이 붙임)' },
+                            start_time: { type: 'STRING', description: '시작 시간 HH:MM (24시간 형식, 미정이면 빈 문자열)' },
+                            end_time: { type: 'STRING', description: '종료 시간 HH:MM (미정이면 빈 문자열)' },
+                            sermon_title: { type: 'STRING', description: '설교 제목 (있는 경우만)' },
+                            memo: { type: 'STRING', description: '메모 (선택)' },
+                            skip_if_duplicate: { type: 'BOOLEAN', description: '같은 날 동일 모임(type 또는 title)이 이미 있으면 건너뛸지 여부 (기본 true)' }
+                        },
+                        required: ['title', 'date', 'type']
+                    }
+                }
+            },
+            required: ['meetings']
+        }
+    },
+    {
+        name: 'update_meetings',
+        description: '기존 모임 1개 이상의 설교 제목, 모임명, 날짜, 시간, 구분, 메모를 일괄 수정합니다. 먼저 get_meetings나 search_meetings로 meeting_id를 확인한 뒤 호출하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                updates: {
+                    type: 'ARRAY',
+                    description: '수정할 모임 목록',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            meeting_id: { type: 'INTEGER', description: '수정할 모임의 ID' },
+                            title: { type: 'STRING', description: '새 모임명 (변경 시만)' },
+                            date: { type: 'STRING', description: '새 날짜 YYYY-MM-DD (변경 시만)' },
+                            end_date: { type: 'STRING', description: '새 종료일 YYYY-MM-DD (변경 시만)' },
+                            type: { type: 'STRING', description: '새 모임 구분 (변경 시만)' },
+                            start_time: { type: 'STRING', description: '새 시작 시간 HH:MM (변경 시만)' },
+                            end_time: { type: 'STRING', description: '새 종료 시간 HH:MM (변경 시만)' },
+                            sermon_title: { type: 'STRING', description: '새 설교 제목 (변경 시만)' },
+                            memo: { type: 'STRING', description: '새 메모 (변경 시만)' }
+                        },
+                        required: ['meeting_id']
+                    }
+                }
+            },
+            required: ['updates']
+        }
+    },
+    {
+        name: 'delete_meetings',
+        description: '사용자가 명시적으로 삭제를 요청한 모임을 ID로 삭제합니다. 반드시 모임 ID와 날짜/제목을 확인한 후 호출하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                meeting_ids: {
+                    type: 'ARRAY',
+                    items: { type: 'INTEGER' },
+                    description: '삭제할 모임 ID 목록'
+                }
+            },
+            required: ['meeting_ids']
+        }
+    },
+    {
+        name: 'search_meetings',
+        description: '모임 제목, 설교 제목, 메모에서 키워드로 과거/예정 모임 및 설교 기록을 검색합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: { type: 'STRING', description: '검색할 키워드 (예: 설교 제목, 성경 본문 키워드, 모임명)' },
+                limit: { type: 'INTEGER', description: '최대 검색 건수 (기본 10)' }
+            },
+            required: ['query']
+        }
+    },
+    {
+        name: 'get_attendance_stats',
+        description: '최근 모임 또는 특정 기간 모임들의 참석자 수 및 출석 현황 통계를 조회합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                start_date: { type: 'STRING', description: '시작일 YYYY-MM-DD (선택)' },
+                end_date: { type: 'STRING', description: '종료일 YYYY-MM-DD (선택)' },
+                limit: { type: 'INTEGER', description: '조회할 모임 수 (기본 8)' }
+            }
+        }
+    },
+    {
+        name: 'check_absentees',
+        description: '최근 모임들에서 결석이 잦거나 출석률이 저조한 성도 명단을 조회합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                meeting_count: { type: 'INTEGER', description: '기준이 될 최근 모임 횟수 (기본 4)' },
+                district: { type: 'STRING', description: '특정 구역 필터 (예: "581", 선택)' }
+            }
+        }
+    },
+    {
+        name: 'search_members',
+        description: '성도 이름, 구역, 소속(어머니회/은장회/청년회/봉사회), 직분으로 성도 명단과 기본 정보를 조회합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: { type: 'STRING', description: '성도 이름 또는 직분/비고 검색어 (선택)' },
+                district: { type: 'STRING', description: '구역 번호 또는 구역명 (예: "581", "581구역", 선택)' },
+                category: { type: 'STRING', description: '회 구분 (어머니회, 은장회, 청년회, 봉사회 등, 선택)' }
+            }
+        }
+    },
+    {
+        name: 'get_counseling_history',
+        description: '최근 심방 및 개인상담 기록을 조회합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                member_name: { type: 'STRING', description: '특정 성도 이름 필터 (선택)' },
+                limit: { type: 'INTEGER', description: '최대 조회 건수 (기본 10)' }
+            }
+        }
+    }
+];
+
+async function executeAssistantTool(name, args, ctx) {
+    const { todayStr, leaderProfile, resultMeta, executionLogs } = ctx;
+
+    if (name === 'get_meetings') {
+        const start = args?.start_date || todayStr;
+        const end = args?.end_date || start;
+        const limit = Math.min(Number(args?.limit) || 100, 200);
+
+        let q = supabase
+            .from('meetings')
+            .select('id, title, date, end_date, type, start_time, end_time, sermon_title, memo')
+            .gte('date', start)
+            .lte('date', end)
+            .order('date', { ascending: true })
+            .order('start_time', { ascending: true })
+            .limit(limit);
+
+        if (args?.type_filter) {
+            q = q.ilike('type', `%${String(args.type_filter).trim()}%`);
+        }
+
+        const { data, error } = await q;
+        if (error) return { ok: false, error: error.message };
+        const meetings = (data || []).map(m => ({
+            id: m.id,
+            title: m.title,
+            date: m.date,
+            end_date: m.end_date,
+            type: m.type,
+            start_time: m.start_time || '',
+            end_time: m.end_time || '',
+            sermon_title: m.sermon_title || '',
+            memo: (m.memo || '').slice(0, 120)
+        }));
+        executionLogs.push(`get_meetings(${start}~${end}): ${meetings.length}건 조회`);
+        return { ok: true, count: meetings.length, meetings };
+    }
+
+    if (name === 'create_meetings') {
+        const items = Array.isArray(args?.meetings) ? args.meetings : [];
+        if (items.length === 0) {
+            return { ok: false, error: '등록할 모임 목록(meetings)이 비어 있습니다.' };
+        }
+
+        const validItems = [];
+        const invalidItems = [];
+        items.forEach((item, idx) => {
+            const dateStr = String(item?.date || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                invalidItems.push({ index: idx, title: item?.title || '', reason: `날짜 형식 오류(${dateStr})` });
+                return;
+            }
+            const normType = normalizeAssistantMeetingType(item.type, item.title);
+            const cleanTitle = String(item.title || '').trim() || normType;
+            validItems.push({
+                raw: item,
+                title: cleanTitle,
+                date: dateStr,
+                end_date: (item.end_date && /^\d{4}-\d{2}-\d{2}$/.test(item.end_date)) ? item.end_date : dateStr,
+                type: normType,
+                start_time: item.start_time ? String(item.start_time).trim() : null,
+                end_time: item.end_time ? String(item.end_time).trim() : null,
+                sermon_title: item.sermon_title ? String(item.sermon_title).trim() : null,
+                memo: item.memo ? String(item.memo) : '',
+                skip_if_duplicate: item.skip_if_duplicate !== false
+            });
+        });
+
+        // 같은 날짜 내 중복 등록 여부 체크
+        const uniqueDates = Array.from(new Set(validItems.map(v => v.date)));
+        let existingByDate = {};
+        if (uniqueDates.length > 0) {
+            const { data: existingRows } = await supabase
+                .from('meetings')
+                .select('id, title, date, type')
+                .in('date', uniqueDates);
+            (existingRows || []).forEach(r => {
+                if (!existingByDate[r.date]) existingByDate[r.date] = [];
+                existingByDate[r.date].push(r);
+            });
+        }
+
+        const toInsert = [];
+        const skipped = [];
+
+        validItems.forEach(v => {
+            const sameDay = existingByDate[v.date] || [];
+            const compactNewTitle = v.title.replace(/\s+/g, '');
+            const compactNewType = v.type.replace(/\s+/g, '');
+
+            const dup = sameDay.find(e =>
+                (e.type || '').replace(/\s+/g, '') === compactNewType
+                || (e.title || '').replace(/\s+/g, '') === compactNewTitle
+            );
+            // 같은 배치 내 중복도 함께 방지
+            const batchDup = toInsert.find(e =>
+                e.date === v.date && (
+                    e.type.replace(/\s+/g, '') === compactNewType
+                    || e.title.replace(/\s+/g, '') === compactNewTitle
+                )
+            );
+
+            if (v.skip_if_duplicate && (dup || batchDup)) {
+                skipped.push({
+                    title: v.title,
+                    date: v.date,
+                    type: v.type,
+                    reason: dup ? `이미 등록됨 (ID: ${dup.id}, 제목: ${dup.title})` : '요청 목록 내 중복'
+                });
+                return;
+            }
+
+            toInsert.push({
+                title: v.title,
+                date: v.date,
+                end_date: v.end_date,
+                type: v.type,
+                start_time: v.start_time,
+                end_time: v.end_time,
+                sermon_title: v.sermon_title,
+                memo: v.memo,
+                leader_church_snapshot: leaderProfile?.church || null,
+                leader_parish_snapshot: leaderProfile?.parish || null
+            });
+        });
+
+        let created = [];
+        if (toInsert.length > 0) {
+            created = await insertMeetingsWithSnapshotFallback(toInsert);
+            resultMeta.createdMeetings = [...(resultMeta.createdMeetings || []), ...created];
+            if (resultMeta.createdMeetings.length === 1) {
+                resultMeta.createdMeeting = resultMeta.createdMeetings[0];
+            } else {
+                delete resultMeta.createdMeeting;
+            }
+        }
+
+        if (skipped.length > 0) {
+            resultMeta.skippedMeetings = [...(resultMeta.skippedMeetings || []), ...skipped];
+        }
+
+        executionLogs.push(`create_meetings: ${created.length}건 등록, ${skipped.length}건 중복 건너뜀`);
+        return {
+            ok: true,
+            created_count: created.length,
+            created,
+            skipped_count: skipped.length,
+            skipped,
+            invalid_count: invalidItems.length,
+            invalid: invalidItems
+        };
+    }
+
+    if (name === 'update_meetings') {
+        const updates = Array.isArray(args?.updates) ? args.updates : [];
+        if (updates.length === 0) return { ok: false, error: '수정할 목록(updates)이 비어 있습니다.' };
+
+        const updatedList = [];
+        const failedList = [];
+
+        for (const u of updates) {
+            const meetingId = Number(u?.meeting_id);
+            if (!meetingId) {
+                failedList.push({ item: u, reason: 'meeting_id 누락' });
+                continue;
+            }
+            const patch = {};
+            if (u.title !== undefined) patch.title = String(u.title).trim();
+            if (u.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(u.date)) {
+                patch.date = u.date;
+                if (u.end_date === undefined) patch.end_date = u.date;
+            }
+            if (u.end_date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(u.end_date)) patch.end_date = u.end_date;
+            if (u.type !== undefined) patch.type = normalizeAssistantMeetingType(u.type, u.title);
+            if (u.start_time !== undefined) patch.start_time = u.start_time ? String(u.start_time).trim() : null;
+            if (u.end_time !== undefined) patch.end_time = u.end_time ? String(u.end_time).trim() : null;
+            if (u.sermon_title !== undefined) patch.sermon_title = u.sermon_title ? String(u.sermon_title).trim() : null;
+            if (u.memo !== undefined) patch.memo = String(u.memo);
+
+            if (Object.keys(patch).length === 0) {
+                failedList.push({ meeting_id: meetingId, reason: '변경할 필드 없음' });
+                continue;
+            }
+
+            const { data: updated, error } = await supabase
+                .from('meetings')
+                .update(patch)
+                .eq('id', meetingId)
+                .select('id, title, date, end_date, start_time, end_time, type, sermon_title')
+                .single();
+
+            if (error || !updated) {
+                failedList.push({ meeting_id: meetingId, reason: error?.message || '대상 모임을 찾을 수 없음' });
+            } else {
+                updatedList.push(updated);
+            }
+        }
+
+        if (updatedList.length > 0) {
+            resultMeta.updatedMeetings = [...(resultMeta.updatedMeetings || []), ...updatedList];
+            if (resultMeta.updatedMeetings.length === 1) {
+                resultMeta.updatedMeeting = resultMeta.updatedMeetings[0];
+            } else {
+                delete resultMeta.updatedMeeting;
+            }
+        }
+
+        executionLogs.push(`update_meetings: ${updatedList.length}건 수정`);
+        return { ok: true, updated_count: updatedList.length, updated: updatedList, failed: failedList };
+    }
+
+    if (name === 'delete_meetings') {
+        const ids = Array.isArray(args?.meeting_ids) ? args.meeting_ids.map(Number).filter(Boolean) : [];
+        if (ids.length === 0) return { ok: false, error: '삭제할 meeting_ids가 비어 있습니다.' };
+
+        const { data: targets } = await supabase
+            .from('meetings')
+            .select('id, title, date, type')
+            .in('id', ids);
+
+        const { error } = await supabase
+            .from('meetings')
+            .delete()
+            .in('id', ids);
+
+        if (error) return { ok: false, error: error.message };
+        const deleted = targets || ids.map(id => ({ id }));
+        resultMeta.deletedMeetings = [...(resultMeta.deletedMeetings || []), ...deleted];
+        executionLogs.push(`delete_meetings: ${deleted.length}건 삭제`);
+        return { ok: true, deleted_count: deleted.length, deleted };
+    }
+
+    if (name === 'search_meetings') {
+        const q = String(args?.query || '').trim();
+        const limit = Math.min(Number(args?.limit) || 10, 30);
+        if (!q) return { ok: false, error: '검색어(query)가 필요합니다.' };
+
+        const { data, error } = await supabase
+            .from('meetings')
+            .select('id, title, date, sermon_title, type, start_time, end_time, memo')
+            .or(`title.ilike.%${q}%,sermon_title.ilike.%${q}%,memo.ilike.%${q}%,type.ilike.%${q}%`)
+            .order('date', { ascending: false })
+            .limit(limit);
+
+        if (error) return { ok: false, error: error.message };
+        const results = data || [];
+        resultMeta.searchResults = results;
+        executionLogs.push(`search_meetings("${q}"): ${results.length}건`);
+        return { ok: true, count: results.length, results };
+    }
+
+    if (name === 'get_attendance_stats') {
+        const limit = Math.min(Number(args?.limit) || 8, 25);
+        let q = supabase
+            .from('meetings')
+            .select('id, title, date, type')
+            .neq('type', '심방')
+            .neq('type', '설교')
+            .neq('type', '외부설교')
+            .neq('type', '상담')
+            .order('date', { ascending: false })
+            .limit(limit);
+
+        if (args?.start_date) q = q.gte('date', args.start_date);
+        if (args?.end_date) {
+            q = q.lte('date', args.end_date);
+        } else {
+            q = q.lte('date', todayStr);
+        }
+
+        const { data: statsMeetings, error } = await q;
+        if (error) return { ok: false, error: error.message };
+
+        if (!statsMeetings || statsMeetings.length === 0) {
+            resultMeta.statsSummary = [];
+            return { ok: true, summary: [] };
+        }
+
+        const { data: recentAtt } = await supabase
+            .from('attendance')
+            .select('meeting_id, is_present')
+            .in('meeting_id', statsMeetings.map(m => m.id));
+
+        const presentCounts = {};
+        const totalRecordedCounts = {};
+        (recentAtt || []).forEach(a => {
+            totalRecordedCounts[a.meeting_id] = (totalRecordedCounts[a.meeting_id] || 0) + 1;
+            if (Number(a.is_present) === 1) {
+                presentCounts[a.meeting_id] = (presentCounts[a.meeting_id] || 0) + 1;
+            }
+        });
+
+        const summary = statsMeetings.map(m => ({
+            id: m.id,
+            title: m.title,
+            date: m.date,
+            type: m.type,
+            attendees: presentCounts[m.id] || 0,
+            recorded: totalRecordedCounts[m.id] || 0
+        }));
+
+        resultMeta.statsSummary = summary;
+        executionLogs.push(`get_attendance_stats: ${summary.length}개 모임`);
+        return { ok: true, summary };
+    }
+
+    if (name === 'check_absentees') {
+        const meetingCount = Math.min(Number(args?.meeting_count) || 4, 15);
+        const distFilter = args?.district ? String(args.district).replace(/[^0-9]/g, '') : '';
+
+        const { data: recentActiveMeetings, error } = await supabase
+            .from('meetings')
+            .select('id, title, date, type')
+            .neq('type', '심방')
+            .neq('type', '설교')
+            .neq('type', '외부설교')
+            .neq('type', '상담')
+            .lte('date', todayStr)
+            .order('date', { ascending: false })
+            .limit(meetingCount);
+
+        if (error) return { ok: false, error: error.message };
+        if (!recentActiveMeetings || recentActiveMeetings.length === 0) {
+            return { ok: true, meetingCount: 0, absentees: [] };
+        }
+
+        const meetingIds = recentActiveMeetings.map(m => m.id);
+        const { data: attList } = await supabase
+            .from('attendance')
+            .select('meeting_id, member_id, is_present, members(id, name, district, category, status, member_status)')
+            .in('meeting_id', meetingIds);
+
+        const memberMap = {};
+        (attList || []).forEach(a => {
+            if (!a.members) return;
+            if (a.members.status === 'inactive' || a.members.name === ANONYMOUS_COUNSELING_NAME) return;
+            const memDist = String(a.members.district || '').replace(/[^0-9]/g, '');
+            if (distFilter && memDist !== distFilter) return;
+
+            const mId = a.members.id;
+            if (!memberMap[mId]) {
+                memberMap[mId] = {
+                    id: mId,
+                    name: a.members.name,
+                    district: a.members.district || '미지정',
+                    category: a.members.category || '',
+                    presentCount: 0,
+                    checkedCount: 0
+                };
+            }
+            memberMap[mId].checkedCount++;
+            if (Number(a.is_present) === 1) {
+                memberMap[mId].presentCount++;
+            }
+        });
+
+        const threshold = Math.max(1, Math.floor(recentActiveMeetings.length / 3));
+        const absentees = Object.values(memberMap)
+            .filter(m => m.presentCount <= threshold && m.presentCount < m.checkedCount)
+            .sort((a, b) => a.presentCount - b.presentCount || b.checkedCount - a.checkedCount)
+            .slice(0, 15);
+
+        resultMeta.absentees = absentees;
+        resultMeta.meetingCount = recentActiveMeetings.length;
+        executionLogs.push(`check_absentees: 최근 ${recentActiveMeetings.length}회 중 ${absentees.length}명`);
+        return {
+            ok: true,
+            meetingCount: recentActiveMeetings.length,
+            meetingsChecked: recentActiveMeetings.map(m => `${m.date} ${m.title}`),
+            absentees
+        };
+    }
+
+    if (name === 'search_members') {
+        const query = String(args?.query || '').trim();
+        const districtArg = String(args?.district || '').trim();
+        const categoryArg = String(args?.category || '').trim();
+
+        let q = supabase
+            .from('members')
+            .select('id, name, district, category, bs, position, member_status, status, church, parish, phone, birth_date')
+            .neq('name', ANONYMOUS_COUNSELING_NAME)
+            .neq('status', 'inactive')
+            .order('district', { ascending: true })
+            .order('name', { ascending: true })
+            .limit(40);
+
+        if (query) {
+            q = q.or(`name.ilike.%${query}%,position.ilike.%${query}%`);
+        }
+        if (districtArg) {
+            const num = districtArg.replace(/[^0-9]/g, '');
+            q = q.ilike('district', `%${num || districtArg}%`);
+        }
+        if (categoryArg) {
+            q = q.ilike('category', `%${categoryArg}%`);
+        }
+
+        const { data, error } = await q;
+        if (error) return { ok: false, error: error.message };
+        const members = (data || []).map(m => ({
+            id: m.id,
+            name: m.name,
+            district: m.district || '',
+            category: m.category || '',
+            bs: m.bs === 'B' ? '형제' : (m.bs === 'S' ? '자매' : ''),
+            position: m.position || '',
+            member_status: m.member_status === 'evangelism' ? '전도대상' : '성도',
+            birth_date: m.birth_date || ''
+        }));
+        executionLogs.push(`search_members: ${members.length}명`);
+        return { ok: true, count: members.length, members };
+    }
+
+    if (name === 'get_counseling_history') {
+        const memberName = String(args?.member_name || '').trim();
+        const limit = Math.min(Number(args?.limit) || 10, 25);
+
+        let q = supabase
+            .from('meetings')
+            .select('id, title, date, type, memo, attendance(member_id, testimony_snapshot, members(name, district))')
+            .in('type', ['상담', '심방'])
+            .order('date', { ascending: false })
+            .limit(memberName ? 50 : limit);
+
+        const { data, error } = await q;
+        if (error) return { ok: false, error: error.message };
+
+        let records = (data || []).map(m => {
+            const firstAtt = (m.attendance || [])[0];
+            const memName = firstAtt?.members?.name || '';
+            return {
+                id: m.id,
+                date: m.date,
+                type: m.type,
+                title: m.title,
+                member_name: memName,
+                district: firstAtt?.members?.district || '',
+                content: (firstAtt?.testimony_snapshot || m.memo || '').slice(0, 200)
+            };
+        });
+
+        if (memberName) {
+            records = records.filter(r =>
+                r.member_name.includes(memberName) || r.title.includes(memberName) || r.content.includes(memberName)
+            );
+        }
+        records = records.slice(0, limit);
+        executionLogs.push(`get_counseling_history: ${records.length}건`);
+        return { ok: true, count: records.length, records };
+    }
+
+    return { ok: false, error: `알 수 없는 도구: ${name}` };
+}
+
+async function callGeminiAssistantApi({ apiKey, modelName, systemInstruction, contents, useTools = true }) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const body = {
+        system_instruction: { parts: [{ text: systemInstruction }] },
+        contents,
+        generationConfig: {
+            temperature: 0.2
+        }
+    };
+    if (useTools) {
+        body.tools = [{ functionDeclarations: ASSISTANT_TOOL_DECLARATIONS }];
+    }
+
+    const apiRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const resJson = await apiRes.json();
+    if (!apiRes.ok || resJson.error) {
+        throw new Error(resJson?.error?.message || `HTTP ${apiRes.status}`);
+    }
+    const candidate = resJson.candidates?.[0];
+    if (!candidate || !candidate.content || !Array.isArray(candidate.content.parts)) {
+        throw new Error('빈 모델 응답');
+    }
+    return candidate.content;
+}
+
 app.post('/api/ai/assistant', express.json(), async (req, res) => {
     try {
-        const { message, history = [], clientDate, clientTime } = req.body;
+        const { message, history = [], clientDate } = req.body;
         const apiKey = await resolveGeminiApiKey(req);
         if (!apiKey) {
             return res.status(401).json({ error: 'NO_API_KEY', message: 'GEMINI_API_KEY가 설정되어 있지 않습니다.' });
@@ -5828,282 +6613,205 @@ app.post('/api/ai/assistant', express.json(), async (req, res) => {
         }
 
         const nowKst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-        const todayStr = clientDate || nowKst.toISOString().split('T')[0];
+        const serverTodayKst = nowKst.toISOString().split('T')[0];
+        const todayStr = (clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)) ? clientDate : serverTodayKst;
         const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const dayOfWeek = days[new Date(todayStr).getDay()];
+        const [ty, tm, td] = todayStr.split('-').map(Number);
+        const dayOfWeek = days[new Date(Date.UTC(ty, tm - 1, td)).getUTCDay()];
 
-        const leaderProfile = await fetchLeaderChurchParish().catch(() => null);
+        const leaderProfile = await fetchAssistantLeaderProfile();
+        const managedDistricts = leaderProfile.districts || ['581', '582', '583'];
 
-        // 최근 등록된 모임 10개
+        // 최근 등록된 모임 15개를 기본 참고 컨텍스트로 제공 (스타일 및 시간 참고용)
         const { data: recentMeetings } = await supabase
             .from('meetings')
             .select('id, title, date, type, sermon_title, start_time, end_time')
             .order('date', { ascending: false })
-            .limit(10);
+            .limit(15);
 
-        // 메시지나 이전 대화에서 언급된 날짜(예: 10/11, 10월 11일 등) 감지하여 해당 날짜의 기존 모임들을 사전 조회
-        let targetDateMeetings = [];
-        let detectedDateStr = '';
-        const recentHistoryText = (history && Array.isArray(history)) ? history.map(h => h.text || '').join(' ') : '';
-        const combinedText = `${recentHistoryText} ${message}`;
-        const dateMatch = combinedText.match(/(?:(\d{4})[.-/년]\s*)?(\d{1,2})[.-/월]\s*(\d{1,2})/);
-        if (dateMatch) {
-            const currentYear = new Date(todayStr).getFullYear();
-            const y = dateMatch[1] || currentYear;
-            const m = String(dateMatch[2]).padStart(2, '0');
-            const d = String(dateMatch[3]).padStart(2, '0');
-            detectedDateStr = `${y}-${m}-${d}`;
-            const { data: foundMeetings } = await supabase
-                .from('meetings')
-                .select('id, title, date, type, sermon_title, start_time, end_time, memo')
-                .eq('date', detectedDateStr);
-            if (foundMeetings && foundMeetings.length > 0) {
-                targetDateMeetings = foundMeetings;
-            }
+        const systemInstruction = `당신은 교회 목회 및 사역을 돕는 유능하고 정확한 "AI 사역 비서"입니다.
+사용자는 강효근 전도사님(관리자)입니다.
+- 오늘 날짜(KST): ${todayStr} (${dayOfWeek}요일)
+- 관리자 소속: ${leaderProfile.church} ${leaderProfile.parish}
+- 관리 구역 번호: ${managedDistricts.join(', ')} (${managedDistricts.map(d => `${d}구역모임, ${d}조모임`).join(', ')})
+
+[앱의 표준 모임 구분(type) 규칙 - 반드시 준수]:
+1. 구역별 모임(띄어쓰기 없이 붙여서 저장): ${managedDistricts.map(d => `"${d}구역모임"`).join(', ')}, ${managedDistricts.map(d => `"${d}조모임"`).join(', ')}
+2. 교구·전체 모임: "교구전체모임", "교구형제모임", "전체조모임", "교구청년모임", "교구임원모임"
+3. 기타 구분: "심방", "상담", "설교"(내부설교), "외부설교", "교회행사", "기타"
+※ 주의: 사용자가 "581조 모임", "582 구역 모임"처럼 띄어 써도 type은 반드시 공백 없는 표준명("581조모임", "582구역모임")으로 지정하세요. title도 특별한 이름이 없으면 표준명과 동일하게 맞추면 깔끔합니다.
+
+[최근 등록된 모임 참고 (시간·명칭 패턴 파악용)]:
+${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분:${m.type}${m.start_time ? ', ' + m.start_time + (m.end_time ? '~' + m.end_time : '') : ''})${m.sermon_title ? ' | 설교:' + m.sermon_title : ''}`).join('\n') || '(없음)'}
+
+[핵심 행동 지침]:
+1. **필요하면 먼저 도구를 호출해 DB를 직접 확인하세요.** 추측하거나 "모르겠습니다"라고 하지 말고 \`get_meetings\`, \`search_meetings\`, \`search_members\`, \`get_attendance_stats\`, \`check_absentees\`, \`get_counseling_history\`를 적극 사용하세요.
+2. **여러 건(예: 5개, 7개, 한 달치 일정)의 모임 등록 요청**:
+   - 절대 "순차적으로 첫 번째만 실행하겠습니다"처럼 말하고 1개만 등록하지 마세요!
+   - \`create_meetings\` 도구의 \`meetings\` 배열에 요청된 **모든 모임을 한꺼번에 담아서** 즉시 일괄 등록하세요.
+   - 만약 사용자가 "이번 달 미등록 모임을 찾아서 등록해줘"처럼 말하면, 먼저 \`get_meetings\`로 해당 월 전체 일정을 조회한 뒤, 빠진 날짜/모임이 무엇인지 파악하고 \`create_meetings\`로 한 번에 등록하세요. (단, 날짜나 모임 종류가 모호해 임의로 만들 위험이 크면 후보를 짚어 물어보세요.)
+3. **설교 제목/일정 수정 요청**:
+   - 먼저 \`get_meetings\`나 \`search_meetings\`로 정확한 \`meeting_id\`를 조회한 뒤 \`update_meetings\`로 수정하세요.
+   - 만약 날짜와 모임은 특정되었는데 설교 제목 내용이 아직 주어지지 않았다면, 도구를 호출하지 말고 해당 모임명을 짚어 어떤 설교 제목으로 등록할지 친절히 물어보세요.
+4. **답변 작성 원칙**:
+   - 실제 도구 실행 결과(\`created\`, \`skipped\`, \`updated\`, 조회 데이터)에 기반해서만 사실대로 보고하세요. 실행하지 않은 작업을 완료했다고 말하지 마세요.
+   - 정중하고 따뜻하며 핵심이 한눈에 보이는 한국어 마크다운으로 답변하세요.`;
+
+        // 대화 히스토리 구성 (최근 10개 턴)
+        const contents = [];
+        if (Array.isArray(history)) {
+            history.slice(-10).forEach(h => {
+                if (!h || !h.text) return;
+                const role = h.role === 'user' ? 'user' : 'model';
+                // Gemini API는 같은 role이 연속되면 합치는 것이 안전
+                if (contents.length > 0 && contents[contents.length - 1].role === role) {
+                    contents[contents.length - 1].parts[0].text += `\n${h.text}`;
+                } else {
+                    contents.push({ role, parts: [{ text: String(h.text) }] });
+                }
+            });
+        }
+        // 첫 메시지가 model이면 제거 (Gemini는 user 시작 권장)
+        while (contents.length > 0 && contents[0].role !== 'user') {
+            contents.shift();
+        }
+        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+            contents[contents.length - 1].parts[0].text += `\n${message}`;
+        } else {
+            contents.push({ role: 'user', parts: [{ text: message }] });
         }
 
-        const historyContext = (history && Array.isArray(history) && history.length > 0)
-            ? `[이전 대화 내역 (맥락 유지)]:
-${history.map(h => `${h.role === 'user' ? '전도사님' : 'AI 비서'}: ${h.text}`).join('\n')}
+        const baseCandidates = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
+        const candidateModels = cachedAssistantGeminiModel
+            ? [cachedAssistantGeminiModel, ...baseCandidates.filter(m => m !== cachedAssistantGeminiModel)]
+            : baseCandidates;
 
-`
-            : '';
+        let activeModel = null;
+        let currentModelContent = null;
+        let lastErrorMsg = '';
 
-        const targetMeetingsContext = (targetDateMeetings.length > 0)
-            ? `[언급된 날짜(${detectedDateStr})에 이미 등록되어 있는 모임 DB 현황]:
-${targetDateMeetings.map(m => `- 모임ID: ${m.id} | 제목: "${m.title}" | 구분: ${m.type || '모임'} | 시간: ${m.start_time || '시간미정'}~${m.end_time || ''} | 현재설교제목: "${m.sermon_title || '미등록'}"`).join('\n')}
-
-`
-            : '';
-
-        const prompt = `당신은 교회 목회 및 사역을 돕는 친절하고 유능한 "AI 사역 비서"입니다.
-사용자는 강효근 전도사님(관리자)입니다.
-현재 기준 일자: ${todayStr} (${dayOfWeek}요일)
-관리자 소속: ${leaderProfile?.church || '서울중앙교회'} ${leaderProfile?.parish || '부곡교구'}
-관리 구역: ${(leaderProfile?.managed_districts || ['581', '582', '583']).join(', ')}구역
-
-${targetMeetingsContext}[최근 등록된 모임 10개]:
-${(recentMeetings || []).map(m => `- [${m.date}] ${m.title} (${m.type || '모임'})${m.sermon_title ? ' | 설교: ' + m.sermon_title : ''}`).join('\n')}
-
-${historyContext}사용자의 현재 요청: "${message}"
-
-[지침]:
-1. 사용자의 요청 의도와 이전 대화 맥락을 종합 분석하세요.
-2. 아래 6가지 액션 중 가장 알맞은 하나를 식별하세요:
-   - UPDATE_SERMON: 기존 모임의 설교 제목 등록/수정 요청
-     * 예: "10/11 시설부 설교제목을 '믿음의 반석'으로 등록해줘", "어제 구역모임 설교제목 OO로 수정해줘"
-     * 만약 사용자가 설교 제목 내용을 아직 주지 않고 "10/11 시설부 설교제목 등록해줘" 또는 "10/11은?"처럼 모임/날짜만 지정했다면:
-       -> action은 "NONE"으로 두고, reply로 해당 날짜의 모임명을 짚으며 친절하게 어떤 설교 제목으로 등록할지 물어보세요!
-          (예: "전도사님, 10월 11일(주일) 09:20 '시설부 말씀' 모임이 확인되었습니다. 어떤 설교 제목으로 등록해 드릴까요?")
-     * 설교 제목이 주어졌다면:
-       -> action: "UPDATE_SERMON"
-       -> actionData: { "meetingId": 해당모임ID(숫자), "date": "YYYY-MM-DD", "title": "모임명", "sermon_title": "등록할 설교제목" }
-   - CREATE_MEETING: 새로운 모임/일정 등록 요청 (예: "~에 구역모임 잡아줘", "내일 심방 일정 등록해줘")
-     * 날짜 계산: 오늘이 ${todayStr}(${dayOfWeek}요일)임을 기준으로 YYYY-MM-DD를 정확히 계산.
-     * 설교 제목이 함께 언급되었다면 actionData.sermon_title에 채워 넣으세요.
-   - CHECK_ABSENTEES: 결석 성도, 교제/모임 잘 안 나오는 성도, 심방 필요한 장기 결석자 조회 요청
-   - GET_STATS: 출석률, 모임 통계, 최근 참석 현황 질의
-   - SEARCH_RECORDS: 특정 설교 제목, 본문, 특정 성도 상담, 과거 모임 검색 요청
-   - NONE: 질문에 대한 답변, 확인 질문, 일반 목회 대화 등
-
-3. 반드시 마크다운 코드블록(\`\`\`json) 없이 순수 JSON 형식으로만 응답해 주세요:
-{
-  "reply": "사용자에게 전할 정중하고 따뜻하며 명확한 한국어 답변 (마크다운 포맷 지원)",
-  "action": "UPDATE_SERMON" | "CREATE_MEETING" | "CHECK_ABSENTEES" | "GET_STATS" | "SEARCH_RECORDS" | "NONE",
-  "actionData": {
-    "meetingId": 285,
-    "title": "모임명",
-    "date": "YYYY-MM-DD",
-    "type": "모임 구분",
-    "start_time": "HH:MM",
-    "end_time": "HH:MM",
-    "sermon_title": "설교제목",
-    "memo": "",
-    "searchQuery": "검색어",
-    "weeks": 3
-  }
-} `;
-
-        const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
-        let aiResult = null;
-
+        // Step 0: 동작하는 모델 확정 및 첫 응답 획득
         for (const modelName of candidateModels) {
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                const apiRes = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                currentModelContent = await callGeminiAssistantApi({
+                    apiKey,
+                    modelName,
+                    systemInstruction,
+                    contents,
+                    useTools: true
                 });
-                const resJson = await apiRes.json();
-                const textPart = resJson.candidates?.[0]?.content?.parts?.find(p => p.text);
-                if (textPart && textPart.text) {
-                    let outText = textPart.text.trim();
-                    outText = outText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-                    aiResult = JSON.parse(outText);
-                    break;
-                }
-            } catch(e) {
+                activeModel = modelName;
+                cachedAssistantGeminiModel = modelName;
+                break;
+            } catch (e) {
+                lastErrorMsg = e.message;
                 console.warn(`Assistant model ${modelName} attempt failed:`, e.message);
+                if (cachedAssistantGeminiModel === modelName) {
+                    cachedAssistantGeminiModel = null;
+                }
             }
         }
 
-        if (!aiResult) {
-            return res.status(500).json({ error: 'AI 비서 응답 생성에 실패했습니다. 잠시 후 다시 말씀해 주세요.' });
+        if (!activeModel || !currentModelContent) {
+            return res.status(500).json({ error: `AI 비서 응답 생성에 실패했습니다. (${lastErrorMsg || '모델 연결 오류'})` });
         }
 
-        let resultMeta = {};
+        const resultMeta = {};
+        const executionLogs = [];
+        const MAX_TOOL_STEPS = 6;
+        let finalReplyText = '';
 
-        // 3. 액션 실행 (Server-Side Tool Execution)
-        if (aiResult.action === 'UPDATE_SERMON' && aiResult.actionData?.sermon_title) {
-            const mData = aiResult.actionData;
-            let targetMeetingId = mData.meetingId;
+        // Multi-turn Tool Calling Loop
+        for (let step = 0; step < MAX_TOOL_STEPS; step++) {
+            const parts = currentModelContent.parts || [];
+            const functionCalls = parts.filter(p => p.functionCall);
+            const textParts = parts.filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text);
 
-            // meetingId가 없으면 날짜/제목으로 탐색
-            if (!targetMeetingId && mData.date) {
-                let q = supabase.from('meetings').select('id, title, date, sermon_title').eq('date', mData.date);
-                if (mData.title) {
-                    q = q.ilike('title', `%${mData.title.replace(/모임|말씀/g, '').trim()}%`);
-                }
-                const { data: matched } = await q.limit(1);
-                if (matched && matched.length > 0) {
-                    targetMeetingId = matched[0].id;
-                }
+            // 모델 응답 전체(thoughtSignature 등 포함)를 대화 기록에 그대로 추가
+            contents.push({
+                role: 'model',
+                parts
+            });
+
+            if (functionCalls.length === 0) {
+                finalReplyText = textParts.join('\n').trim();
+                break;
             }
 
-            if (targetMeetingId) {
-                const { data: updated, error: updateErr } = await supabase
-                    .from('meetings')
-                    .update({ sermon_title: mData.sermon_title.trim() })
-                    .eq('id', targetMeetingId)
-                    .select('id, title, date, sermon_title')
-                    .single();
-
-                if (!updateErr && updated) {
-                    resultMeta.updatedMeeting = updated;
+            // 요청된 모든 functionCall을 병렬/순차 실행하고 functionResponse 전달
+            const responseParts = [];
+            for (const fcPart of functionCalls) {
+                const { name, args } = fcPart.functionCall;
+                let toolOutput;
+                try {
+                    toolOutput = await executeAssistantTool(name, args || {}, {
+                        todayStr,
+                        leaderProfile,
+                        resultMeta,
+                        executionLogs
+                    });
+                } catch (toolErr) {
+                    console.error(`Assistant tool ${name} failed:`, toolErr);
+                    toolOutput = { ok: false, error: toolErr.message };
                 }
-            }
-        } else if (aiResult.action === 'CREATE_MEETING' && aiResult.actionData?.date && aiResult.actionData?.title) {
-            const mData = aiResult.actionData;
-            const insertRow = {
-                title: mData.title,
-                date: mData.date,
-                end_date: mData.date,
-                type: mData.type || mData.title,
-                start_time: mData.start_time || null,
-                end_time: mData.end_time || null,
-                sermon_title: mData.sermon_title || null,
-                memo: mData.memo || '',
-                leader_church_snapshot: leaderProfile?.church || null,
-                leader_parish_snapshot: leaderProfile?.parish || null
-            };
 
-            const { data: createdMeeting, error: createErr } = await supabase
-                .from('meetings')
-                .insert(insertRow)
-                .select('id, title, date, start_time, end_time, type, sermon_title')
-                .single();
-
-            if (!createErr && createdMeeting) {
-                resultMeta.createdMeeting = createdMeeting;
-            }
-        } else if (aiResult.action === 'CHECK_ABSENTEES') {
-            const { data: recentActiveMeetings } = await supabase
-                .from('meetings')
-                .select('id, title, date, type')
-                .neq('type', '심방')
-                .neq('type', '설교')
-                .neq('type', '외부설교')
-                .neq('type', '상담')
-                .lte('date', todayStr)
-                .order('date', { ascending: false })
-                .limit(4);
-
-            if (recentActiveMeetings && recentActiveMeetings.length > 0) {
-                const meetingIds = recentActiveMeetings.map(m => m.id);
-                const { data: attList } = await supabase
-                    .from('attendance')
-                    .select('meeting_id, member_id, is_present, members(id, name, district, category)')
-                    .in('meeting_id', meetingIds);
-
-                const memberAttendanceMap = {};
-                (attList || []).forEach(a => {
-                    if (!a.members) return;
-                    const mId = a.members.id;
-                    if (!memberAttendanceMap[mId]) {
-                        memberAttendanceMap[mId] = {
-                            id: mId,
-                            name: a.members.name,
-                            district: a.members.district || '미지정',
-                            category: a.members.category || '',
-                            presentCount: 0,
-                            totalMeetings: meetingIds.length
-                        };
-                    }
-                    if (Number(a.is_present) === 1) {
-                        memberAttendanceMap[mId].presentCount++;
+                responseParts.push({
+                    functionResponse: {
+                        name,
+                        response: { result: toolOutput }
                     }
                 });
-
-                const absentees = Object.values(memberAttendanceMap)
-                    .filter(m => m.presentCount <= 1)
-                    .sort((a, b) => a.presentCount - b.presentCount)
-                    .slice(0, 10);
-
-                resultMeta.absentees = absentees;
-                resultMeta.meetingCount = recentActiveMeetings.length;
             }
-        } else if (aiResult.action === 'GET_STATS') {
-            const { data: statsMeetings } = await supabase
-                .from('meetings')
-                .select('id, title, date, type')
-                .neq('type', '심방')
-                .neq('type', '설교')
-                .neq('type', '외부설교')
-                .neq('type', '상담')
-                .lte('date', todayStr)
-                .order('date', { ascending: false })
-                .limit(5);
 
-            if (statsMeetings && statsMeetings.length > 0) {
-                const { data: recentAtt } = await supabase
-                    .from('attendance')
-                    .select('meeting_id, is_present')
-                    .in('meeting_id', statsMeetings.map(m => m.id))
-                    .eq('is_present', 1);
+            contents.push({
+                role: 'user',
+                parts: responseParts
+            });
 
-                const counts = {};
-                (recentAtt || []).forEach(a => {
-                    counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1;
-                });
+            // 다음 턴 호출 (마지막 스텝이면 도구 호출 없이 최종 답변 유도 가능, 여기서는 동일하게 호출)
+            currentModelContent = await callGeminiAssistantApi({
+                apiKey,
+                modelName: activeModel,
+                systemInstruction,
+                contents,
+                useTools: step < MAX_TOOL_STEPS - 2
+            });
+        }
 
-                const summary = statsMeetings.map(m => ({
-                    title: m.title,
-                    date: m.date,
-                    type: m.type,
-                    attendees: counts[m.id] || 0
-                }));
+        if (!finalReplyText && currentModelContent) {
+            const leftoverText = (currentModelContent.parts || [])
+                .filter(p => typeof p.text === 'string' && !p.thought)
+                .map(p => p.text)
+                .join('\n')
+                .trim();
+            finalReplyText = leftoverText || (executionLogs.length > 0
+                ? `요청하신 작업을 처리했습니다.\n- ${executionLogs.join('\n- ')}`
+                : '요청을 확인했습니다. 조금 더 구체적으로 말씀해 주시면 바로 도와드리겠습니다.');
+        }
 
-                resultMeta.statsSummary = summary;
-            }
-        } else if (aiResult.action === 'SEARCH_RECORDS' && aiResult.actionData?.searchQuery) {
-            const q = aiResult.actionData.searchQuery.trim();
-            const { data: searchResults } = await supabase
-                .from('meetings')
-                .select('id, title, date, sermon_title, type, memo')
-                .or(`title.ilike.%${q}%,sermon_title.ilike.%${q}%,memo.ilike.%${q}%`)
-                .order('date', { ascending: false })
-                .limit(6);
-
-            resultMeta.searchResults = searchResults || [];
+        // 하위 호환성 action 결정 (프론트엔드 카드 렌더링 및 새로고침용)
+        let action = 'NONE';
+        if (resultMeta.createdMeetings?.length > 0) {
+            action = 'CREATE_MEETING';
+        } else if (resultMeta.updatedMeetings?.length > 0) {
+            action = 'UPDATE_SERMON';
+        } else if (resultMeta.deletedMeetings?.length > 0) {
+            action = 'DELETE_MEETING';
+        } else if (resultMeta.absentees?.length > 0) {
+            action = 'CHECK_ABSENTEES';
+        } else if (resultMeta.statsSummary?.length > 0) {
+            action = 'GET_STATS';
+        } else if (resultMeta.searchResults?.length > 0) {
+            action = 'SEARCH_RECORDS';
         }
 
         res.json({
             success: true,
-            reply: aiResult.reply,
-            action: aiResult.action,
-            actionData: aiResult.actionData,
-            resultMeta
+            reply: finalReplyText,
+            action,
+            resultMeta,
+            executionLogs,
+            modelUsed: activeModel
         });
 
     } catch (err) {
