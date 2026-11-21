@@ -7181,13 +7181,53 @@ async function callGeminiAssistantApi({ apiKey, modelName, systemInstruction, co
     });
     const resJson = await apiRes.json();
     if (!apiRes.ok || resJson.error) {
-        throw new Error(resJson?.error?.message || `HTTP ${apiRes.status}`);
+        const msg = resJson?.error?.message || `HTTP ${apiRes.status}`;
+        const err = new Error(msg);
+        err.httpStatus = apiRes.status;
+        if (apiRes.status === 429 || /quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(msg)) {
+            err.isQuota = true;
+            const m = msg.match(/retry in\s+(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i);
+            err.retryAfterSec = m
+                ? (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Math.ceil(Number(m[3] || 0)))
+                : 3600;
+        }
+        throw err;
     }
     const candidate = resJson.candidates?.[0];
     if (!candidate || !candidate.content || !Array.isArray(candidate.content.parts)) {
         throw new Error('빈 모델 응답');
     }
     return candidate.content;
+}
+
+// 한도(quota) 소진된 모델은 재시도 가능 시각까지 건너뛰어 불필요한 요청/대기를 막는다.
+const assistantExhaustedModels = {};
+function formatQuotaWait(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.ceil((sec % 3600) / 60);
+    return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+}
+
+// 쓰기 도구 결과를 AI 재호출 없이 로컬에서 요약 (Gemini 요청 1회 절약)
+const ASSISTANT_WRITE_TOOLS = new Set(['create_meetings', 'update_meetings', 'delete_meetings', 'add_member_records', 'delete_member_records']);
+function buildLocalToolSummary(calls) {
+    const lines = [];
+    for (const { name, output } of calls) {
+        if (!output || output.ok === false) return null;
+        if ((output.invalid_count || 0) > 0 || (output.failed && output.failed.length > 0)) return null;
+        if (name === 'create_meetings') {
+            lines.push(`📅 모임 ${output.created_count}건을 등록했습니다.` + (output.skipped_count ? ` (중복 ${output.skipped_count}건은 건너뜀)` : ''));
+        } else if (name === 'update_meetings') {
+            lines.push(`✏️ 모임 ${output.updated_count}건을 수정했습니다.`);
+        } else if (name === 'delete_meetings') {
+            lines.push(`🗑️ 모임 ${output.deleted_count}건을 삭제했습니다.`);
+        } else if (name === 'add_member_records') {
+            lines.push(`📋 성도 개인 이력 ${output.added_count}건을 등록했습니다.` + (output.skipped_count ? ` (중복 ${output.skipped_count}건은 건너뜀)` : ''));
+        } else if (name === 'delete_member_records') {
+            lines.push(`🗑️ 성도 개인 이력 ${output.deleted_count}건을 삭제했습니다.`);
+        }
+    }
+    return lines.length ? lines.join('\n') + '\n아래 카드에서 상세 내용을 확인해 주세요.' : null;
 }
 
 app.post('/api/ai/assistant', express.json(), async (req, res) => {
@@ -7234,6 +7274,7 @@ app.post('/api/ai/assistant', express.json(), async (req, res) => {
 ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분:${m.type}${m.start_time ? ', ' + m.start_time + (m.end_time ? '~' + m.end_time : '') : ''})${m.sermon_title ? ' | 설교:' + m.sermon_title : ''}`).join('\n') || '(없음)'}
 
 [핵심 행동 지침]:
+0. **Gemini 요청 횟수를 최소화하세요(무료 한도 보호).** 필요한 조회 도구는 한 턴에 여러 개를 동시에 호출하고, 이미 아는 정보(위 최근 모임 목록, 관리 구역 등)는 다시 조회하지 말고, 조회가 끝나면 곧바로 쓰기 도구를 호출하세요. 쓰기 도구 성공 후에는 별도의 긴 설명이 필요 없습니다.
 1. **필요하면 먼저 도구를 호출해 DB를 직접 확인하세요.** 추측하거나 "모르겠습니다"라고 하지 말고 \`get_meetings\`, \`search_meetings\`, \`search_members\`, \`get_member_details\`, \`get_attendance_stats\`, \`check_absentees\`, \`get_counseling_history\`를 적극 사용하세요.
 2. **여러 건(예: 5개, 7개, 한 달치 일정)의 모임 등록 요청**:
    - 절대 "순차적으로 첫 번째만 실행하겠습니다"처럼 말하고 1개만 등록하지 마세요!
@@ -7291,9 +7332,15 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
         let activeModel = null;
         let currentModelContent = null;
         let lastErrorMsg = '';
+        let quotaRetrySec = 0;
+        const nowMs = Date.now();
 
         // Step 0: 동작하는 모델 확정 및 첫 응답 획득
         for (const modelName of candidateModels) {
+            if (assistantExhaustedModels[modelName] && assistantExhaustedModels[modelName] > nowMs) {
+                quotaRetrySec = Math.max(quotaRetrySec, Math.ceil((assistantExhaustedModels[modelName] - nowMs) / 1000));
+                continue; // 이미 한도 소진된 모델은 요청하지 않음
+            }
             try {
                 currentModelContent = await callGeminiAssistantApi({
                     apiKey,
@@ -7311,10 +7358,21 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
                 if (cachedAssistantGeminiModel === modelName) {
                     cachedAssistantGeminiModel = null;
                 }
+                if (e.isQuota) {
+                    assistantExhaustedModels[modelName] = Date.now() + (e.retryAfterSec || 3600) * 1000;
+                    quotaRetrySec = Math.max(quotaRetrySec, e.retryAfterSec || 3600);
+                }
             }
         }
 
         if (!activeModel || !currentModelContent) {
+            if (quotaRetrySec > 0) {
+                return res.status(429).json({
+                    error: `⏳ Gemini API 무료 사용 한도(하루 요청 수)를 모두 사용했습니다. 약 ${formatQuotaWait(quotaRetrySec)} 후 다시 시도해 주세요. (Google AI Studio에서 결제를 연결하면 한도 제한이 사라집니다.)`,
+                    quotaExceeded: true,
+                    retryAfterSec: quotaRetrySec
+                });
+            }
             return res.status(500).json({ error: `AI 비서 응답 생성에 실패했습니다. (${lastErrorMsg || '모델 연결 오류'})` });
         }
 
@@ -7342,6 +7400,7 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
 
             // 요청된 모든 functionCall을 병렬/순차 실행하고 functionResponse 전달
             const responseParts = [];
+            const stepCalls = [];
             for (const fcPart of functionCalls) {
                 const { name, args } = fcPart.functionCall;
                 let toolOutput;
@@ -7356,6 +7415,7 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
                     console.error(`Assistant tool ${name} failed:`, toolErr);
                     toolOutput = { ok: false, error: toolErr.message };
                 }
+                stepCalls.push({ name, output: toolOutput });
 
                 responseParts.push({
                     functionResponse: {
@@ -7370,14 +7430,39 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
                 parts: responseParts
             });
 
-            // 다음 턴 호출 (마지막 스텝이면 도구 호출 없이 최종 답변 유도 가능, 여기서는 동일하게 호출)
-            currentModelContent = await callGeminiAssistantApi({
-                apiKey,
-                modelName: activeModel,
-                systemInstruction,
-                contents,
-                useTools: step < MAX_TOOL_STEPS - 2
-            });
+            // 쓰기 도구만 호출됐고 모두 성공했다면 AI 재호출(요청 1회) 없이 로컬 요약으로 마무리
+            if (stepCalls.every(c => ASSISTANT_WRITE_TOOLS.has(c.name))) {
+                const localSummary = buildLocalToolSummary(stepCalls);
+                if (localSummary) {
+                    finalReplyText = (textParts.join('\n').trim() ? textParts.join('\n').trim() + '\n\n' : '') + localSummary;
+                    currentModelContent = null;
+                    break;
+                }
+            }
+
+            try {
+                currentModelContent = await callGeminiAssistantApi({
+                    apiKey,
+                    modelName: activeModel,
+                    systemInstruction,
+                    contents,
+                    useTools: step < MAX_TOOL_STEPS - 2
+                });
+            } catch (loopErr) {
+                // 이미 실행된 작업이 있다면 오류 대신 실행 결과를 안내하고 종료 (한도 초과 포함)
+                if (executionLogs.length > 0) {
+                    const note = loopErr.isQuota
+                        ? `\n\n⏳ AI 응답 한도에 도달해 상세 설명은 생략했습니다. 약 ${formatQuotaWait(loopErr.retryAfterSec || 3600)} 후 다시 이용할 수 있습니다.`
+                        : `\n\n(AI 마무리 응답 생성 중 오류가 발생했지만 작업 자체는 완료되었습니다.)`;
+                    finalReplyText = `요청하신 작업을 처리했습니다.\n- ${executionLogs.join('\n- ')}${note}`;
+                    currentModelContent = null;
+                    if (loopErr.isQuota) {
+                        assistantExhaustedModels[activeModel] = Date.now() + (loopErr.retryAfterSec || 3600) * 1000;
+                    }
+                    break;
+                }
+                throw loopErr;
+            }
         }
 
         if (!finalReplyText && currentModelContent) {
