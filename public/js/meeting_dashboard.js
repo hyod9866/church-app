@@ -1242,58 +1242,23 @@ async function showSingleMeetingDetail(rawM, groupName, monthLabel, fromList = f
         const p = Array.isArray(att) ? att.filter(a => a && Number(a.is_present) === 1) : [];
         const pWithTestimony = p.filter(a => a && a.testimony_snapshot && a.testimony_snapshot.trim());
         
-        // 미참석자 계산 로직 (app.js와 동일)
+        // 미참석자 계산 로직 (모임 날짜 시점·교구·전출 이력 반영)
         let absenteesList = [];
         const typeStr = m.type || '';
         if (!['설교', '외부설교', '심방', '교회행사', '기타', '상담'].includes(typeStr)) {
             try {
-                let targetParams = new URLSearchParams({ status: 'active' });
-                const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
-                if (isParishWide) {
-                    const snap = m.leader_church_snapshot ? { church: m.leader_church_snapshot, parish: m.leader_parish_snapshot } : null;
-                    if (typeof window.applyParishWideTargetFilter === 'function') {
-                        await window.applyParishWideTargetFilter(targetParams, snap);
-                    }
-                } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
-                    const distMatch = typeStr.match(/\d+/);
-                    if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
-                } else if (typeStr === '교구임원모임') {
-                    targetParams.append('has_position', 'true');
-                } else if (typeStr.includes('형제모임')) {
-                    targetParams.append('category', '봉사회');
-                } else if (typeStr.includes('청년모임')) {
-                    targetParams.append('category', '청년회');
+                const snap = m.leader_church_snapshot ? { church: m.leader_church_snapshot, parish: m.leader_parish_snapshot } : null;
+                let allTargets = [];
+                if (typeof window.fetchMeetingTargets === 'function') {
+                    allTargets = await window.fetchMeetingTargets({
+                        type: typeStr,
+                        title: m.title || '',
+                        date: m.date || '',
+                        snapshot: snap
+                    });
                 }
-
-                const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
-                let allTargets = mRes.ok ? await mRes.json() : [];
-                if (Array.isArray(allTargets)) {
-                    if (typeof window.filterMeetingTargets === 'function') {
-                        allTargets = window.filterMeetingTargets(allTargets);
-                    }
-
-                    if (isParishWide && (m.title || '').includes('조')) {
-                        allTargets = allTargets.filter(member => member && member.bs === 'S' && member.category !== '청년회');
-                    }
-
-                    if (typeStr.includes('형제모임')) {
-                        const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
-                        const eMembers = eRes.ok ? await eRes.json() : [];
-                        if (Array.isArray(eMembers)) allTargets = [...allTargets, ...eMembers];
-                        allTargets = allTargets.filter(member => member && member.bs === 'B');
-                    }
-
-                    if (typeStr.includes('조모임')) {
-                        allTargets = allTargets.filter(member => member && member.bs === 'S' && member.category !== '청년회');
-                    }
-
-                    if (typeStr === '교구임원모임') {
-                        allTargets = allTargets.filter(member => member && member.position && member.position.trim().length > 0);
-                    }
-
-                    const presentIds = p.map(a => a.member_id);
-                    absenteesList = allTargets.filter(member => member && !presentIds.includes(member.id));
-                }
+                const presentIds = p.map(a => a.member_id);
+                absenteesList = allTargets.filter(member => member && !presentIds.includes(member.id));
             } catch (targetErr) {
                 console.warn('미참석자 집계 실패:', targetErr);
             }

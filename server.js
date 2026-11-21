@@ -453,7 +453,161 @@ async function syncFamilyLinks(memberId, memberName, memberBs, familyRelation, p
   }
 }
 
-// Helper function to sync member profile based on history
+function getKstTodayStr() {
+    return new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+}
+
+const ORG_TRACKED_RECORD_STATUSES = [
+    'DISTRICT', 'CATEGORY', 'CHURCH_IN', 'CHURCH_MOVE', 'PARISH_MOVE', 'FELLOWSHIP'
+];
+
+// 성도의 첫 조직/소속 변경 이력을 추가할 때, 변경 직전의 원래 소속을
+// member_records(INITIAL_SNAPSHOT)에 1회 보존한다.
+// → 12월 대규모 구역변경이나 8월 전출 이후에도 과거 모임 날짜 시점의 구역/교구 판정이 흔들리지 않는다.
+async function ensureInitialProfileSnapshot(memberId, incomingStatus, preloadedMember = null) {
+    if (!ORG_TRACKED_RECORD_STATUSES.includes(incomingStatus)) return;
+    try {
+        const { data: existingSnap } = await supabase
+            .from('member_records')
+            .select('id')
+            .eq('member_id', memberId)
+            .eq('status', 'INITIAL_SNAPSHOT')
+            .limit(1);
+        if (existingSnap && existingSnap.length > 0) return;
+
+        let member = preloadedMember;
+        if (!member) {
+            const { data } = await supabase
+                .from('members')
+                .select('church, parish, district, category, status')
+                .eq('id', memberId)
+                .single();
+            member = data;
+        }
+        if (!member) return;
+
+        const payload = {
+            church: member.church || '교회정보없음',
+            parish: member.parish || '교구정보없음',
+            district: member.district || '구역정보없음',
+            category: member.category || '봉사회',
+            status: member.status || 'active'
+        };
+
+        await supabase
+            .from('member_records')
+            .insert({
+                member_id: memberId,
+                date: '1900-01-01',
+                status: 'INITIAL_SNAPSHOT',
+                remark: JSON.stringify(payload)
+            });
+    } catch (e) {
+        console.warn('ensureInitialProfileSnapshot failed:', e.message);
+    }
+}
+
+// 특정 날짜(asOfDate) 시점의 성도 소속/직분/봉사/활동상태를 member_records 이력 재생으로 재구성.
+// server.js의 syncMemberProfileFromRecords, isMandatoryMeeting, /api/meetings/targets 에서 공통 사용.
+function resolveMemberProfileAsOf(member, records, asOfDate) {
+    const parseListPreserving = (val) => {
+        if (!val || val === '없음') return [];
+        return String(val).split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    const sortedRecords = [...(records || [])].sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (a.id || 0) - (b.id || 0);
+    });
+
+    let initData = null;
+    const snapRec = sortedRecords.find(r => r.status === 'INITIAL_SNAPSHOT' && r.remark);
+    if (snapRec) {
+        try { initData = JSON.parse(snapRec.remark); } catch (e) {}
+    }
+
+    let currentChurch = (initData && initData.church) || member.church || '교회정보없음';
+    let currentParish = (initData && initData.parish) || member.parish || '교구정보없음';
+    let currentDistrict = (initData && initData.district) || member.district || '구역정보없음';
+    let currentCategory = (initData && initData.category) || member.category || '봉사회';
+    let currentStatus = (initData && initData.status) || member.status || 'active';
+
+    const hasPositionRecords = sortedRecords.some(rec => rec.status === 'POSITION' || rec.status === 'POSITION_DISMISS');
+    const hasServiceRecords = sortedRecords.some(rec => rec.status === 'SERVICE' || rec.status === 'SERVICE_DISMISS');
+    let currentPosition = hasPositionRecords ? [] : parseListPreserving(member.position);
+    let currentService = hasServiceRecords ? [] : parseListPreserving(member.church_service);
+
+    const cutoff = asOfDate || getKstTodayStr();
+    const activeRecords = sortedRecords.filter(rec =>
+        rec.status !== 'INITIAL_SNAPSHOT' &&
+        rec.status !== 'SYSTEM_GEMINI_KEY' &&
+        (!rec.date || rec.date <= cutoff)
+    );
+
+    activeRecords.forEach(rec => {
+        const remark = (rec.remark || '').trim();
+        if (rec.status === 'DISTRICT') {
+            currentDistrict = remark || '미배정';
+        } else if (rec.status === 'CATEGORY') {
+            if (remark) currentCategory = remark;
+        } else if (rec.status === 'CHURCH_IN') {
+            const parts = remark.split(' > ').map(s => s.trim());
+            if (parts[0]) currentChurch = parts[0];
+            currentParish = parts[1] || (parts[0] === '서울중앙교회' ? currentParish : '교구정보없음');
+            currentDistrict = parts[2] || '미배정';
+            currentStatus = 'active';
+        } else if (rec.status === 'CHURCH_MOVE') {
+            if (remark.startsWith('서울중앙교회')) {
+                const parts = remark.split(' > ').map(s => s.trim());
+                if (parts[0]) currentChurch = parts[0];
+                if (parts[1]) currentParish = parts[1];
+                // 교구까지 적고 구역이 비어 있으면 이전 교구의 옛 구역 번호가 남지 않도록 '미배정' 처리
+                currentDistrict = parts[2] || '미배정';
+                currentStatus = 'active';
+            } else if (remark) {
+                currentChurch = remark;
+                currentParish = '교구정보없음';
+                currentDistrict = '미배정';
+                currentStatus = 'active';
+            }
+        } else if (rec.status === 'PARISH_MOVE') {
+            const parts = remark.split(' > ').map(s => s.trim());
+            if (parts[0]) currentParish = parts[0];
+            // 교구가 바뀌면 이전 교구의 구역(예: 581구역)은 더 이상 유효하지 않으므로 초기화
+            currentDistrict = parts[1] || '미배정';
+        } else if (rec.status === 'POSITION') {
+            const newPos = remark.split(',').map(p => p.trim()).filter(p => p);
+            currentPosition = Array.from(new Set([...currentPosition, ...newPos]));
+        } else if (rec.status === 'POSITION_DISMISS') {
+            const cleanedRemark = remark.replace(/\[면직\]\s*|면직\s*/g, '');
+            const removePos = cleanedRemark.split(',').map(p => p.trim()).filter(p => p);
+            currentPosition = currentPosition.filter(p => !removePos.includes(p));
+        } else if (rec.status === 'SERVICE') {
+            const newSvc = remark.split(',').map(s => s.trim()).filter(s => s);
+            currentService = Array.from(new Set([...currentService, ...newSvc]));
+        } else if (rec.status === 'SERVICE_DISMISS') {
+            const cleanedRemark = remark.replace(/\[면직\]\s*|면직\s*/g, '');
+            const removeSvc = cleanedRemark.split(',').map(s => s.trim()).filter(s => s);
+            currentService = currentService.filter(s => !removeSvc.includes(s));
+        } else if (rec.status === 'FELLOWSHIP') {
+            if (remark.includes('안나옴')) currentStatus = 'inactive';
+            else if (remark.includes('나옴')) currentStatus = 'active';
+        }
+    });
+
+    return {
+        ...member,
+        church: currentChurch,
+        parish: currentParish,
+        district: currentDistrict,
+        category: currentCategory,
+        position: currentPosition.join(', '),
+        church_service: currentService.length ? currentService.join(', ') : '없음',
+        status: currentStatus
+    };
+}
+
+// Helper function to sync member profile based on history (오늘 KST 기준)
 async function syncMemberProfileFromRecords(memberId) {
     const { data: records, error: recError } = await supabase
       .from('member_records')
@@ -473,84 +627,18 @@ async function syncMemberProfileFromRecords(memberId) {
     if (memError) throw memError;
     if (!member) throw new Error('Member not found');
 
-    let currentChurch = member.church || '교회정보없음';
-    let currentParish = member.parish || '교구정보없음';
-    let currentDistrict = member.district || '구역정보없음';
-    let currentCategory = member.category || '봉사회';
-    let currentStatus = member.status || 'active';
-
-    // [2026-07-07 감사 보고서 7번 항목] 원래는 position/church_service를 무조건 빈 배열에서
-    // 시작해 POSITION/SERVICE 기록만으로 재구성했다. 그런데 그 성도에 대한 POSITION/SERVICE
-    // 기록이 하나도 없는 경우(레거시 데이터이거나 엑셀 일괄 등록 등으로 직접 입력만 된 경우)에도
-    // 무조건 빈 값에서 시작하다 보니, 수정 화면에서 직접 입력한 직분·부서가 아무 근거 기록 없이
-    // 조용히 지워져 버렸다. 이제 해당 성도에게 POSITION/SERVICE 기록이 "하나라도" 있을 때만
-    // 기록 기반으로 처음부터 재구성하고, 기록이 전혀 없다면 현재 저장된 값을 그대로 유지한다.
-    const parseListPreserving = (val) => {
-      if (!val || val === '없음') return [];
-      return val.split(',').map(s => s.trim()).filter(Boolean);
-    };
-    const hasPositionRecords = records.some(rec => rec.status === 'POSITION' || rec.status === 'POSITION_DISMISS');
-    const hasServiceRecords = records.some(rec => rec.status === 'SERVICE' || rec.status === 'SERVICE_DISMISS');
-    let currentPosition = hasPositionRecords ? [] : parseListPreserving(member.position);
-    let currentService = hasServiceRecords ? [] : parseListPreserving(member.church_service);
-
-    const today = new Date().toISOString().split('T')[0];
-    const activeRecords = records.filter(rec => rec.date <= today);
-
-    activeRecords.forEach(rec => {
-        if (rec.status === 'DISTRICT') {
-            currentDistrict = rec.remark;
-        } else if (rec.status === 'CATEGORY') {
-            currentCategory = rec.remark;
-        } else if (rec.status === 'CHURCH_IN') {
-            const parts = rec.remark.split(' > ');
-            if (parts[0]) currentChurch = parts[0];
-            if (parts[1]) currentParish = parts[1];
-            if (parts[2]) currentDistrict = parts[2];
-            currentStatus = 'active';
-        } else if (rec.status === 'CHURCH_MOVE') {
-            if (rec.remark.startsWith('서울중앙교회')) {
-                const parts = rec.remark.split(' > ');
-                if (parts[0]) currentChurch = parts[0];
-                if (parts[1]) currentParish = parts[1];
-                if (parts[2]) currentDistrict = parts[2];
-                currentStatus = 'active';
-            } else {
-                currentChurch = rec.remark;
-                currentStatus = 'active'; // Transfer out but keep active
-            }
-        } else if (rec.status === 'PARISH_MOVE') {
-            currentParish = rec.remark;
-        } else if (rec.status === 'POSITION') {
-            const newPos = rec.remark.split(',').map(p => p.trim()).filter(p => p);
-            currentPosition = Array.from(new Set([...currentPosition, ...newPos]));
-        } else if (rec.status === 'POSITION_DISMISS') {
-            const cleanedRemark = rec.remark.replace(/\[면직\]\s*|면직\s*/g, '');
-            const removePos = cleanedRemark.split(',').map(p => p.trim()).filter(p => p);
-            currentPosition = currentPosition.filter(p => !removePos.includes(p));
-        } else if (rec.status === 'SERVICE') {
-            const newSvc = rec.remark.split(',').map(s => s.trim()).filter(s => s);
-            currentService = Array.from(new Set([...currentService, ...newSvc]));
-        } else if (rec.status === 'SERVICE_DISMISS') {
-            const cleanedRemark = rec.remark.replace(/\[면직\]\s*|면직\s*/g, '');
-            const removeSvc = cleanedRemark.split(',').map(s => s.trim()).filter(s => s);
-            currentService = currentService.filter(s => !removeSvc.includes(s));
-        } else if (rec.status === 'FELLOWSHIP') {
-            if (rec.remark.includes('안나옴')) currentStatus = 'inactive';
-            else if (rec.remark.includes('나옴')) currentStatus = 'active';
-        }
-    });
+    const resolved = resolveMemberProfileAsOf(member, records || [], getKstTodayStr());
 
     const { error: updateErr } = await supabase
       .from('members')
       .update({
-        church: currentChurch,
-        parish: currentParish,
-        district: currentDistrict,
-        category: currentCategory,
-        position: currentPosition.join(', '),
-        church_service: currentService.length ? currentService.join(', ') : '없음',
-        status: currentStatus
+        church: resolved.church,
+        parish: resolved.parish,
+        district: resolved.district,
+        category: resolved.category,
+        position: resolved.position,
+        church_service: resolved.church_service,
+        status: resolved.status
       })
       .eq('id', memberId);
       
@@ -1025,44 +1113,48 @@ function hasPositionAsOf(positionRecords, dateStr) {
   return positions.length > 0;
 }
 
-function isMandatoryMeeting(member, meeting, leaderProfile, positionRecords) {
+function isMandatoryMeeting(member, meeting, leaderProfile, memberRecords) {
+  const effMember = (memberRecords && memberRecords.length > 0 && meeting && meeting.date)
+    ? resolveMemberProfileAsOf(member, memberRecords, meeting.date)
+    : member;
+
+  if (effMember.status === 'inactive') return false;
+
   const mType = meeting.type || '';
   const mDistMatch = mType.match(/\d+/);
   const mDistNum = mDistMatch ? mDistMatch[0] : null;
-  const memDistNum = (member.district || '').replace(/[^0-9]/g, '');
-  const isGroupEligibleSister = member.bs === 'S' && (member.category === '어머니회' || member.category === '은장회');
+  const memDistNum = (effMember.district || '').replace(/[^0-9]/g, '');
+  const isGroupEligibleSister = effMember.bs === 'S' && (effMember.category === '어머니회' || effMember.category === '은장회');
 
-  // 구역모임: 구역 배정자 전원
+  // 교회/교구 소속 확인 (구역모임·조모임·교구 단위 모임 모두 포함 — 송정교구 등 타 교구 전출자는 부곡교구 모임에서 제외)
+  const effectiveChurch = meeting.leader_church_snapshot || (leaderProfile && leaderProfile.church) || null;
+  const effectiveParish = meeting.leader_parish_snapshot || (leaderProfile && leaderProfile.parish) || null;
+  if (effectiveChurch) {
+    if ((effMember.church || '').trim() !== effectiveChurch.trim()) return false;
+    if (effectiveChurch.trim() === '서울중앙교회' && effectiveParish &&
+        (effMember.parish || '').trim() !== effectiveParish.trim()) return false;
+  }
+
+  // 구역모임: 구역 배정자 전원 (단, 구역 번호 미지정 모임이 아닐 때는 해당 구역 번호 일치 필수)
   if (mType.includes('구역모임')) {
-    return !mDistNum || mDistNum === memDistNum;
+    return mDistNum ? (mDistNum === memDistNum) : (memDistNum.length > 0);
   }
 
   // 조모임(구역 단위, "전체조모임"은 제외): 어머니회/은장회 자매만
   if (mType.includes('조모임') && !mType.includes('전체조모임')) {
     if (!isGroupEligibleSister) return false;
-    return !mDistNum || mDistNum === memDistNum;
+    return mDistNum ? (mDistNum === memDistNum) : (memDistNum.length > 0);
   }
 
-  // 교구 단위 모임 (교구전체모임, 교구형제모임, 전체조모임, 교구임원모임, 청년모임 등):
-  // 모임을 만든 리더와 같은 교회(+서울중앙교회면 교구까지)에 속한 성도만 대상.
+  // 교구 단위 모임: 전도대상자(member_status='evangelism') 제외
   const isParishMeeting = mType.includes('교구전체모임') || mType.includes('교구형제모임') || mType.includes('전체조모임') || mType.includes('교구임원모임') || mType.includes('청년');
-
-  if (isParishMeeting) {
-    if (member.member_status === 'evangelism') return false;
-    const effectiveChurch = meeting.leader_church_snapshot || (leaderProfile && leaderProfile.church) || null;
-    const effectiveParish = meeting.leader_parish_snapshot || (leaderProfile && leaderProfile.parish) || null;
-    if (effectiveChurch) {
-      if ((member.church || '').trim() !== effectiveChurch.trim()) return false;
-      if (effectiveChurch.trim() === '서울중앙교회' && effectiveParish &&
-          (member.parish || '').trim() !== effectiveParish.trim()) return false;
-    }
-  }
+  if (isParishMeeting && effMember.member_status === 'evangelism') return false;
 
   if (mType.includes('교구전체모임')) return true;
-  if (mType.includes('교구형제모임')) return member.bs === 'B' && member.category === '봉사회';
+  if (mType.includes('교구형제모임')) return effMember.bs === 'B' && effMember.category === '봉사회';
   if (mType.includes('전체조모임')) return isGroupEligibleSister;
-  if (mType.includes('교구임원모임')) return hasPositionAsOf(positionRecords, meeting.date);
-  if (mType.includes('청년') && member.category === '청년회' && member.id !== 270) return true;
+  if (mType.includes('교구임원모임')) return hasPositionAsOf(memberRecords, meeting.date);
+  if (mType.includes('청년') && effMember.category === '청년회' && effMember.id !== 270) return true;
 
   return false;
 }
@@ -1106,12 +1198,12 @@ app.get('/api/members/attendance-rates', async (req, res) => {
       meetingMap[m.id] = m;
     });
 
-    // [2026-07-07 페이지네이션] 성도/직분이력 전체 조회 — 필터 없이 조회하면 1000행을 넘는
+    // [2026-07-07 페이지네이션] 성도/인적이력 전체 조회 — 필터 없이 조회하면 1000행을 넘는
     // 순간부터 조용히 잘려나가 출석률 분모(성도 수)가 틀어진다. fetchAllRows로 전체 페이지 조회.
     const members = await fetchAllRows((from, to) =>
       supabase
         .from('members')
-        .select('id, name, category, bs, district, position, church, parish, member_status')
+        .select('id, name, category, bs, district, position, church_service, church, parish, status, member_status')
         .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
         .range(from, to)
     );
@@ -1121,13 +1213,13 @@ app.get('/api/members/attendance-rates', async (req, res) => {
     //  스냅샷이 없는 과거 모임에 한해서만 이 현재 값으로 대체 계산한다)
     const leaderProfile = await fetchLeaderChurchParish();
 
-    // 교구임원모임 의무 대상 판정을 "모임 날짜 시점" 기준으로 정확히 하기 위한 직분 이력 일괄 조회
-    // (2026-07-05: isMandatoryMeeting의 날짜 인지 판정과 함께 추가)
+    // 모임 날짜 시점 기준으로 구역·교구·교회·직분·활동상태를 정확히 판정하기 위한 인적이력 일괄 조회
+    const recordStatuses = ['INITIAL_SNAPSHOT', 'DISTRICT', 'CATEGORY', 'CHURCH_IN', 'CHURCH_MOVE', 'PARISH_MOVE', 'POSITION', 'POSITION_DISMISS', 'FELLOWSHIP'];
     const positionRecordsRaw = await fetchAllRows((from, to) =>
       supabase
         .from('member_records')
         .select('id, member_id, date, status, remark')
-        .in('status', ['POSITION', 'POSITION_DISMISS'])
+        .in('status', recordStatuses)
         .range(from, to)
     );
     const positionRecordsByMember = {};
@@ -1478,7 +1570,7 @@ app.put('/api/members/:id', async (req, res) => {
     //  "변경 전"과 "변경 후"를 비교하는 것이 아니라 새 값끼리 비교하는 꼴이 되어 오작동할 수 있음)
     const { data: oldMemberBeforeUpdate, error: getOldErr } = await supabase
       .from('members')
-      .select('church, parish, district, position, church_service, family_relation')
+      .select('church, parish, district, category, status, position, church_service, family_relation')
       .eq('id', id)
       .single();
 
@@ -1500,7 +1592,7 @@ app.put('/api/members/:id', async (req, res) => {
       const oldMember = oldMemberBeforeUpdate;
 
       if (!getOldErr && oldMember) {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getKstTodayStr();
         const autoRecords = [];
 
         // [2026-07-07] 일부 화면(엑셀 일괄 등록의 2단계 가족관계 갱신 등)은 이 PUT을 호출할 때
@@ -1571,6 +1663,12 @@ app.put('/api/members/:id', async (req, res) => {
         }
 
         if (autoRecords.length > 0) {
+          for (const ar of autoRecords) {
+            if (ORG_TRACKED_RECORD_STATUSES.includes(ar.status)) {
+              await ensureInitialProfileSnapshot(id, ar.status, oldMember);
+              break;
+            }
+          }
           await supabase.from('member_records').insert(autoRecords);
         }
       }
@@ -1596,6 +1694,12 @@ app.put('/api/members/:id', async (req, res) => {
         }));
 
         if (recordsToInsert.length > 0) {
+          for (const pr of recordsToInsert) {
+            if (ORG_TRACKED_RECORD_STATUSES.includes(pr.status)) {
+              await ensureInitialProfileSnapshot(id, pr.status, oldMemberBeforeUpdate);
+              break;
+            }
+          }
           const { error: recErr } = await supabase
             .from('member_records')
             .insert(recordsToInsert);
@@ -1631,12 +1735,19 @@ app.put('/api/members/:id', async (req, res) => {
 
 app.get('/api/members/:id/records', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const includeSystem = req.query.include_system === '1';
+    let q = supabase
       .from('member_records')
       .select('*')
       .eq('member_id', req.params.id)
+      .neq('status', 'SYSTEM_GEMINI_KEY')
       .order('date', { ascending: false });
-      
+
+    if (!includeSystem) {
+      q = q.neq('status', 'INITIAL_SNAPSHOT');
+    }
+
+    const { data, error } = await q;
     if (error) throw error;
     res.json(data || []);
   } catch (err) {
@@ -1647,6 +1758,7 @@ app.get('/api/members/:id/records', async (req, res) => {
 app.post('/api/members/:id/records', async (req, res) => {
   const { id } = req.params; const { date, status, remark } = req.body;
   try {
+    await ensureInitialProfileSnapshot(id, status);
     const { data, error } = await supabase
       .from('member_records')
       .insert({ member_id: id, date, status, remark })
@@ -1666,11 +1778,14 @@ app.delete('/api/members/records/:id', async (req, res) => {
   try {
     const { data: row, error: findError } = await supabase
       .from('member_records')
-      .select('member_id')
+      .select('member_id, status')
       .eq('id', req.params.id)
       .single();
       
     if (findError || !row) return res.status(500).json({ error: 'Record not found' });
+    if (row.status === 'SYSTEM_GEMINI_KEY' || row.status === 'INITIAL_SNAPSHOT') {
+      return res.status(400).json({ error: 'System snapshot record cannot be deleted' });
+    }
     const memberId = row.member_id;
     
     const { error: deleteError } = await supabase
@@ -1698,6 +1813,8 @@ app.put('/api/members/records/:id', async (req, res) => {
       .single();
     if (findError || !row) return res.status(500).json({ error: 'Record not found' });
     const memberId = row.member_id;
+
+    await ensureInitialProfileSnapshot(memberId, status);
 
     // COUNSELING 기록은 상담 관리 포맷([상담] ... (비고: ...))을 보존/적용
     // 프론트에서 순수 내용만 보내줄 수도 있으므로, 포맷이 없으면 자동으로 감싸줌
@@ -2852,6 +2969,128 @@ app.post('/api/meetings', async (req, res) => {
     if (error) throw error;
     res.json({ id: data.id });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 모임 날짜 시점(date) + 모임 구분(type) + 리더 소속(church/parish)을 기준으로
+// 출석 체크 화면 / 미참석자 명단에 표시할 성도 대상자를 정확히 계산해 반환한다.
+// - 8월 송정교구 전출자(PARISH_MOVE/CHURCH_MOVE)는 전출일 이후 모든 부곡교구 모임에서 제외됨.
+// - 12월 대규모 구역변경(DISTRICT)도 모임 날짜 시점에 따라 변경 전/후 구역으로 정확히 분리됨.
+app.get('/api/meetings/targets', async (req, res) => {
+  try {
+    const typeStr = String(req.query.type || '').trim();
+    const titleStr = String(req.query.title || '').trim();
+    const targetDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || ''))
+      ? String(req.query.date)
+      : getKstTodayStr();
+    const leaderChurch = String(req.query.leader_church || '').trim();
+    const leaderParish = String(req.query.leader_parish || '').trim();
+
+    if (!typeStr || ['설교', '외부설교', '심방', '기타', '상담', '교회행사'].includes(typeStr)) {
+      return res.json([]);
+    }
+
+    const leaderProfile = (leaderChurch)
+      ? { church: leaderChurch, parish: leaderParish || null }
+      : await fetchLeaderChurchParish();
+
+    const effectiveChurch = (leaderProfile && leaderProfile.church) ? leaderProfile.church.trim() : null;
+    const effectiveParish = (leaderProfile && leaderProfile.parish) ? leaderProfile.parish.trim() : null;
+
+    const allMembers = await fetchAllRows((from, to) =>
+      supabase
+        .from('members')
+        .select('id, name, category, bs, district, position, church_service, church, parish, status, member_status')
+        .neq('name', ANONYMOUS_COUNSELING_NAME)
+        .range(from, to)
+    );
+
+    const recordStatuses = [
+      'INITIAL_SNAPSHOT', 'DISTRICT', 'CATEGORY', 'CHURCH_IN',
+      'CHURCH_MOVE', 'PARISH_MOVE', 'POSITION', 'POSITION_DISMISS', 'FELLOWSHIP'
+    ];
+    const allRecords = await fetchAllRows((from, to) =>
+      supabase
+        .from('member_records')
+        .select('id, member_id, date, status, remark')
+        .in('status', recordStatuses)
+        .range(from, to)
+    );
+
+    const recordsByMember = {};
+    (allRecords || []).forEach(r => {
+      if (!recordsByMember[r.member_id]) recordsByMember[r.member_id] = [];
+      recordsByMember[r.member_id].push(r);
+    });
+
+    const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
+    const distMatch = typeStr.match(/\d+/);
+    const targetDistNum = distMatch ? distMatch[0] : null;
+    const silverSisters = ['김민주', '정혜숙', '박현숙', '박효순', '이만심', '전계숙', '민승자', '이병숙', '김순임', '김윤연', '허간란'];
+
+    const targets = [];
+    for (const member of (allMembers || [])) {
+      const mRecs = recordsByMember[member.id] || [];
+      const eff = resolveMemberProfileAsOf(member, mRecs, targetDate);
+
+      if (eff.status !== 'active') continue;
+      if (eff.member_status === 'evangelism') continue;
+
+      // 모든 모임(구역/조/교구전체/형제/청년/임원)에서 리더의 교회·교구 소속 일치 여부 확인
+      if (effectiveChurch) {
+        if ((eff.church || '').trim() !== effectiveChurch) continue;
+        if (effectiveChurch === '서울중앙교회' && effectiveParish &&
+            (eff.parish || '').trim() !== effectiveParish) continue;
+      }
+
+      const effDistNum = (eff.district || '').replace(/[^0-9]/g, '');
+      const isGroupSister = eff.bs === 'S' && eff.category !== '청년회';
+
+      let included = false;
+      if (typeStr.includes('전체조모임')) {
+        included = isGroupSister;
+      } else if (typeStr.includes('교구전체모임')) {
+        included = titleStr.includes('조') ? isGroupSister : true;
+      } else if (typeStr.includes('조모임')) {
+        if (isGroupSister) {
+          included = targetDistNum ? (effDistNum === targetDistNum) : (effDistNum.length > 0);
+        }
+      } else if (typeStr.includes('구역모임')) {
+        included = targetDistNum ? (effDistNum === targetDistNum) : (effDistNum.length > 0);
+      } else if (typeStr === '교구임원모임') {
+        const posRecs = mRecs.filter(r => r.status === 'POSITION' || r.status === 'POSITION_DISMISS');
+        const hasPos = posRecs.length > 0
+          ? hasPositionAsOf(posRecs, targetDate)
+          : ((eff.position || '').trim().length > 0);
+        included = hasPos;
+      } else if (typeStr.includes('형제모임')) {
+        if (eff.category === '봉사회' && eff.bs !== 'S') {
+          included = true;
+        } else if (eff.category === '은장회' && eff.bs !== 'S' &&
+                   !silverSisters.includes(eff.name) && !(eff.name || '').includes('자매')) {
+          included = true;
+        }
+      } else if (typeStr.includes('청년모임') || typeStr.includes('청년')) {
+        included = eff.category === '청년회';
+      }
+
+      if (included) {
+        targets.push(eff);
+      }
+    }
+
+    targets.sort((a, b) => {
+      const dCmp = (a.district || '').localeCompare(b.district || '', 'ko');
+      if (dCmp !== 0) return dCmp;
+      const nCmp = (a.name || '').localeCompare(b.name || '', 'ko');
+      if (nCmp !== 0) return nCmp;
+      return (a.id || 0) - (b.id || 0);
+    });
+
+    res.json(targets);
+  } catch (err) {
+    console.error('Get meeting targets error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -4686,7 +4925,7 @@ app.get('/api/dashboard/attendance', async (req, res) => {
         const members = await fetchAllRows((from, to) =>
             supabase
                 .from('members')
-                .select('id, name, category, bs, district, birth_year, position, church_service, family_relation')
+                .select('id, name, category, bs, district, birth_year, position, church_service, family_relation, church, parish, status, member_status')
                 .eq('status', 'active')
                 .neq('name', ANONYMOUS_COUNSELING_NAME)  // 익명 상담 기록용 행 제외(성도 아님)
                 .range(from, to)
@@ -4747,7 +4986,7 @@ app.get('/api/dashboard/attendance', async (req, res) => {
                 supabase
                     .from('member_records')
                     .select('id, member_id, date, status, remark')
-                    .in('status', ['POSITION', 'POSITION_DISMISS'])
+                    .in('status', ['INITIAL_SNAPSHOT', 'DISTRICT', 'CATEGORY', 'CHURCH_IN', 'CHURCH_MOVE', 'PARISH_MOVE', 'POSITION', 'POSITION_DISMISS', 'FELLOWSHIP'])
                     .range(from, to)
             );
             (positionRecordsRaw || []).forEach(r => {
@@ -6114,8 +6353,93 @@ const ASSISTANT_TOOL_DECLARATIONS = [
                 limit: { type: 'INTEGER', description: '최대 조회 건수 (기본 10)' }
             }
         }
+    },
+    {
+        name: 'get_member_details',
+        description: '성도 이름 또는 member_id로 해당 성도의 현재 소속(교회·교구·구역·회·직분·봉사·상태), 연결된 가족 구성원 목록(family_id 공유), 그리고 개인 이력(member_records) 전체를 조회합니다. 구역변경·교구이동·직분변경·가족 일괄 변경 전에 반드시 먼저 호출해 정확한 member_id와 동명이인 여부를 확인하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                member_id: { type: 'INTEGER', description: '성도 ID (선택)' },
+                member_name: { type: 'STRING', description: '성도 이름 (선택, 예: "강준호")' }
+            }
+        }
+    },
+    {
+        name: 'add_member_records',
+        description: '1명 이상의 성도 개인 이력(구역 변경, 교구 이동, 교회 이동, 직분 임명/면직, 봉사 임명/면직, 소속 변경, 교제 상태 변경 등)을 한 번에 일괄 등록하고 각 성도의 현재 프로필을 자동 동기화합니다. 12월 대규모 구역변경이나 가족 일괄 변경 시 records 배열에 모든 대상자를 담아 한 번에 호출하세요.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                records: {
+                    type: 'ARRAY',
+                    description: '등록할 성도 개인 이력 배열',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            member_id: { type: 'INTEGER', description: '성도의 정확한 ID (get_member_details 또는 search_members로 확인)' },
+                            date: { type: 'STRING', description: '변경 기준 날짜 (YYYY-MM-DD, 예: "2026-12-01")' },
+                            status: {
+                                type: 'STRING',
+                                description: '이력 구분 코드: "DISTRICT"(구역변경), "PARISH_MOVE"(교구이동), "CHURCH_MOVE"(교회이동), "CHURCH_IN"(교회전입), "CATEGORY"(회별소속변경), "POSITION"(직분임명), "POSITION_DISMISS"(직분면직), "SERVICE"(교회봉사시작/변경), "SERVICE_DISMISS"(교회봉사면직), "FELLOWSHIP"(교제상태변경), "ETC"(기타)'
+                            },
+                            remark: {
+                                type: 'STRING',
+                                description: '세부 내용. DISTRICT: "581구역"/"582구역"/"미배정", PARISH_MOVE: "송정교구" 또는 "송정교구 > 101구역", CHURCH_MOVE: "서울중앙교회 > 송정교구" 또는 타교회명, POSITION/POSITION_DISMISS: "집사", "구역장, 조장" 등, FELLOWSHIP: "안나옴" 또는 "나옴"'
+                            },
+                            skip_if_duplicate: { type: 'BOOLEAN', description: '같은 성도·날짜·구분·내용이 이미 있으면 건너뛸지 여부 (기본 true)' }
+                        },
+                        required: ['member_id', 'date', 'status', 'remark']
+                    }
+                }
+            },
+            required: ['records']
+        }
+    },
+    {
+        name: 'delete_member_records',
+        description: '사용자가 명시적으로 취소·삭제를 요청한 성도 개인 이력(member_records)을 record_id로 삭제하고 성도 프로필을 다시 동기화합니다.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                record_ids: {
+                    type: 'ARRAY',
+                    items: { type: 'INTEGER' },
+                    description: '삭제할 member_records.id 목록'
+                }
+            },
+            required: ['record_ids']
+        }
     }
 ];
+
+const ASSISTANT_RECORD_STATUS_LABELS = {
+    DISTRICT: '구역 변경',
+    CATEGORY: '소속 변경',
+    POSITION: '직분 임명',
+    POSITION_DISMISS: '직분 면직',
+    SERVICE: '봉사 임무',
+    SERVICE_DISMISS: '봉사 면직',
+    FELLOWSHIP: '교제 상태',
+    CHURCH_IN: '교회 전입',
+    CHURCH_MOVE: '교회 이동',
+    PARISH_MOVE: '교구 이동',
+    ETC: '기타'
+};
+
+function normalizeMemberRecordRemark(status, rawRemark) {
+    let r = String(rawRemark || '').trim();
+    if (status === 'DISTRICT') {
+        if (/미배정|없음/.test(r)) return '미배정';
+        const m = r.match(/^(\d{2,4})\s*구역?$/);
+        if (m) return `${m[1]}구역`;
+    } else if (status === 'PARISH_MOVE') {
+        if (!r.includes('>') && !r.endsWith('교구') && r.length > 0 && r.length <= 6) {
+            return `${r}교구`;
+        }
+    }
+    return r;
+}
 
 async function executeAssistantTool(name, args, ctx) {
     const { todayStr, leaderProfile, resultMeta, executionLogs } = ctx;
@@ -6569,6 +6893,271 @@ async function executeAssistantTool(name, args, ctx) {
         return { ok: true, count: records.length, records };
     }
 
+    if (name === 'get_member_details') {
+        const memberId = args?.member_id ? Number(args.member_id) : null;
+        const memberName = String(args?.member_name || '').trim();
+        if (!memberId && !memberName) {
+            return { ok: false, error: 'member_id 또는 member_name 중 하나는 필요합니다.' };
+        }
+
+        let q = supabase
+            .from('members')
+            .select('id, name, church, parish, district, category, bs, position, church_service, status, member_status, birth_year, birth_date, family_id, family_relation, phone')
+            .neq('name', ANONYMOUS_COUNSELING_NAME);
+
+        if (memberId) {
+            q = q.eq('id', memberId);
+        } else {
+            q = q.ilike('name', `%${memberName}%`);
+        }
+
+        const { data: foundMembers, error: memErr } = await q.order('id', { ascending: true }).limit(15);
+        if (memErr) return { ok: false, error: memErr.message };
+        if (!foundMembers || foundMembers.length === 0) {
+            return { ok: true, count: 0, members: [], message: '일치하는 성도를 찾지 못했습니다.' };
+        }
+
+        const memberIds = foundMembers.map(m => m.id);
+        const familyIds = Array.from(new Set(foundMembers.map(m => m.family_id).filter(Boolean)));
+
+        const [{ data: recs }, { data: famMembers }] = await Promise.all([
+            supabase
+                .from('member_records')
+                .select('id, member_id, date, status, remark')
+                .in('member_id', memberIds)
+                .neq('status', 'SYSTEM_GEMINI_KEY')
+                .neq('status', 'INITIAL_SNAPSHOT')
+                .order('date', { ascending: false })
+                .order('id', { ascending: false }),
+            familyIds.length > 0
+                ? supabase
+                    .from('members')
+                    .select('id, name, church, parish, district, category, bs, position, status, family_id, family_relation')
+                    .in('family_id', familyIds)
+                    .neq('name', ANONYMOUS_COUNSELING_NAME)
+                : Promise.resolve({ data: [] })
+        ]);
+
+        const detailed = foundMembers.map(m => ({
+            id: m.id,
+            name: m.name,
+            church: m.church || '',
+            parish: m.parish || '',
+            district: m.district || '',
+            category: m.category || '',
+            bs: m.bs === 'B' ? '형제' : (m.bs === 'S' ? '자매' : ''),
+            position: m.position || '',
+            church_service: m.church_service || '',
+            status: m.status || 'active',
+            member_status: m.member_status === 'evangelism' ? '전도대상' : '성도',
+            birth_year: m.birth_year || null,
+            family_id: m.family_id || null,
+            family_relation: m.family_relation || '',
+            family_members: (famMembers || [])
+                .filter(f => f.family_id && f.family_id === m.family_id && f.id !== m.id)
+                .map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    parish: f.parish || '',
+                    district: f.district || '',
+                    category: f.category || '',
+                    position: f.position || '',
+                    status: f.status || 'active'
+                })),
+            records: (recs || [])
+                .filter(r => r.member_id === m.id)
+                .map(r => ({
+                    id: r.id,
+                    date: r.date,
+                    status: r.status,
+                    status_label: ASSISTANT_RECORD_STATUS_LABELS[r.status] || r.status,
+                    remark: r.remark
+                }))
+        }));
+
+        executionLogs.push(`get_member_details: ${detailed.length}명 조회`);
+        return { ok: true, count: detailed.length, members: detailed };
+    }
+
+    if (name === 'add_member_records') {
+        const rawList = Array.isArray(args?.records) ? args.records : [];
+        if (rawList.length === 0) {
+            return { ok: false, error: '등록할 이력 배열(records)이 비어 있습니다.' };
+        }
+
+        const allowedStatuses = new Set(Object.keys(ASSISTANT_RECORD_STATUS_LABELS));
+        const memberIds = Array.from(new Set(rawList.map(r => Number(r?.member_id)).filter(Boolean)));
+        if (memberIds.length === 0) {
+            return { ok: false, error: '유효한 member_id가 없습니다.' };
+        }
+
+        const [{ data: dbMembers }, { data: existingRecords }] = await Promise.all([
+            supabase.from('members').select('id, name, church, parish, district, category, position, status').in('id', memberIds),
+            supabase.from('member_records').select('id, member_id, date, status, remark').in('member_id', memberIds)
+        ]);
+
+        const memberById = {};
+        (dbMembers || []).forEach(m => { memberById[m.id] = m; });
+        const existingByMember = {};
+        (existingRecords || []).forEach(r => {
+            if (!existingByMember[r.member_id]) existingByMember[r.member_id] = [];
+            existingByMember[r.member_id].push(r);
+        });
+
+        const added = [];
+        const skipped = [];
+        const invalid = [];
+        const touchedMemberIds = new Set();
+
+        for (const item of rawList) {
+            const mId = Number(item?.member_id);
+            const dateStr = String(item?.date || '').trim() || todayStr;
+            const status = String(item?.status || '').trim().toUpperCase();
+            const normRemark = normalizeMemberRecordRemark(status, item?.remark);
+            const skipDup = item?.skip_if_duplicate !== false;
+
+            const mem = memberById[mId];
+            if (!mem) {
+                invalid.push({ member_id: mId, reason: '존재하지 않는 member_id' });
+                continue;
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                invalid.push({ member_id: mId, member_name: mem.name, reason: `날짜 형식 오류(${dateStr})` });
+                continue;
+            }
+            if (!allowedStatuses.has(status)) {
+                invalid.push({ member_id: mId, member_name: mem.name, reason: `지원하지 않는 status(${status})` });
+                continue;
+            }
+            if (!normRemark) {
+                invalid.push({ member_id: mId, member_name: mem.name, reason: '세부 내용(remark) 누락' });
+                continue;
+            }
+
+            const prevList = existingByMember[mId] || [];
+            const isDup = prevList.some(e =>
+                e.date === dateStr &&
+                e.status === status &&
+                (e.remark || '').trim() === normRemark
+            );
+
+            if (skipDup && isDup) {
+                skipped.push({
+                    member_id: mId,
+                    member_name: mem.name,
+                    date: dateStr,
+                    status,
+                    status_label: ASSISTANT_RECORD_STATUS_LABELS[status] || status,
+                    remark: normRemark,
+                    reason: '동일 날짜·구분·내용 이력이 이미 존재함'
+                });
+                continue;
+            }
+
+            await ensureInitialProfileSnapshot(mId, status, mem);
+
+            const { data: inserted, error: insErr } = await supabase
+                .from('member_records')
+                .insert({ member_id: mId, date: dateStr, status, remark: normRemark })
+                .select('id, member_id, date, status, remark')
+                .single();
+
+            if (insErr || !inserted) {
+                invalid.push({ member_id: mId, member_name: mem.name, reason: insErr?.message || '저장 실패' });
+                continue;
+            }
+
+            if (!existingByMember[mId]) existingByMember[mId] = [];
+            existingByMember[mId].push(inserted);
+            touchedMemberIds.add(mId);
+
+            added.push({
+                id: inserted.id,
+                member_id: mId,
+                member_name: mem.name,
+                date: inserted.date,
+                status: inserted.status,
+                status_label: ASSISTANT_RECORD_STATUS_LABELS[inserted.status] || inserted.status,
+                remark: inserted.remark
+            });
+        }
+
+        // 변경된 성도의 현재 프로필 동기화
+        const syncedProfiles = [];
+        for (const mId of touchedMemberIds) {
+            try {
+                await syncMemberProfileFromRecords(mId);
+                const { data: fresh } = await supabase
+                    .from('members')
+                    .select('id, name, church, parish, district, category, position, status')
+                    .eq('id', mId)
+                    .single();
+                if (fresh) syncedProfiles.push(fresh);
+            } catch (syncErr) {
+                console.warn(`Assistant syncMemberProfileFromRecords(${mId}) failed:`, syncErr.message);
+            }
+        }
+
+        if (added.length > 0) {
+            resultMeta.addedMemberRecords = [...(resultMeta.addedMemberRecords || []), ...added];
+        }
+        if (skipped.length > 0) {
+            resultMeta.skippedMemberRecords = [...(resultMeta.skippedMemberRecords || []), ...skipped];
+        }
+
+        executionLogs.push(`add_member_records: ${added.length}건 등록, ${skipped.length}건 중복 건너뜀`);
+        return {
+            ok: true,
+            added_count: added.length,
+            added,
+            skipped_count: skipped.length,
+            skipped,
+            invalid_count: invalid.length,
+            invalid,
+            synced_profiles: syncedProfiles
+        };
+    }
+
+    if (name === 'delete_member_records') {
+        const ids = Array.isArray(args?.record_ids) ? args.record_ids.map(Number).filter(Boolean) : [];
+        if (ids.length === 0) return { ok: false, error: '삭제할 record_ids가 비어 있습니다.' };
+
+        const { data: targets } = await supabase
+            .from('member_records')
+            .select('id, member_id, date, status, remark, members(name)')
+            .in('id', ids);
+
+        const deletable = (targets || []).filter(t => t.status !== 'SYSTEM_GEMINI_KEY' && t.status !== 'INITIAL_SNAPSHOT');
+        if (deletable.length === 0) {
+            return { ok: false, error: '삭제 가능한 이력이 없습니다.' };
+        }
+
+        const delIds = deletable.map(d => d.id);
+        const { error: delErr } = await supabase
+            .from('member_records')
+            .delete()
+            .in('id', delIds);
+        if (delErr) return { ok: false, error: delErr.message };
+
+        const affectedMemberIds = Array.from(new Set(deletable.map(d => d.member_id).filter(Boolean)));
+        for (const mId of affectedMemberIds) {
+            await syncMemberProfileFromRecords(mId).catch(() => {});
+        }
+
+        const deletedList = deletable.map(d => ({
+            id: d.id,
+            member_id: d.member_id,
+            member_name: d.members?.name || '',
+            date: d.date,
+            status: d.status,
+            status_label: ASSISTANT_RECORD_STATUS_LABELS[d.status] || d.status,
+            remark: d.remark
+        }));
+        resultMeta.deletedMemberRecords = [...(resultMeta.deletedMemberRecords || []), ...deletedList];
+        executionLogs.push(`delete_member_records: ${deletedList.length}건 삭제`);
+        return { ok: true, deleted_count: deletedList.length, deleted: deletedList };
+    }
+
     return { ok: false, error: `알 수 없는 도구: ${name}` };
 }
 
@@ -6645,16 +7234,29 @@ app.post('/api/ai/assistant', express.json(), async (req, res) => {
 ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분:${m.type}${m.start_time ? ', ' + m.start_time + (m.end_time ? '~' + m.end_time : '') : ''})${m.sermon_title ? ' | 설교:' + m.sermon_title : ''}`).join('\n') || '(없음)'}
 
 [핵심 행동 지침]:
-1. **필요하면 먼저 도구를 호출해 DB를 직접 확인하세요.** 추측하거나 "모르겠습니다"라고 하지 말고 \`get_meetings\`, \`search_meetings\`, \`search_members\`, \`get_attendance_stats\`, \`check_absentees\`, \`get_counseling_history\`를 적극 사용하세요.
+1. **필요하면 먼저 도구를 호출해 DB를 직접 확인하세요.** 추측하거나 "모르겠습니다"라고 하지 말고 \`get_meetings\`, \`search_meetings\`, \`search_members\`, \`get_member_details\`, \`get_attendance_stats\`, \`check_absentees\`, \`get_counseling_history\`를 적극 사용하세요.
 2. **여러 건(예: 5개, 7개, 한 달치 일정)의 모임 등록 요청**:
    - 절대 "순차적으로 첫 번째만 실행하겠습니다"처럼 말하고 1개만 등록하지 마세요!
    - \`create_meetings\` 도구의 \`meetings\` 배열에 요청된 **모든 모임을 한꺼번에 담아서** 즉시 일괄 등록하세요.
    - 만약 사용자가 "이번 달 미등록 모임을 찾아서 등록해줘"처럼 말하면, 먼저 \`get_meetings\`로 해당 월 전체 일정을 조회한 뒤, 빠진 날짜/모임이 무엇인지 파악하고 \`create_meetings\`로 한 번에 등록하세요. (단, 날짜나 모임 종류가 모호해 임의로 만들 위험이 크면 후보를 짚어 물어보세요.)
-3. **설교 제목/일정 수정 요청**:
+3. **성도 개인 이력 등록/변경 (구역변경, 교구이동, 교회이동, 직분임명/면직 등)**:
+   - 먼저 \`get_member_details\`(또는 \`search_members\`)로 정확한 \`member_id\`, 동명이인 여부, 기존 이력, 가족 구성원(\`family_members\`)을 확인하세요!
+   - **동명이인이 여러 명**이면 절대 임의로 고르지 말고 구역/소속/출생년도를 짚어 누구인지 먼저 확인 질문을 하세요.
+   - **"OO 가정/가족 전부" 변경 요청**이면 \`get_member_details\`로 확인된 가족 구성원 전원의 \`member_id\`를 \`add_member_records\`의 \`records\` 배열에 담아 **한 번에 일괄 등록**하세요.
+   - **대량 구역변경/직분변경**(예: 5명, 10명, 20명)도 각 성도의 \`member_id\`를 모두 조회한 뒤 \`add_member_records\` 한 번의 호출로 일괄 처리하세요.
+   - 이력 \`status\` 및 \`remark\` 표준:
+     * 구역변경: \`status: "DISTRICT"\`, \`remark: "581구역"\` / \`"582구역"\` / \`"583구역"\` / \`"미배정"\`
+     * 교구이동: \`status: "PARISH_MOVE"\`, \`remark: "송정교구"\` (또는 새 구역까지 알면 \`"송정교구 > 101구역"\`)
+     * 교회이동: \`status: "CHURCH_MOVE"\`, \`remark: "서울중앙교회 > 송정교구"\` 또는 타교회명
+     * 직분임명/면직: \`status: "POSITION"\` / \`"POSITION_DISMISS"\`, 표준 직분 예시: 교구장, 집사, 구역장, 조장, 구역총무, 조총무, 교구총무, 교구자매총무, 교구청년회장, 교구청년임원, 교구체육부장, 교구체육총무 (여러 개는 쉼표로 구분)
+     * 소속(회)변경: \`status: "CATEGORY"\`, \`remark: "봉사회"\` / \`"어머니회"\` / \`"청년회"\` / \`"은장회"\`
+     * 교제상태: \`status: "FELLOWSHIP"\`, \`remark: "안나옴"\` / \`"나옴"\`
+   - 참고: 미래 날짜(예: 12월 1일)로 등록해도 이력은 안전하게 저장되며, 해당 날짜가 도래하거나 그 날짜 이후 모임을 열 때 자동 반영됩니다.
+4. **설교 제목/일정 수정 요청**:
    - 먼저 \`get_meetings\`나 \`search_meetings\`로 정확한 \`meeting_id\`를 조회한 뒤 \`update_meetings\`로 수정하세요.
    - 만약 날짜와 모임은 특정되었는데 설교 제목 내용이 아직 주어지지 않았다면, 도구를 호출하지 말고 해당 모임명을 짚어 어떤 설교 제목으로 등록할지 친절히 물어보세요.
-4. **답변 작성 원칙**:
-   - 실제 도구 실행 결과(\`created\`, \`skipped\`, \`updated\`, 조회 데이터)에 기반해서만 사실대로 보고하세요. 실행하지 않은 작업을 완료했다고 말하지 마세요.
+5. **답변 작성 원칙**:
+   - 실제 도구 실행 결과(\`created\`, \`added\`, \`skipped\`, \`updated\`, 조회 데이터)에 기반해서만 사실대로 보고하세요. 실행하지 않은 작업을 완료했다고 말하지 마세요.
    - 정중하고 따뜻하며 핵심이 한눈에 보이는 한국어 마크다운으로 답변하세요.`;
 
         // 대화 히스토리 구성 (최근 10개 턴)
@@ -6793,6 +7395,8 @@ ${(recentMeetings || []).map(m => `- [ID:${m.id}] ${m.date} | ${m.title} (구분
         let action = 'NONE';
         if (resultMeta.createdMeetings?.length > 0) {
             action = 'CREATE_MEETING';
+        } else if (resultMeta.addedMemberRecords?.length > 0 || resultMeta.deletedMemberRecords?.length > 0) {
+            action = 'MEMBER_RECORD_UPDATE';
         } else if (resultMeta.updatedMeetings?.length > 0) {
             action = 'UPDATE_SERMON';
         } else if (resultMeta.deletedMeetings?.length > 0) {

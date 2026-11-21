@@ -46,7 +46,7 @@
                                 <h3 class="font-black text-sm md:text-base leading-tight">AI 사역 비서</h3>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white">Gemini</span>
                             </div>
-                            <p class="text-[11px] text-purple-200/90 font-medium">일정 등록 · 결석자 조회 · 출석률 통계</p>
+                            <p class="text-[11px] text-purple-200/90 font-medium">일정 등록 · 구역/직분 변경 · 통계 조회</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-1">
@@ -254,6 +254,17 @@
                     || (meta.deletedMeetings && meta.deletedMeetings.length > 0);
                 if (hasCalendarChanges && typeof calendar !== 'undefined' && calendar.refetchEvents) {
                     calendar.refetchEvents();
+                }
+
+                // 성도 개인 이력이 등록·삭제되었다면 열려 있는 목록/이벤트에 알림
+                const hasMemberChanges = (meta.addedMemberRecords && meta.addedMemberRecords.length > 0)
+                    || (meta.deletedMemberRecords && meta.deletedMemberRecords.length > 0);
+                if (hasMemberChanges) {
+                    try {
+                        document.dispatchEvent(new CustomEvent('ai-assistant:members-updated', { detail: meta }));
+                        if (typeof window.loadData === 'function') window.loadData();
+                        if (typeof window.loadMemberList === 'function') window.loadMemberList();
+                    } catch (e) {}
                 }
 
             } catch (err) {
@@ -473,6 +484,60 @@
                         </div>
                         <ul class="list-disc pl-4 space-y-0.5 text-[11px]">
                             ${meta.deletedMeetings.map(d => `<li>${escapeHtml(d.date || '')} ${escapeHtml(d.title || `ID ${d.id}`)}</li>`).join('')}
+                        </ul>
+                    </div>
+                `);
+            }
+
+            // 1-4. 성도 개인 이력 등록 완료 카드 (구역변경, 교구이동, 직분임명/면직 등)
+            const addedRecs = Array.isArray(meta?.addedMemberRecords) ? meta.addedMemberRecords : [];
+            const skippedRecs = Array.isArray(meta?.skippedMemberRecords) ? meta.skippedMemberRecords : [];
+            if (addedRecs.length > 0 || skippedRecs.length > 0) {
+                cardChunks.push(`
+                    <div class="mt-2.5 p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
+                        <div class="font-black text-sm flex items-center gap-1.5 mb-1.5 text-indigo-700 dark:text-indigo-300">
+                            <span>📋</span> 성도 개인 이력 등록 완료 (${addedRecs.length}건)
+                        </div>
+                        ${addedRecs.length > 0 ? `
+                            <div class="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                                ${addedRecs.map(r => `
+                                    <div class="p-2 bg-white/90 dark:bg-slate-800/80 rounded-lg border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <span class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(r.member_name || '')}</span>
+                                            <span class="text-[10px] text-slate-400 ml-1">(${escapeHtml(r.date || '')})</span>
+                                            <p class="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 mt-0.5 truncate">${escapeHtml(r.remark || '')}</p>
+                                        </div>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold shrink-0">${escapeHtml(r.status_label || r.status || '')}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-[11px] text-slate-500 dark:text-slate-400">신규 등록된 이력이 없습니다.</p>'}
+                        ${skippedRecs.length > 0 ? `
+                            <div class="mt-2 p-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-800 dark:text-amber-200">
+                                <p class="font-bold mb-1">⏭️ 중복으로 건너뛴 이력 (${skippedRecs.length}건)</p>
+                                <ul class="list-disc pl-4 space-y-0.5">
+                                    ${skippedRecs.map(s => `<li>${escapeHtml(s.member_name || '')} (${escapeHtml(s.date || '')} ${escapeHtml(s.status_label || s.status || '')}: ${escapeHtml(s.remark || '')})</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        <div class="mt-2.5">
+                            <a href="/member_management.html" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition shadow-sm">
+                                성도 현황에서 확인하기 →
+                            </a>
+                        </div>
+                    </div>
+                `);
+            }
+
+            // 1-5. 성도 개인 이력 삭제 완료 카드
+            if (Array.isArray(meta?.deletedMemberRecords) && meta.deletedMemberRecords.length > 0) {
+                cardChunks.push(`
+                    <div class="mt-2.5 p-3 bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-800/60 text-xs text-rose-800 dark:text-rose-200">
+                        <div class="font-black text-xs flex items-center gap-1.5 mb-1.5 text-rose-700 dark:text-rose-300">
+                            <span>🗑️</span> 성도 개인 이력 삭제 완료 (${meta.deletedMemberRecords.length}건)
+                        </div>
+                        <ul class="list-disc pl-4 space-y-0.5 text-[11px]">
+                            ${meta.deletedMemberRecords.map(d => `<li>${escapeHtml(d.member_name || '')} (${escapeHtml(d.date || '')} ${escapeHtml(d.status_label || d.status || '')}: ${escapeHtml(d.remark || '')})</li>`).join('')}
                         </ul>
                     </div>
                 `);

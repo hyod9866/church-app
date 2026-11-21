@@ -303,20 +303,19 @@ window.renderAttendanceTab = async function(id, member, history, leaderProfile) 
     const attendanceTabContainer = document.getElementById('tabContent_attendance');
     if (!attendanceTabContainer) return;
 
-    // 교구임원모임 의무 대상을 "모임 날짜 시점" 기준으로 정확히 판정하기 위한 직분 이력 조회
-    // (2026-07-05: isMandatoryMeeting의 날짜 인지 판정과 함께 추가)
-    let positionRecords = [];
+    // 모임 날짜 시점 기준으로 구역·교구·교회·직분·활동상태를 정확히 판정하기 위한 인적사항 전체 이력 조회
+    let memberRecords = [];
     try {
-        const recRes = await fetch(`/api/members/${id}/records`);
+        const recRes = await fetch(`/api/members/${id}/records?include_system=1`);
         const recs = await recRes.json();
-        positionRecords = (recs || []).filter(r => r.status === 'POSITION' || r.status === 'POSITION_DISMISS');
+        memberRecords = Array.isArray(recs) ? recs : [];
     } catch (e) { console.error(e); }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
     const rawFilteredHistory = history.filter(h => h.type !== '심방' && h.type !== '상담' && h.type !== '설교' && h.type !== '외부설교' && h.date <= todayStr);
 
     // 의무 대상 모임이거나, 실제로 참석(is_present)했던 기록만 카운트
-    const filteredHistory = rawFilteredHistory.filter(h => window.isMandatoryMeeting(member, h, leaderProfile, positionRecords) || h.is_present);
+    const filteredHistory = rawFilteredHistory.filter(h => window.isMandatoryMeeting(member, h, leaderProfile, memberRecords) || h.is_present);
 
     const getMeetingCategory = (type) => {
         if (type.includes('구역모임')) return 'district';

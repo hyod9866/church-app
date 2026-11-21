@@ -116,6 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- memberAddForm 교회-교구-구역 연동 및 등록/수정 모달 전체 로직은 공용 member-edit.js가 처리 ---
 
 
+    document.addEventListener('ai-assistant:members-updated', () => {
+        if (typeof loadData === 'function') loadData();
+    });
+
     async function loadData() {
         try {
             // [2026-08-23] member_status=all을 명시하지 않으면 서버가 기본값으로 '성도(member)'만

@@ -419,50 +419,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
-            // 미참석자 계산
+            // 미참석자 계산 (모임 날짜 시점·교구·전출 이력 반영)
             let absentHtml = '';
             const typeStr = meeting.type || '';
             if (!['설교', '외부설교', '심방', '교회행사', '기타'].includes(typeStr)) {
-                let targetParams = new URLSearchParams({ status: 'active' });
-                // 교구전체모임/전체조모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상 (meeting_editor.js 공통 헬퍼)
-                const isParishWide = typeStr.includes('교구전체모임') || typeStr.includes('전체조모임');
-                if (isParishWide) {
-                    // 이 모임에 저장된 소속 스냅샷을 우선 사용 — 관리자 소속이 나중에 바뀌어도 과거 모임의 대상자가 흔들리지 않도록.
-                    const snap = { church: meeting.leader_church_snapshot, parish: meeting.leader_parish_snapshot };
-                    await window.applyParishWideTargetFilter(targetParams, snap);
-                } else if (typeStr.includes('구역모임') || typeStr.includes('조모임')) {
-                    const distMatch = typeStr.match(/\d+/);
-                    if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
-                } else if (typeStr === '교구임원모임') {
-                    targetParams.append('has_position', 'true');
-                } else if (typeStr.includes('형제모임')) {
-                    targetParams.append('category', '봉사회');
-                } else if (typeStr.includes('청년모임')) {
-                    targetParams.append('category', '청년회');
-                }
-
-                const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
-                let allTargets = await mRes.json();
-                // 상담만 한 분/전도대상은 성도가 아니므로 대상자에서 제외
-                allTargets = window.filterMeetingTargets(allTargets);
-
-                // 교구전체모임 구분이지만 제목이 '조모임'이면 조모임 대상(성도 S, 청년 제외) 기준을 적용
-                if (isParishWide && (meeting.title || '').includes('조')) {
-                    allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
-                }
-                
-                if (typeStr.includes('형제모임')) {
-                    const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
-                    const eMembers = await eRes.json();
-                    allTargets = [...allTargets, ...eMembers];
-                    allTargets = allTargets.filter(m => m.bs === 'B');
-                }
-                if (typeStr.includes('조모임')) {
-                    allTargets = allTargets.filter(m => m.bs === 'S' && m.category !== '청년회');
-                }
-                if (typeStr === '교구임원모임') {
-                    allTargets = allTargets.filter(m => m.position && m.position.trim().length > 0);
-                }
+                const snap = { church: meeting.leader_church_snapshot, parish: meeting.leader_parish_snapshot };
+                const allTargets = typeof window.fetchMeetingTargets === 'function'
+                    ? await window.fetchMeetingTargets({
+                        type: typeStr,
+                        title: meeting.title || '',
+                        date: meeting.date || '',
+                        snapshot: snap
+                    })
+                    : [];
 
                 const presentIds = p.map(a => a.member_id);
                 const absentees = allTargets.filter(m => !presentIds.includes(m.id));

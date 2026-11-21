@@ -649,8 +649,21 @@ function updateSermonTagActiveState(tagVal) {
 }
 
 // 개인상담 패널 프리셋 태그 (모듈 스코프 — resetCounselingPanel/openMeetingModal 등 어디서든 호출 가능)
-const MODAL_MEMBER_PRESET_TAGS = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼'];
-const MODAL_EVANGELISM_PRESET_TAGS = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+let MODAL_MEMBER_PRESET_TAGS = ['전도상담','구원확신/의심','진로','이성','죄','자녀','부부관계','가족','성경질문','이단','직장생활','결혼','신앙생활'];
+let MODAL_EVANGELISM_PRESET_TAGS = ['전도상담', '성경', '인생', '하나님', '1일차 전체', '2일차 전체', '3일차 전체', '4일차 전체', '성경강연회', '구원'];
+
+async function syncEditorPresetTags() {
+    if (window.CounselingTagManager) {
+        try {
+            const mTags = await window.CounselingTagManager.getMemberTags();
+            const eTags = await window.CounselingTagManager.getEvangelismTags();
+            if (Array.isArray(mTags) && mTags.length > 0) MODAL_MEMBER_PRESET_TAGS = mTags;
+            if (Array.isArray(eTags) && eTags.length > 0) MODAL_EVANGELISM_PRESET_TAGS = eTags;
+        } catch (e) {
+            console.warn('[MEETING EDITOR] syncEditorPresetTags error:', e);
+        }
+    }
+}
 
 function updateModalPresetTags(status) {
     const container = document.getElementById('modalCounselTagBtns');
@@ -658,8 +671,12 @@ function updateModalPresetTags(status) {
 
     container.querySelectorAll('.mcounsel-tag-btn:not(.custom-counsel-tag)').forEach(b => b.remove());
 
-    const tags = status === 'evangelism' ? MODAL_EVANGELISM_PRESET_TAGS : MODAL_MEMBER_PRESET_TAGS;
-    const borderCls = status === 'evangelism'
+    const isEv = (status === 'evangelism');
+    const tags = isEv
+        ? (window.CounselingTagManager?.cache?.evangelismTags || MODAL_EVANGELISM_PRESET_TAGS)
+        : (window.CounselingTagManager?.cache?.memberTags || MODAL_MEMBER_PRESET_TAGS);
+
+    const borderCls = isEv
         ? 'border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white hover:border-orange-500'
         : 'border-indigo-200 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-650 hover:text-white hover:border-indigo-650';
 
@@ -674,6 +691,35 @@ function updateModalPresetTags(status) {
     });
 
     container.insertBefore(fragment, container.firstChild);
+
+    if (typeof renderModalCounselTags === 'function') {
+        renderModalCounselTags();
+    }
+}
+
+// 태그 프리셋 변경 시 실시간 반영 이벤트 리스너 등록
+window.addEventListener('counselingTagsUpdated', (e) => {
+    if (e.detail?.memberTags) MODAL_MEMBER_PRESET_TAGS = e.detail.memberTags;
+    if (e.detail?.evangelismTags) MODAL_EVANGELISM_PRESET_TAGS = e.detail.evangelismTags;
+    const curStatus = document.getElementById('modalCounselingMemberStatus')?.value || 'member';
+    updateModalPresetTags(curStatus);
+});
+
+// 초기화 시 비동기로 태그 프리셋 동기화
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            syncEditorPresetTags().then(() => {
+                const curStatus = document.getElementById('modalCounselingMemberStatus')?.value || 'member';
+                updateModalPresetTags(curStatus);
+            });
+        });
+    } else {
+        syncEditorPresetTags().then(() => {
+            const curStatus = document.getElementById('modalCounselingMemberStatus')?.value || 'member';
+            updateModalPresetTags(curStatus);
+        });
+    }
 }
 
 // Bind all events inside meetingModal. Only run once.
@@ -1125,6 +1171,11 @@ function bindEditorEvents() {
         };
         isSameDayEvent.onchange = updateEndDateState;
         meetingDate.oninput = updateEndDateState;
+        meetingDate.addEventListener('change', () => {
+            if (typeof refreshAttendanceList === 'function') {
+                refreshAttendanceList();
+            }
+        });
     }
 
     // External church search
@@ -1512,6 +1563,25 @@ window.applyParishWideTargetFilter = async function(targetParams, snapshot) {
 // 모임 대상자 공통 후처리: 전도대상(상담 전용 인원) 제외
 window.filterMeetingTargets = function(members) {
     return (members || []).filter(m => m.member_status !== 'evangelism');
+};
+
+// 모임 날짜 시점·구분·리더 스냅샷 기반 출석 대상자 공통 조회 헬퍼 (app.js / meeting_editor.js / meeting_dashboard.js / sermon_history.js 공유)
+window.fetchMeetingTargets = async function({ type, title = '', date = '', snapshot = null } = {}) {
+    const typeStr = (type || '').trim();
+    if (!typeStr || ['설교', '외부설교', '심방', '기타', '상담', '교회행사'].includes(typeStr)) {
+        return [];
+    }
+    const params = new URLSearchParams({ type: typeStr });
+    if (title) params.append('title', title);
+    if (date) params.append('date', date);
+    if (snapshot && snapshot.church) {
+        params.append('leader_church', snapshot.church);
+        if (snapshot.parish) params.append('leader_parish', snapshot.parish);
+    }
+    const res = await fetch(`/api/meetings/targets?${params.toString()}`);
+    if (!res.ok) return [];
+    const list = await res.json();
+    return Array.isArray(list) ? list : [];
 };
 
 // ===== 관리자 설정 (강효근 관리 교회/교구/구역) =====
@@ -1984,22 +2054,7 @@ async function refreshAttendanceList() {
         }
     }
     
-    if (currentType.includes('교구전체모임') || currentType.includes('전체조모임')) {
-        // 교구전체모임: 강효근 소속 교회(+서울중앙교회인 경우 교구) 성도 전체가 대상.
-        // 기존 모임을 편집 중이면(currentMeetingData 존재) 그 모임에 저장된 스냅샷을 우선 사용해서
-        // 관리자 소속이 나중에 바뀌어도 과거 모임의 대상자 명단이 흔들리지 않도록 한다.
-        const snap = currentMeetingData ? { church: currentMeetingData.leader_church_snapshot, parish: currentMeetingData.leader_parish_snapshot } : null;
-        await window.applyParishWideTargetFilter(targetParams, snap);
-    } else if (currentType.includes('구역모임') || currentType.includes('조모임')) {
-        const distMatch = currentType.match(/\d+/);
-        if (distMatch) targetParams.append('district', `${distMatch[0]}구역`);
-    } else if (currentType === '교구임원모임') {
-        targetParams.append('has_position', 'true');
-    } else if (currentType.includes('형제모임')) {
-        targetParams.append('category', '봉사회');
-    } else if (currentType.includes('청년모임')) {
-        targetParams.append('category', '청년회');
-    } else if (['설교', '외부설교', '심방', '기타'].includes(currentType)) {
+    if (['설교', '외부설교', '심방', '기타'].includes(currentType)) {
         const attListNone = document.getElementById('attendanceList');
         attListNone.className = 'space-y-2 max-h-[600px] overflow-y-auto no-scrollbar';
         attListNone.innerHTML = '<p class="text-gray-400 italic text-xs text-center py-4">대상자가 없습니다. 직접 검색하여 추가해 주세요.</p>';
@@ -2017,25 +2072,16 @@ async function refreshAttendanceList() {
         return;
     }
 
-    const mRes = await fetch(`/api/members/search?${targetParams.toString()}`);
-    let members = await mRes.json();
-    members = window.filterMeetingTargets(members);
-
-    if (currentType.includes('형제모임')) {
-        const eRes = await fetch(`/api/members/search?status=active&category=은장회`);
-        const eMembers = await eRes.json();
-        const silverSisters = ['김민주', '정혜숙', '박현숙', '박효순', '이만심', '전계숙', '민승자', '이병숙', '김순임', '김윤연', '허간란'];
-        const eBrothers = eMembers.filter(m => !silverSisters.includes(m.name) && !m.name.includes('자매'));
-        members = [...members, ...eBrothers];
-    }
-
-    if (currentType.includes('조모임')) {
-        members = members.filter(m => m.bs === 'S' && m.category !== '청년회');
-    }
-
-    if (currentType === '교구임원모임') {
-        members = members.filter(m => m.position && m.position.trim().length > 0);
-    }
+    // 모임 날짜 시점 기준으로 전출·구역변경이 반영된 대상자 목록 조회 (구분 + 날짜 + 스냅샷 통합 처리)
+    const meetingDateVal = document.getElementById('meetingDate')?.value || '';
+    const meetingTitleVal = document.getElementById('meetingTitle')?.value || '';
+    const snap = currentMeetingData ? { church: currentMeetingData.leader_church_snapshot, parish: currentMeetingData.leader_parish_snapshot } : null;
+    const members = await window.fetchMeetingTargets({
+        type: currentType,
+        title: meetingTitleVal,
+        date: meetingDateVal,
+        snapshot: snap
+    });
 
     let att = []; 
     if (currentMeetingId) { 
